@@ -284,6 +284,7 @@ apply_static_defaults() {
     set_env_default SSL_CN "\"$(env_value HOST '')\""
     set_env_default SSL_ORG "\"ocserv-dashboard\""
     set_env_default SSL_EXPIRE 3650
+    set_env_default LETSENCRYPT_EMAIL "\"\""
     set_env_default TLS_CERT_FILE "\"\""
     set_env_default TLS_KEY_FILE "\"\""
     set_env_default TLS_MOUNT_DIR "\"/etc/letsencrypt\""
@@ -326,10 +327,15 @@ apply_static_defaults() {
     set_env_default POSTGRES_READY_RETRY_SECONDS 1
     set_env_default DEBUG 0
     set_env_default OCSERV_DEBUG 999
-    if [[ -n "$(env_value LETSENCRYPT_EMAIL '')" ]]; then
-        set_env_value TLS_CERT_FILE "\"/etc/letsencrypt/live/$(env_value HOST '')/fullchain.pem\""
-        set_env_value TLS_KEY_FILE  "\"/etc/letsencrypt/live/$(env_value HOST '')/privkey.pem\""
-    fi
+}
+
+configure_letsencrypt() {
+    local email host
+    email="$(env_value LETSENCRYPT_EMAIL '')"
+    [[ -n "${email}" ]] || return 0
+    host="$(env_value HOST '')"
+    set_env_value TLS_CERT_FILE "\"/etc/letsencrypt/live/${host}/fullchain.pem\""
+    set_env_value TLS_KEY_FILE  "\"/etc/letsencrypt/live/${host}/privkey.pem\""
 }
 
 obtain_letsencrypt() {
@@ -493,6 +499,11 @@ edit_environment_value() {
             whiptail --msgbox 'HOST MUST BE AN IPV4 ADDRESS OR DOMAIN NAME WITHOUT HTTP:// OR HTTPS://.' 8 70 || true
             return
         } ;;
+        LETSENCRYPT_EMAIL)
+            [[ -z "${value}" || "${value}" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]] || {
+                whiptail --msgbox 'ENTER A VALID EMAIL ADDRESS, OR LEAVE IT EMPTY FOR A SELF-SIGNED CERTIFICATE.' 8 70 || true
+                return
+        } ;;
         WEB_PORT|OCSERV_PORT) [[ "${value}" =~ ^[0-9]+$ ]] || {
             whiptail --msgbox 'Port must be numeric.' 8 60 || true
             return
@@ -566,6 +577,7 @@ edit_environment_graphically() {
             OCSERV_DNS 'OCSERV DNS' \
             OCSERV_BANNER 'OCSERV BANNER' \
             OCSERV_PRE_LOGIN_BANNER 'OCSERV PRE LOGIN BANNER' \
+            LETSENCRYPT_EMAIL "LET'S ENCRYPT EMAIL (EMPTY = SELF-SIGNED)" \
             SSL_CN 'SSL CN' \
             SSL_ORG 'SSL ORG' \
             SSL_EXPIRE 'SSL EXPIRE' \
@@ -813,6 +825,7 @@ main() {
     case "${deployment}" in
         docker)
             set_env_value SYSTEMD false
+            configure_letsencrypt
             obtain_letsencrypt
             install_docker
             ;;
