@@ -749,6 +749,7 @@ install_docker() {
         --volume "${data_root}/telegram_receipts:/opt/ocserv_dashboard/uploads/receipts" \
         --volume "${data_root}/postgresql18:/var/lib/postgresql" \
         --volume "${data_root}/cron_journal:/app/cron_journal" \
+        "${tls_mount_args[@]}" \
         --publish "${ocserv_port}:${ocserv_port}/tcp" \
         --publish "${ocserv_port}:${ocserv_port}/udp" \
         "${service_publish_args[@]}" \
