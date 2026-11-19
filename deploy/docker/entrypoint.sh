@@ -23,7 +23,7 @@ normalize_container_environment() {
         CUSTOMER_API_ENABLED ETH HTTP_PORT NGINX_ENABLED OCSERV_BANNER OCSERV_DEBUG
         OCSERV_PRE_LOGIN_BANNER OCSERV_REGENERATE_CONFIG RUN_MIGRATIONS SECRET_KEY
         SUPERADMIN_PASSWORD SUPERADMIN_USERNAME SYSTEMD TELEGRAM_BOT_ENABLED WEB_PORT
-        TELEGRAM_RECEIPTS_DIR
+        TELEGRAM_RECEIPTS_DIR TLS_CERT_FILE TLS_KEY_FILE
     )
 
     for variable in "${variables[@]}"; do
@@ -35,8 +35,8 @@ normalize_container_environment() {
 }
 
 : "${OCSERV_PORT:=443}"
-: "${OC_NET:=172.16.24.0/24}"
-: "${OCSERV_DNS:=1.1.1.1}"
+: "${OC_NET:=10.0.0.0/24}"
+: "${OCSERV_DNS:=8.8.8.8}"
 : "${SSL_CN:=ocserv-dashboard}"
 : "${SSL_ORG:=ocserv-dashboard}"
 : "${SSL_EXPIRE:=3650}"
@@ -48,6 +48,8 @@ normalize_container_environment() {
 : "${POSTGRES_DB:=ocserv_db}"
 : "${POSTGRES_SSLMODE:=disable}"
 : "${POSTGRES_PASSWORD:=}"
+: "${TLS_CERT_FILE:=}"
+: "${TLS_KEY_FILE:=}"
 
 OCSERV_PORT="$(strip_surrounding_quotes "${OCSERV_PORT}")"
 OC_NET="$(strip_surrounding_quotes "${OC_NET}")"
@@ -63,6 +65,8 @@ POSTGRES_USER="$(strip_surrounding_quotes "${POSTGRES_USER}")"
 POSTGRES_DB="$(strip_surrounding_quotes "${POSTGRES_DB}")"
 POSTGRES_SSLMODE="$(strip_surrounding_quotes "${POSTGRES_SSLMODE}")"
 POSTGRES_PASSWORD="$(strip_surrounding_quotes "${POSTGRES_PASSWORD}")"
+TLS_CERT_FILE="$(strip_surrounding_quotes "${TLS_CERT_FILE}")"
+TLS_KEY_FILE="$(strip_surrounding_quotes "${TLS_KEY_FILE}")"
 
 export PGDATA POSTGRES_HOST POSTGRES_PORT POSTGRES_USER POSTGRES_DB POSTGRES_SSLMODE POSTGRES_PASSWORD
 normalize_container_environment

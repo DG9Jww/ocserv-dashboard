@@ -102,7 +102,7 @@ validate_host() {
     [[ -S /var/run/docker.sock ]] \
         || die "/var/run/docker.sock is unavailable"
 
-    [[ -c /dev/net/tun ]] \
+    [[ "$(uname -s)" != "Linux" || -c /dev/net/tun ]] \
         || die "/dev/net/tun is unavailable; load the tun module before running this script"
 
     [[ "${VPN_PORT}" =~ ^[0-9]+$ ]] \
@@ -188,6 +188,7 @@ start_container() {
     "${docker_cmd[@]}" run --detach \
         --name "${CONTAINER_NAME}" \
         --label "${DEVELOPMENT_LABEL}" \
+        --env-file "${PROJECT_ROOT}/.env" \
         --restart unless-stopped \
         --env HOST_PROC=/host/proc \
         --env HOST_SYS=/host/sys \

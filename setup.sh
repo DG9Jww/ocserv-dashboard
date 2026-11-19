@@ -277,13 +277,16 @@ apply_static_defaults() {
         set_env_value SUPERADMIN_PASSWORD "\"$(openssl rand -base64 24 | tr -d '\\n')\""
     fi
     set_env_default OCSERV_PORT 443
-    set_env_default OC_NET "\"172.16.24.0/24\""
-    set_env_default OCSERV_DNS "\"1.1.1.1\""
+    set_env_default OC_NET "\"10.0.0.0/24\""
+    set_env_default OCSERV_DNS "\"8.8.8.8\""
     set_env_default OCSERV_BANNER "\"Welcome to the VPN service\""
     set_env_default OCSERV_PRE_LOGIN_BANNER "\"Welcome\""
     set_env_default SSL_CN "\"$(env_value HOST '')\""
     set_env_default SSL_ORG "\"ocserv-dashboard\""
     set_env_default SSL_EXPIRE 3650
+    set_env_default TLS_CERT_FILE "\"\""
+    set_env_default TLS_KEY_FILE "\"\""
+    set_env_default TLS_MOUNT_DIR "\"/etc/letsencrypt\""
     set_env_default ETH "\"\""
     set_env_default TELEGRAM_BOT_ENABLED true
     set_env_default CUSTOMER_API_ENABLED true
@@ -637,6 +640,11 @@ install_docker() {
     local ocserv_port
     local host
     local -a service_publish_args
+
+    local -a tls_mount_args=()
+    if [[ -n "$(env_value TLS_CERT_FILE '')" ]]; then
+        tls_mount_args=(--volume "$(env_value TLS_MOUNT_DIR /etc/letsencrypt):$(env_value TLS_MOUNT_DIR /etc/letsencrypt):ro")
+    fi
 
     customer_api_enabled="$(normalized_bool "$(env_value CUSTOMER_API_ENABLED true)")"
     telegram_bot_enabled="$(normalized_bool "$(env_value TELEGRAM_BOT_ENABLED false)")"
