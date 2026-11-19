@@ -139,6 +139,7 @@ COPY --from=web-builder /out/admin/ /usr/share/nginx/html/
 COPY --from=web-builder /out/customer/ /usr/share/nginx/html/customer/
 COPY --chmod=755 deploy/docker/entrypoint.sh /usr/local/bin/container-entrypoint
 COPY --chmod=755 deploy/docker/server.sh /usr/local/bin/container-server
+COPY --chmod=0644 deploy/common/tls.sh /usr/local/lib/ocserv-dashboard/tls.sh
 
 ENV OCSERV_PORT=${OCSERV_PORT:-443} \
     AGENT_NODE=${AGENT_NODE} \

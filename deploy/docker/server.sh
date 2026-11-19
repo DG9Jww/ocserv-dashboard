@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Shared all-in-one process supervisor for master and agent images.
-
+source "${TLS_LIB:-/usr/local/lib/ocserv-dashboard/tls.sh}"
 set -Eeuo pipefail
 
 : "${RUN_MIGRATIONS:=true}"
@@ -184,6 +184,7 @@ configure_nginx() {
     fi
     [[ "${WEB_PORT}" =~ ^[0-9]+$ ]] || { log "WEB_PORT must be numeric"; return 1; }
     [[ "${API_PORT}" =~ ^[0-9]+$ ]] || { log "API_PORT must be numeric"; return 1; }
+    resolve_tls_paths || return 1
 
     {
         cat <<EOF
@@ -193,8 +194,8 @@ server {
     server_name ${HOST};
     root /usr/share/nginx/html;
 
-    ssl_certificate /etc/ocserv/certs/cert.pem;
-    ssl_certificate_key /etc/ocserv/certs/cert.key;
+    ssl_certificate ${SERVER_CERT};
+    ssl_certificate_key ${SERVER_KEY};
     ssl_protocols TLSv1.2 TLSv1.3;
     error_page 497 =301 https://\$host:${WEB_PORT}\$request_uri;
 
@@ -252,8 +253,8 @@ server {
     listen [::]:${API_PORT} ssl;
     server_name ${HOST};
 
-    ssl_certificate /etc/ocserv/certs/cert.pem;
-    ssl_certificate_key /etc/ocserv/certs/cert.key;
+    ssl_certificate ${SERVER_CERT};
+    ssl_certificate_key ${SERVER_KEY};
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location / {

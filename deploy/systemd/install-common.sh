@@ -12,6 +12,9 @@ readonly OCSERV_UNIT=/etc/systemd/system/ocserv.service
 readonly NGINX_SITE=/etc/nginx/sites-available/ocserv-dashboard
 readonly UI_DIR=/var/www/ocserv-dashboard
 
+export TLS_LIB="${PROJECT_ROOT}/deploy/common/tls.sh"
+source "${TLS_LIB}"
+
 temporary_binary=''
 INSTALL_DIR=''
 INSTALLED_ENV_FILE=''
@@ -312,7 +315,7 @@ configure_nginx() {
         systemctl disable --now nginx.service 2>/dev/null || true
         return
     fi
-
+    resolve_tls_paths || die "TLS certificate files are not readable"
     log "configuring nginx for the admin UI and API"
     rm -f /etc/nginx/sites-enabled/default
     {

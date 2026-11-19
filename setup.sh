@@ -326,6 +326,45 @@ apply_static_defaults() {
     set_env_default POSTGRES_READY_RETRY_SECONDS 1
     set_env_default DEBUG 0
     set_env_default OCSERV_DEBUG 999
+    if [[ -n "$(env_value LETSENCRYPT_EMAIL '')" ]]; then
+        set_env_value TLS_CERT_FILE "\"/etc/letsencrypt/live/$(env_value HOST '')/fullchain.pem\""
+        set_env_value TLS_KEY_FILE  "\"/etc/letsencrypt/live/$(env_value HOST '')/privkey.pem\""
+    fi
+}
+
+obtain_letsencrypt() {
+    local host email cert
+    local -a as_root=()
+
+    cert="$(env_value TLS_CERT_FILE '')"
+    [[ -n "${cert}" ]] || return 0
+    host="$(env_value HOST '')"
+    email="$(env_value LETSENCRYPT_EMAIL '')"
+    [[ ! "${host}" =~ ^[0-9.]+$ ]] || die "Let's Encrypt needs a domain name in HOST, not an IP address"
+    [[ -n "${email}" ]] || die "set LETSENCRYPT_EMAIL in ${ENV_FILE}"
+
+    [[ "${EUID}" -eq 0 ]] || as_root=(sudo)
+    command -v certbot >/dev/null 2>&1 || install_apt_package certbot
+
+    if ! "${as_root[@]}" test -r "${cert}"; then
+        log "requesting a Let's Encrypt certificate for ${host} (port 80 must be free and reachable)"
+        "${as_root[@]}" certbot certonly --standalone --preferred-challenges http \
+            --non-interactive --agree-tos --email "${email}" -d "${host}" \
+            || die "certbot failed; check DNS for ${host} and that port 80 is open"
+    fi
+
+    "${as_root[@]}" install -d -m 755 /etc/letsencrypt/renewal-hooks/deploy
+    "${as_root[@]}" tee /etc/letsencrypt/renewal-hooks/deploy/ocserv-dashboard.sh >/dev/null <<'EOF'
+#!/bin/sh
+if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet ocserv.service; then
+    systemctl reload nginx.service 2>/dev/null || true
+    systemctl reload ocserv.service || systemctl restart ocserv.service
+fi
+if command -v docker >/dev/null 2>&1 && docker container inspect ocserv >/dev/null 2>&1; then
+    docker exec ocserv sh -c 'kill -HUP "$(cat /var/run/ocserv.pid)"; nginx -s reload 2>/dev/null; true'
+fi
+EOF
+    "${as_root[@]}" chmod 755 /etc/letsencrypt/renewal-hooks/deploy/ocserv-dashboard.sh
 }
 
 detect_host_ip() {
@@ -378,7 +417,7 @@ configure_host() {
         set_env_value HOST "${host}"
     done
 
-    for key in ALLOW_ORIGINS SSL_CN; do
+    for key in ALLOW_ORIGINS SSL_CN TLS_CERT_FILE TLS_KEY_FILE; do
         value="$(env_value "${key}" '')"
         if [[ "${value}" == *'{HOST}'* ]]; then
             value="${value//\{HOST\}/${host}}"
@@ -774,6 +813,7 @@ main() {
     case "${deployment}" in
         docker)
             set_env_value SYSTEMD false
+            obtain_letsencrypt
             install_docker
             ;;
         systemd)

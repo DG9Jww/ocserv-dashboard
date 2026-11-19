@@ -15,9 +15,18 @@ strip_surrounding_quotes() {
     printf '%s\n' "${value}"
 }
 
+# shellcheck source=/dev/null
+source "${TLS_LIB:-/usr/local/lib/ocserv-dashboard/tls.sh}"
+
 normalize_container_environment() {
-    local variable
-    local value
+    local variable value
+    for variable in $(compgen -e); do
+        [[ "${variable}" =~ ^[A-Z][A-Z0-9_]*$ ]] || continue
+        value="$(strip_surrounding_quotes "${!variable}")"
+        printf -v "${variable}" '%s' "${value}"
+        export "${variable}"
+    done
+
     local -a variables=(
         AGENT_NODE ALLOW_ORIGINS API_PORT BACKEND_HOST BACKEND_PORT CURRENT_RELEASE DEBUG HOST
         CUSTOMER_API_ENABLED ETH HTTP_PORT NGINX_ENABLED OCSERV_BANNER OCSERV_DEBUG
@@ -162,14 +171,15 @@ EOF
 }
 
 ensure_server_certificate() {
+    resolve_tls_paths || die "Let's Encrypt certificate files are missing; run certbot first"
+    [[ "${SERVER_CERT}" == "${SELF_SIGNED_CERT}" ]] || { log "using TLS certificate ${SERVER_CERT}"; return; }
+
     local ca_template="${OCSERV_CERTS_DIR}/ca.tmpl"
     local server_template="${OCSERV_CERTS_DIR}/server.tmpl"
-
     mkdir -p "${OCSERV_CERTS_DIR}"
     if [[ -f "${OCSERV_CERTS_DIR}/cert.pem" && -f "${OCSERV_CERTS_DIR}/cert.key" ]]; then
         return
     fi
-
     log "generating Ocserv server certificate"
     cat >"${ca_template}" <<EOF
 cn = "${SSL_CN}"
@@ -236,8 +246,8 @@ dpd = 90
 mobile-dpd = 1800
 switch-to-tcp-timeout = 5
 try-mtu-discovery = true
-server-cert = /etc/ocserv/certs/cert.pem
-server-key = /etc/ocserv/certs/cert.key
+server-cert = ${SERVER_CERT}
+server-key = ${SERVER_KEY}
 tls-priorities = "NORMAL:%SERVER_PRECEDENCE:%COMPAT:-RSA:-VERS-SSL3.0:-ARCFOUR-128"
 auth-timeout = 40
 min-reauth-time = 300
@@ -285,6 +295,9 @@ ensure_ocserv_layout() {
         write_ocserv_config
     else
         log "preserving existing ${OCSERV_CONF}"
+        if grep -q '^# Managed by the ocserv-dashboard container$' "${OCSERV_CONF}"; then
+            sed -i "s|^server-cert = .*|server-cert = ${SERVER_CERT}|; s|^server-key = .*|server-key = ${SERVER_KEY}|" "${OCSERV_CONF}"
+        fi
     fi
 }
 
