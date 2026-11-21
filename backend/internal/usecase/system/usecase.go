@@ -8,13 +8,12 @@ import (
 )
 
 type Usecase struct {
-	runtime     Runtime
 	config      ConfigStore
 	allowUpdate bool
 }
 
-func New(runtime Runtime, config ConfigStore, allowUpdate bool) *Usecase {
-	return &Usecase{runtime: runtime, config: config, allowUpdate: allowUpdate}
+func New(config ConfigStore, allowUpdate bool) *Usecase {
+	return &Usecase{config: config, allowUpdate: allowUpdate}
 }
 
 func (u *Usecase) Config(ctx context.Context) (*ConfigResponse, error) {
@@ -32,14 +31,7 @@ func (u *Usecase) UpdateConfig(ctx context.Context, changes OcservConfig) (*Ocse
 	if err := ValidateConfig(changes); err != nil {
 		return nil, err
 	}
-	updated, err := u.config.Write(ctx, changes)
-	if err != nil {
-		return nil, err
-	}
-	if err := u.runtime.Restart(ctx); err != nil {
-		return nil, fmt.Errorf("ocserv configuration saved but runtime restart failed: %w", err)
-	}
-	return updated, nil
+	return u.config.Write(ctx, changes)
 }
 
 func ValidateConfig(config OcservConfig) error {

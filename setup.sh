@@ -289,8 +289,13 @@ apply_static_defaults() {
     set_env_default TLS_KEY_FILE "\"\""
     set_env_default TLS_MOUNT_DIR "\"/etc/letsencrypt\""
     set_env_default ETH "\"\""
-    set_env_default TELEGRAM_BOT_ENABLED true
-    set_env_default CUSTOMER_API_ENABLED true
+    if [[ "${agent_node}" == true ]]; then
+        set_env_default TELEGRAM_BOT_ENABLED false
+        set_env_default CUSTOMER_API_ENABLED false
+    else
+        set_env_default TELEGRAM_BOT_ENABLED true
+        set_env_default CUSTOMER_API_ENABLED true
+    fi
     set_env_default BACKEND_HOST "\"0.0.0.0\""
     set_env_default BACKEND_PORT 8080
     set_env_default WEB_PORT 3000
@@ -613,7 +618,10 @@ prepare_environment() {
         set_env_value POSTGRES_PASSWORD "\"$(openssl rand -hex 32)\""
         set_env_value SUPERADMIN_PASSWORD "\"$(openssl rand -base64 24 | tr -d '\n')\""
         set_env_value AGENT_NODE "${agent_node}"
-        [[ "${agent_node}" == true ]] && set_env_value CUSTOMER_API_ENABLED false
+        if [[ "${agent_node}" == true ]]; then
+            set_env_value CUSTOMER_API_ENABLED false
+            set_env_value TELEGRAM_BOT_ENABLED false
+        fi
         configure_host
         apply_static_defaults
         log "created ${ENV_FILE} with generated secrets; review it before exposing the service"
@@ -622,7 +630,7 @@ prepare_environment() {
     fi
 
     sanitize_environment_file
-    current_mode="$(awk -F= '/^[[:space:]]*AGENT_NODE=/{gsub(/[[:space:]\"\047]/, "", $2); print tolower($2); exit}' "${ENV_FILE}")"
+    current_mode="$(awk -F= '/^[[:space:]]*AGENT_NODE=/{gsub(/[[:space:]"\047]/, "", $2); print tolower($2); exit}' "${ENV_FILE}")"
     if [[ -n "${current_mode}" && "${current_mode}" != "${agent_node}" ]]; then
         confirm "${ENV_FILE} has AGENT_NODE=${current_mode}; change it to ${agent_node}?" || \
             die "existing environment was not changed"
@@ -771,7 +779,7 @@ install_systemd() {
     local installer="${PROJECT_ROOT}/deploy/systemd/${node_mode}/install.sh"
     [[ -x "${installer}" ]] || die "systemd installer not found or not executable: ${installer}"
     if [[ "${EUID}" -eq 0 ]]; then
-        ENV_FILE="${ENV_FILE}" "${installer}"
+        env ENV_FILE="${ENV_FILE}" "${installer}"
         return
     fi
     command -v sudo >/dev/null 2>&1 || die "sudo is required for systemd installation"
@@ -832,6 +840,8 @@ main() {
             ;;
         systemd)
             set_env_value SYSTEMD true
+            configure_letsencrypt
+            obtain_letsencrypt
             install_systemd
             ;;
     esac

@@ -8,10 +8,12 @@ set -Eeuo pipefail
 : "${MIGRATION_MAX_ATTEMPTS:=30}"
 : "${MIGRATION_RETRY_SECONDS:=2}"
 : "${POSTGRES_PORT:=5432}"
+: "${POSTGRES_HOST:=127.0.0.1}"
 : "${POSTGRES_USER:=ocserv}"
 : "${POSTGRES_DB:=ocserv_db}"
 : "${POSTGRES_READY_MAX_ATTEMPTS:=60}"
 : "${POSTGRES_READY_RETRY_SECONDS:=1}"
+: "${INSTALL_POSTGRES:=true}"
 : "${DEBUG:=0}"
 : "${OCSERV_DEBUG:=999}"
 : "${AGENT_NODE:=false}"
@@ -54,7 +56,7 @@ load_postgres_password() {
         unset POSTGRES_PASSWORD_FILE
     fi
     if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
-        log "POSTGRES_PASSWORD is required for the bundled PostgreSQL server"
+        log "POSTGRES_PASSWORD is required"
         return 1
     fi
     if [[ "${POSTGRES_PASSWORD}" == "replace-with-a-strong-database-password" ]]; then
@@ -102,18 +104,31 @@ ensure_superadmin() {
 }
 
 start_postgres() {
-    local attempt=1
+    local -a postgres_args=(-p "${POSTGRES_PORT}")
 
-    # This image is intentionally all-in-one; backend always uses its local PostgreSQL.
     export POSTGRES_HOST=127.0.0.1
     export PGPORT="${POSTGRES_PORT}"
 
+    if is_true "${AGENT_NODE}"; then
+        postgres_args+=(
+            -c shared_buffers=32MB
+            -c work_mem=2MB
+            -c maintenance_work_mem=32MB
+            -c max_connections=30
+        )
+    fi
+
     log "starting PostgreSQL 18"
-    /usr/local/bin/docker-entrypoint.sh postgres -p "${POSTGRES_PORT}" &
+    /usr/local/bin/docker-entrypoint.sh postgres "${postgres_args[@]}" &
     postgres_pid=$!
+}
+
+wait_for_postgres() {
+    local attempt=1
+    local exit_code
 
     while (( attempt <= POSTGRES_READY_MAX_ATTEMPTS )); do
-        if pg_isready \
+        if PGSSLMODE="${POSTGRES_SSLMODE:-disable}" pg_isready \
             --host="${POSTGRES_HOST}" \
             --port="${POSTGRES_PORT}" \
             --username="${POSTGRES_USER}" \
@@ -122,11 +137,9 @@ start_postgres() {
             return
         fi
 
-        if ! kill -0 "${postgres_pid}" 2>/dev/null; then
-            set +e
-            wait "${postgres_pid}"
-            local exit_code=$?
-            set -e
+        if [[ -n "${postgres_pid}" ]] && ! kill -0 "${postgres_pid}" 2>/dev/null; then
+            exit_code=0
+            wait "${postgres_pid}" || exit_code=$?
             log "PostgreSQL exited during startup with status ${exit_code}"
             if (( exit_code == 0 )); then
                 return 1
@@ -298,7 +311,12 @@ main() {
     validate_image_mode
     configure_nginx
     load_postgres_password
-    if ! start_postgres; then
+    if is_true "${INSTALL_POSTGRES}"; then
+        start_postgres
+    else
+        log "using external PostgreSQL at ${POSTGRES_HOST}:${POSTGRES_PORT}"
+    fi
+    if ! wait_for_postgres; then
         stop_services
         return 1
     fi
@@ -334,7 +352,10 @@ main() {
     ocserv_pid=$!
 
     set +e
-    service_pids=("${backend_pid}" "${ocserv_pid}" "${postgres_pid}")
+    service_pids=("${backend_pid}" "${ocserv_pid}")
+    if [[ -n "${postgres_pid}" ]]; then
+        service_pids+=("${postgres_pid}")
+    fi
     if [[ -n "${nginx_pid}" ]]; then
         service_pids+=("${nginx_pid}")
     fi

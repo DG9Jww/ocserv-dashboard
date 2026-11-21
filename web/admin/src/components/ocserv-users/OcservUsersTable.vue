@@ -144,15 +144,15 @@ const columns: ColumnDef<DataTableFeatures, OcservUser>[] =
     columnHelper.accessor("username", {
       sortFn: "text",
       header: ({ column }) => sortableHeader(column, t("ocservUsers.username")),
-      cell: ({ row }) =>
-        h("div", { class: "grid gap-0.5" }, [
-          h("span", { class: "font-medium" }, row.original.username),
-          h(
-            "span",
-            { class: "text-xs text-muted-foreground" },
-            row.original.description || "—",
-          ),
-        ]),
+      cell: ({ row }) => {
+        const { username, description } = row.original;
+        return h("div", { class: "grid gap-0.5" }, [
+          h("span", { class: "font-medium" }, username),
+          description?.trim()
+            ? h("span", { class: "text-xs text-muted-foreground" }, description)
+            : null,
+        ]);
+      },
     }),
     columnHelper.accessor("group", {
       sortFn: "text",

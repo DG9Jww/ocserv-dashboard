@@ -2,8 +2,8 @@
 # Resolves the server certificate used by ocserv and nginx.
 # Sets and exports SERVER_CERT / SERVER_KEY.
 
-readonly SELF_SIGNED_CERT=/etc/ocserv/certs/cert.pem
-readonly SELF_SIGNED_KEY=/etc/ocserv/certs/cert.key
+SELF_SIGNED_CERT=/etc/ocserv/certs/cert.pem
+SELF_SIGNED_KEY=/etc/ocserv/certs/cert.key
 
 resolve_tls_paths() {
     local cert="${TLS_CERT_FILE:-}"

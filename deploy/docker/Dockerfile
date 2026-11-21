@@ -3,16 +3,19 @@
 ARG GO_VERSION=1.27.1
 ARG NODE_VERSION=24
 ARG POSTGRES_VERSION=18
+ARG AGENT_NODE=false
 
 FROM golang:${GO_VERSION}-bookworm AS backend-builder
 
+ARG AGENT_NODE
 ENV CGO_ENABLED=0 \
     GOOS=linux
 WORKDIR /src/backend
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ ./
-RUN go build -trimpath -ldflags="-s -w" -o /out/backend ./main.go
+RUN if [ "${AGENT_NODE}" = "true" ]; then export GOFLAGS=-p=1; fi; \
+    go build -trimpath -ldflags="-s -w" -o /out/backend ./main.go
 
 FROM node:${NODE_VERSION}-bookworm AS web-builder
 
@@ -44,12 +47,10 @@ RUN set -eux; \
 
 # PostgreSQL 18 official image is Debian 13 (Trixie) and provides the
 # PostgreSQL binaries, gosu, PGDATA layout, and docker-entrypoint.sh.
-FROM postgres:${POSTGRES_VERSION}-trixie
+FROM postgres:${POSTGRES_VERSION}-trixie AS runtime
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG AGENT_NODE=false
-ARG CUSTOMER_API_ENABLED=true
-ARG TELEGRAM_BOT_ENABLED=true
+ARG AGENT_NODE
 
 COPY --chmod=0755 deploy/common/ocserv_binary_install.sh /usr/local/bin/ocserv-binary-install
 # Ocserv is installed outside of dpkg, so preserve packages providing its linked
@@ -87,13 +88,13 @@ RUN apt-get update \
         libtalloc-dev \
         meson \
         ninja-build \
-        nginx \
         openssl \
         pkg-config \
         procps \
         protobuf-c-compiler \
         sudo \
         tini \
+    && if [ "${AGENT_NODE}" = "true" ]; then export OCSERV_BUILD_JOBS=1; fi \
     && /usr/local/bin/ocserv-binary-install \
     && for binary in occtl ocpasswd; do \
         binary_path="$(command -v "${binary}")"; \
@@ -128,38 +129,31 @@ RUN apt-get update \
         pkg-config \
         protobuf-c-compiler \
     && /usr/bin/occtl --version >/dev/null \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/local/bin/ocserv-binary-install \
-    && rm -f /etc/nginx/sites-enabled/default \
-    && rm -rf /usr/share/nginx/html/*
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/local/bin/ocserv-binary-install
 
 WORKDIR /app
 
 COPY --from=backend-builder /out/backend /usr/local/bin/backend
-COPY --from=web-builder /out/admin/ /usr/share/nginx/html/
-COPY --from=web-builder /out/customer/ /usr/share/nginx/html/customer/
 COPY --chmod=755 deploy/docker/entrypoint.sh /usr/local/bin/container-entrypoint
 COPY --chmod=755 deploy/docker/server.sh /usr/local/bin/container-server
 COPY --chmod=0644 deploy/common/tls.sh /usr/local/lib/ocserv-dashboard/tls.sh
 
-ENV OCSERV_PORT=${OCSERV_PORT:-443} \
+ENV OCSERV_PORT=443 \
     AGENT_NODE=${AGENT_NODE} \
     IMAGE_AGENT_NODE=${AGENT_NODE} \
-    IMAGE_CUSTOMER_API_ENABLED=${CUSTOMER_API_ENABLED} \
-    SYSTEMD=${SYSTEMD:-false} \
-    TELEGRAM_BOT_ENABLED=${TELEGRAM_BOT_ENABLED} \
-    CUSTOMER_API_ENABLED=${CUSTOMER_API_ENABLED} \
-    OC_NET=${OC_NET:-172.16.24.0/24} \
-    OCSERV_DNS=${OCSERV_DNS:-1.1.1.1} \
-    SSL_CN=${SSL_CN:-ocserv-dashboard} \
-    SSL_ORG=${SSL_ORG:-ocserv-dashboard} \
-    SSL_EXPIRE=${SSL_EXPIRE:-3650} \
-    OCSERV_PRESERVE_CONFIG=${OCSERV_PRESERVE_CONFIG:-false} \
+    SYSTEMD=false \
+    OC_NET=172.16.24.0/24 \
+    OCSERV_DNS=1.1.1.1 \
+    SSL_CN=ocserv-dashboard \
+    SSL_ORG=ocserv-dashboard \
+    SSL_EXPIRE=3650 \
+    OCSERV_PRESERVE_CONFIG=false \
     PGDATA=/var/lib/postgresql/18/docker \
-    POSTGRES_HOST=${POSTGRES_HOST:-127.0.0.1} \
-    POSTGRES_PORT=${POSTGRES_PORT:-5432} \
-    POSTGRES_USER=${POSTGRES_USER:-ocserv} \
-    POSTGRES_DB=${POSTGRES_DB:-ocserv_db} \
-    POSTGRES_SSLMODE=${POSTGRES_SSLMODE:-disable} \
+    POSTGRES_HOST=127.0.0.1 \
+    POSTGRES_PORT=5432 \
+    POSTGRES_USER=ocserv \
+    POSTGRES_DB=ocserv_db \
+    POSTGRES_SSLMODE=disable \
     POSTGRES_READY_MAX_ATTEMPTS=60 \
     POSTGRES_READY_RETRY_SECONDS=1 \
     RUN_MIGRATIONS=true \
@@ -173,21 +167,50 @@ RUN mkdir -p \
         /opt/ocserv_dashboard/uploads/receipts \
         /etc/ocserv/defaults \
         /etc/ocserv/groups \
-        /etc/ocserv/users \
-        /usr/share/nginx/html/customer
+        /etc/ocserv/users
 
-EXPOSE 443/tcp 443/udp 3000/tcp 8000/tcp
+EXPOSE 443/tcp 443/udp
 
 VOLUME ["/var/lib/postgresql", "/etc/ocserv", "/app/cron_journal", "/opt/ocserv_dashboard/uploads/receipts"]
 
 STOPSIGNAL SIGTERM
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
-    CMD if [ "$AGENT_NODE" = "true" ]; then \
-        curl --fail --silent http://127.0.0.1:8080/health >/dev/null; \
-    else \
-        curl --fail --silent --insecure https://127.0.0.1:3000/health >/dev/null; \
-    fi
-
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/container-entrypoint"]
 CMD ["/usr/local/bin/container-server"]
+
+FROM runtime AS runtime-true
+
+ARG CUSTOMER_API_ENABLED=false
+ARG TELEGRAM_BOT_ENABLED=false
+ENV CUSTOMER_API_ENABLED=${CUSTOMER_API_ENABLED} \
+    IMAGE_CUSTOMER_API_ENABLED=${CUSTOMER_API_ENABLED} \
+    TELEGRAM_BOT_ENABLED=${TELEGRAM_BOT_ENABLED}
+
+EXPOSE 8080/tcp
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
+    CMD curl --fail --silent http://127.0.0.1:8080/health >/dev/null
+
+FROM runtime AS runtime-false
+
+ARG CUSTOMER_API_ENABLED=true
+ARG TELEGRAM_BOT_ENABLED=true
+ENV CUSTOMER_API_ENABLED=${CUSTOMER_API_ENABLED} \
+    IMAGE_CUSTOMER_API_ENABLED=${CUSTOMER_API_ENABLED} \
+    TELEGRAM_BOT_ENABLED=${TELEGRAM_BOT_ENABLED}
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nginx \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /etc/nginx/sites-enabled/default \
+    && rm -rf /usr/share/nginx/html/*
+
+COPY --from=web-builder /out/admin/ /usr/share/nginx/html/
+COPY --from=web-builder /out/customer/ /usr/share/nginx/html/customer/
+
+EXPOSE 3000/tcp 8000/tcp
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
+    CMD curl --fail --silent --insecure https://127.0.0.1:3000/health >/dev/null
+
+# Preserve the installer's AGENT_NODE build argument while keeping the Agent
+# build independent of the web-builder and nginx layers.
+FROM runtime-${AGENT_NODE} AS final

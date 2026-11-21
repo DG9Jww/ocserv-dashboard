@@ -18,7 +18,8 @@ meson setup build \
     --sysconfdir=/etc
 
 echo "Compiling..."
-meson compile -C build -j"$(nproc)"
+build_jobs="${OCSERV_BUILD_JOBS:-$(nproc)}"
+meson compile -C build -j"${build_jobs}"
 
 echo "Installing..."
 meson install -C build

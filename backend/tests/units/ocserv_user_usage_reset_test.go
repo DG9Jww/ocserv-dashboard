@@ -86,6 +86,53 @@ func TestWorkerAccumulatesRunningUsageAfterReset(t *testing.T) {
 	require.Equal(t, 10, updated.RunningRx)
 	require.Equal(t, 20, updated.RunningTx)
 	require.Len(t, workerRepo.traffic, 2)
+	require.Zero(t, workerRepo.monthTotalsCalls)
+}
+
+func TestWorkerRecordsSessionEventsAndEnforcesQuotas(t *testing.T) {
+	for _, test := range []struct {
+		name            string
+		trafficType     models.TrafficType
+		monthTotalCalls int
+	}{
+		{"total", models.TotallyRxTx, 0},
+		{"monthly", models.MonthlyRxTx, 2},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			repo := newUsageResetRepository()
+			user := repo.users[10]
+			user.TrafficType, user.TrafficSize = test.trafficType, 20
+			user.RunningRx, user.RunningTx = 0, 0
+			repo.users[10] = user
+
+			lines := []string{
+				"ocserv[10]: main[alice]:10.0.0.1:32100 new user session",
+				"ocserv[11]: worker[alice]: 10.0.0.1 generic debug message",
+				"ocserv[11]: worker[alice]: 10.0.0.1 User-agent: AnyConnect",
+				"ocserv[11]: worker[alice]: 10.0.0.1 DTLS handshake completed",
+				"ocserv[11]: worker[alice]: 10.0.0.1 sent periodic stats (in: 3, out: 5)",
+				"ocserv[10]: main[alice]:10.0.0.1:32100 user disconnected rx: 7, tx: 13",
+			}
+			stream := make(chan logger.StreamEntry, len(lines))
+			for _, line := range lines {
+				stream <- logger.StreamEntry{Message: line}
+			}
+			close(stream)
+
+			workerRepo := &usageWorkerRepository{state: repo, userID: 10}
+			worker := logprocessor.New(context.Background(), stream, workerRepo, usageWorkerAccess{}, usageConnectionObserver{})
+			require.ErrorContains(t, worker.CalculateUserStats(), "stream closed")
+
+			updated := repo.users[10]
+			require.Equal(t, 7, updated.RunningRx)
+			require.Equal(t, 13, updated.RunningTx)
+			require.True(t, updated.IsLocked)
+			require.Equal(t, test.monthTotalCalls, workerRepo.monthTotalsCalls)
+			require.Equal(t, []models.OcservUserSessionEvent{
+				models.EventUseragent, models.EventHandshake, models.EventPeriodicStats, models.EventDisconnect,
+			}, workerRepo.sessionEvents)
+		})
+	}
 }
 
 func TestOcservUserResponseUsesRunningUsageFields(t *testing.T) {
@@ -105,9 +152,11 @@ func newUsageResetRepository() *usageResetRepository {
 }
 
 type usageWorkerRepository struct {
-	state   *usageResetRepository
-	userID  uint
-	traffic []models.OcservUserTrafficStatistics
+	state            *usageResetRepository
+	userID           uint
+	traffic          []models.OcservUserTrafficStatistics
+	monthTotalsCalls int
+	sessionEvents    []models.OcservUserSessionEvent
 }
 
 func (r *usageWorkerRepository) FindUser(_ context.Context, username string) (*models.OcservUser, error) {
@@ -125,15 +174,20 @@ func (r *usageWorkerRepository) RecordUsage(_ context.Context, traffic *models.O
 }
 
 func (r *usageWorkerRepository) CurrentMonthTotals(context.Context, uint, *time.Time) (int, int, error) {
+	r.monthTotalsCalls++
 	user := r.state.users[r.userID]
 	return user.RunningRx, user.RunningTx, nil
 }
 
-func (r *usageWorkerRepository) UpdateAccessState(context.Context, uint, bool, *time.Time) error {
+func (r *usageWorkerRepository) UpdateAccessState(_ context.Context, userID uint, locked bool, deactivatedAt *time.Time) error {
+	user := r.state.users[userID]
+	user.IsLocked, user.DeactivatedAt = locked, deactivatedAt
+	r.state.users[userID] = user
 	return nil
 }
 
-func (r *usageWorkerRepository) SaveSessionLog(context.Context, *models.OcservUserSessionLog) error {
+func (r *usageWorkerRepository) SaveSessionLog(_ context.Context, log *models.OcservUserSessionLog) error {
+	r.sessionEvents = append(r.sessionEvents, log.Event)
 	return nil
 }
 

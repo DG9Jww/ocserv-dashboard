@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
 	systemusecase "github.com/mmtaee/ocserv-dashboard/backend/internal/usecase/system"
@@ -27,6 +28,7 @@ var supportedConfigKeys = []string{
 
 type ConfigFile struct {
 	path string
+	mu   sync.Mutex
 }
 
 func NewConfigFile(path string) *ConfigFile {
@@ -45,6 +47,9 @@ func (f *ConfigFile) Read(ctx context.Context) (*systemusecase.OcservConfig, err
 }
 
 func (f *ConfigFile) Write(ctx context.Context, changes systemusecase.OcservConfig) (*systemusecase.OcservConfig, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -59,10 +64,14 @@ func (f *ConfigFile) Write(ctx context.Context, changes systemusecase.OcservConf
 	if err != nil {
 		return nil, err
 	}
+	parsed, err := ParseConfig(updated)
+	if err != nil {
+		return nil, err
+	}
 	if err := writeAtomic(f.path, updated); err != nil {
 		return nil, err
 	}
-	return ParseConfig(updated)
+	return parsed, nil
 }
 
 // ParseConfig parses only the API-managed allowlist. Unsupported directives

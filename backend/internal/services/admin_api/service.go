@@ -95,7 +95,7 @@ func New(telegramRoutes, dockerMode bool) (*Service, error) {
 	if err != nil {
 		return nil, err
 	}
-	runtimeUC := runtimeusecase.New(runtimeService, runtimecontroller.NewConfigFile(runtimecontroller.DefaultOcservConfigPath), dockerMode || systemdEnabled)
+	runtimeUC := runtimeusecase.New(runtimecontroller.NewConfigFile(runtimecontroller.DefaultOcservConfigPath), dockerMode || systemdEnabled)
 	var agents *agentcontroller.Controller
 	if !cfg.AgentNode {
 		agents = agentcontroller.New(agentusecase.New(repository.NewOcservAgentRepository()))

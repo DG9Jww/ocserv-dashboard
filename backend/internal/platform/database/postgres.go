@@ -2,11 +2,12 @@ package database
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/mmtaee/ocserv-dashboard/backend/config"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/platform/logging"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"time"
 )
 
 var (
@@ -20,7 +21,7 @@ func ConnectPostgres() error {
 		return fmt.Errorf("postgres connection: %w", err)
 	}
 
-	finalizePostgres(db, cfg.Debug)
+	finalizePostgres(db, cfg)
 	return nil
 }
 
@@ -35,14 +36,18 @@ func connectPostgres(cfg config.PostgresConfig) (*gorm.DB, error) {
 	return gorm.Open(postgres.Open(dsn), &gorm.Config{})
 }
 
-func finalizePostgres(db *gorm.DB, debug bool) {
+func finalizePostgres(db *gorm.DB, cfg *config.Config) {
 	sqlDB, _ := db.DB()
 
-	sqlDB.SetMaxOpenConns(20)
-	sqlDB.SetMaxIdleConns(10)
+	maxOpen, maxIdle := 20, 10
+	if cfg.AgentNode {
+		maxOpen, maxIdle = 4, 2
+	}
+	sqlDB.SetMaxOpenConns(maxOpen)
+	sqlDB.SetMaxIdleConns(maxIdle)
 	sqlDB.SetConnMaxLifetime(time.Hour)
 
-	if debug {
+	if cfg.Debug {
 		db = db.Debug()
 	}
 

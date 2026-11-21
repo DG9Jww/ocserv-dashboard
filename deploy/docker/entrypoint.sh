@@ -105,10 +105,13 @@ is_true() {
 }
 
 validate_postgres_runtime() {
+    command -v pg_isready >/dev/null 2>&1 || die "pg_isready is missing"
+    if ! is_true "${INSTALL_POSTGRES:-true}"; then
+        return
+    fi
     [[ -x "${POSTGRES_ENTRYPOINT}" ]] || \
         die "official PostgreSQL entrypoint is missing: ${POSTGRES_ENTRYPOINT}"
     command -v postgres >/dev/null 2>&1 || die "PostgreSQL server binary is missing"
-    command -v pg_isready >/dev/null 2>&1 || die "pg_isready is missing"
     command -v gosu >/dev/null 2>&1 || die "gosu is missing"
 
     if [[ "${PGDATA}" != /var/lib/postgresql/* ]]; then

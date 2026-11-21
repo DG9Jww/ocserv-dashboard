@@ -13,6 +13,17 @@ import (
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/platform/logging"
 )
 
+var (
+	workerLogPattern     = regexp.MustCompile(`worker\[(?P<user>[^\]]+)\]:\s*(?P<rest>.*)`)
+	workerIPPattern      = regexp.MustCompile(`^(?P<ip>\d+\.\d+\.\d+\.\d+)(?::\d+)?\s+(?P<rest>.*)$`)
+	periodicStatsPattern = regexp.MustCompile(`worker\[([^\]]+)\]:\s*(\S+)\s+sent periodic stats\s+\((?:in|rx):\s*(\d+),\s*(?:out|tx):\s*(\d+)\)`)
+	disconnectPattern    = regexp.MustCompile(`main\[([^\]]+)\]:(\S+)\s+user disconnected.*rx:\s*(\d+),\s*tx:\s*(\d+)`)
+	disconnectFallback   = regexp.MustCompile(`main\[([^\]]+)\].*rx:\s*(\d+),\s*tx:\s*(\d+)`)
+	processIDPattern     = regexp.MustCompile(`(?:^|\s)ocserv\[(\d+)\]:`)
+	mainSessionPattern   = regexp.MustCompile(`main\[([^\]]+)\]:(\S+)\s+new user session`)
+	workerSessionPattern = regexp.MustCompile(`worker\[([^\]]+)\]:\s*(\S+)`)
+)
+
 type StatService struct {
 	ctx                 context.Context
 	stream              <-chan logger.StreamEntry
@@ -58,7 +69,7 @@ func (s *StatService) CalculateUserStats() error {
 				return errors.New("ocserv log stream closed unexpectedly")
 			}
 
-			cleanLine := strings.TrimSpace(entry.Message) // remove whitespace/newlines and normalize case
+			cleanLine := strings.TrimSpace(entry.Message)
 
 			if strings.Contains(cleanLine, "server shutdown complete") {
 				return errors.New("ocserv server shutdown abnormally")
@@ -107,8 +118,6 @@ func (s *StatService) CalculateUserStats() error {
 				cleanLine = strings.Replace(cleanLine, "main[", "worker[", 1)
 			}
 
-			logger.Info("starting get user session from line: %s", cleanLine)
-
 			sessionLog := s.getUserSessionLog(cleanLine)
 			if sessionLog == nil {
 				continue
@@ -118,27 +127,24 @@ func (s *StatService) CalculateUserStats() error {
 				logger.Error("Error saving session msg (%v): %v", sessionLog.Username, err)
 				continue
 			}
-			//logger.Info("Processed user: %v successfully", sessionLog.Username)
 		}
 	}
 }
 
 func (s *StatService) getUserSessionLog(cleanLine string) *models.OcservUserSessionLog {
-	workerRe := regexp.MustCompile(`worker\[(?P<user>[^\]]+)\]:\s*(?P<rest>.*)`)
-	ipRe := regexp.MustCompile(`^(?P<ip>\d+\.\d+\.\d+\.\d+)(?::\d+)?\s+(?P<rest>.*)$`)
-	var username, ip, msg string
-
-	// Step 1: extract worker
-	if m := workerRe.FindStringSubmatch(cleanLine); m != nil {
-		username = m[1]
-		msg = m[2]
-	} else {
-		logger.Error("no worker found in line: %s", cleanLine)
+	if !strings.Contains(cleanLine, "User-agent") && !strings.Contains(cleanLine, "DTLS handshake completed") &&
+		!strings.Contains(cleanLine, "sent periodic stats") && !strings.Contains(cleanLine, "user disconnected") {
 		return nil
 	}
+	worker := workerLogPattern.FindStringSubmatch(cleanLine)
+	if worker == nil {
+		return nil
+	}
+	username, msg := worker[1], worker[2]
+	var ip string
 
 	// Step 2: extract IP
-	if m := ipRe.FindStringSubmatch(msg); m != nil {
+	if m := workerIPPattern.FindStringSubmatch(msg); m != nil {
 		ip = m[1]
 		msg = m[2]
 	}
@@ -168,8 +174,7 @@ func (s *StatService) getUserSessionLog(cleanLine string) *models.OcservUserSess
 }
 
 func (s *StatService) getPeriodicStat(cleanLine string) (*UserStats, error) {
-	reTxRx := regexp.MustCompile(`worker\[([^\]]+)\]:\s*(\S+)\s+sent periodic stats\s+\((?:in|rx):\s*(\d+),\s*(?:out|tx):\s*(\d+)\)`)
-	matchRxTx := reTxRx.FindStringSubmatch(cleanLine)
+	matchRxTx := periodicStatsPattern.FindStringSubmatch(cleanLine)
 	if len(matchRxTx) <= 4 {
 		return nil, nil
 	}
@@ -196,8 +201,7 @@ func (s *StatService) getPeriodicStat(cleanLine string) (*UserStats, error) {
 }
 
 func (s *StatService) getDisconnectStat(cleanLine string) (*UserStats, error) {
-	reTxRx := regexp.MustCompile(`main\[([^\]]+)\]:(\S+)\s+user disconnected.*rx:\s*(\d+),\s*tx:\s*(\d+)`)
-	matchRxTx := reTxRx.FindStringSubmatch(cleanLine)
+	matchRxTx := disconnectPattern.FindStringSubmatch(cleanLine)
 	if len(matchRxTx) == 5 {
 		rx, err := strconv.Atoi(matchRxTx[3])
 		if err != nil {
@@ -218,8 +222,7 @@ func (s *StatService) getDisconnectStat(cleanLine string) (*UserStats, error) {
 		}, nil
 	}
 
-	fallbackRe := regexp.MustCompile(`main\[([^\]]+)\].*rx:\s*(\d+),\s*tx:\s*(\d+)`)
-	fallbackMatch := fallbackRe.FindStringSubmatch(cleanLine)
+	fallbackMatch := disconnectFallback.FindStringSubmatch(cleanLine)
 	if len(fallbackMatch) != 4 {
 		return nil, nil
 	}
@@ -252,8 +255,7 @@ func normalizeSessionIP(endpoint string) string {
 }
 
 func processIDFromLine(line string) string {
-	re := regexp.MustCompile(`(?:^|\s)ocserv\[(\d+)\]:`)
-	match := re.FindStringSubmatch(line)
+	match := processIDPattern.FindStringSubmatch(line)
 	if len(match) != 2 {
 		return ""
 	}
@@ -278,8 +280,7 @@ func sessionStatsKey(stats *UserStats) string {
 }
 
 func (s *StatService) trackSessionIdentity(line string) {
-	mainRe := regexp.MustCompile(`main\[([^\]]+)\]:(\S+)\s+new user session`)
-	if match := mainRe.FindStringSubmatch(line); len(match) == 3 {
+	if match := mainSessionPattern.FindStringSubmatch(line); len(match) == 3 {
 		username := match[1]
 		endpoint := match[2]
 		ip := normalizeSessionIP(endpoint)
@@ -293,8 +294,10 @@ func (s *StatService) trackSessionIdentity(line string) {
 		return
 	}
 
-	workerRe := regexp.MustCompile(`worker\[([^\]]+)\]:\s*(\S+)`)
-	match := workerRe.FindStringSubmatch(line)
+	if len(s.pendingMainSessions) == 0 {
+		return
+	}
+	match := workerSessionPattern.FindStringSubmatch(line)
 	if len(match) != 3 {
 		return
 	}
@@ -408,8 +411,6 @@ func (s *StatService) saveRxTxDelta(ctx context.Context, stats *UserStats, final
 }
 
 func (s *StatService) saveRxTx(ctx context.Context, u *UserStats) error {
-	logger.Info("saveRxTx called for user=%s ip=%s session=%s RX=%d TX=%d", u.Username, u.IP, u.SessionID, u.RX, u.TX)
-
 	ocUser, err := s.repository.FindUser(ctx, u.Username)
 	if err != nil {
 		logger.Error("Error finding oc user: %v", err)
@@ -430,10 +431,14 @@ func (s *StatService) saveRxTx(ctx context.Context, u *UserStats) error {
 
 	trafficSizeBytes := ocUser.TrafficSize
 
-	totalMonthRX, totalMonthTX, err := s.repository.CurrentMonthTotals(ctx, ocUser.ID, ocUser.UsageResetAt)
-	if err != nil {
-		logger.Error("Error getting current month stats: %v", err)
-		return err
+	var totalMonthRX, totalMonthTX int
+	switch ocUser.TrafficType {
+	case models.MonthlyTransmit, models.MonthlyReceive, models.MonthlyRxTx:
+		totalMonthRX, totalMonthTX, err = s.repository.CurrentMonthTotals(ctx, ocUser.ID, ocUser.UsageResetAt)
+		if err != nil {
+			logger.Error("Error getting current month stats: %v", err)
+			return err
+		}
 	}
 
 	shouldLock := false

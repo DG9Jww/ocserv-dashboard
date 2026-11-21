@@ -2877,7 +2877,7 @@ const docTemplate = `{
                 }
             },
             "patch": {
-                "description": "Available only in normal/systemd mode; Docker deployments reject updates.",
+                "description": "Saves ocserv.conf in Docker and systemd deployments without restarting Ocserv.",
                 "consumes": [
                     "application/json"
                 ],

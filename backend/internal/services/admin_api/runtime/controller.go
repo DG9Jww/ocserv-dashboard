@@ -37,9 +37,9 @@ func (ctl *Controller) Config(c *echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
-// UpdateConfig validates, atomically writes, and activates supported settings.
+// UpdateConfig validates and atomically writes supported settings.
 // @Summary Update structured Ocserv configuration
-// @Description Available only in normal/systemd mode; Docker deployments reject updates.
+// @Description Saves ocserv.conf in Docker and systemd deployments without restarting Ocserv.
 // @Tags System
 // @Accept json
 // @Produce json

@@ -62,10 +62,6 @@ type ConfigResponse struct {
 	AllowUpdate bool `json:"allow_update"`
 }
 
-type Runtime interface {
-	Restart(ctx context.Context) error
-}
-
 type ConfigStore interface {
 	Read(ctx context.Context) (*OcservConfig, error)
 	Write(ctx context.Context, changes OcservConfig) (*OcservConfig, error)

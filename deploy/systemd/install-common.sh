@@ -206,8 +206,12 @@ install_go() {
 }
 
 install_ocserv_binary() {
+    local build_jobs=''
+    if is_true "${DEPLOYMENT_AGENT_NODE}"; then
+        build_jobs=1
+    fi
     log "building and installing the current Ocserv binary"
-    bash "${PROJECT_ROOT}/deploy/common/ocserv_binary_install.sh"
+    OCSERV_BUILD_JOBS="${build_jobs}" bash "${PROJECT_ROOT}/deploy/common/ocserv_binary_install.sh"
     command -v /usr/sbin/ocserv >/dev/null 2>&1 || die "Ocserv binary installation failed"
     systemctl stop ocserv.service 2>/dev/null || true
 }
@@ -250,11 +254,15 @@ SQL
 }
 
 build_backend() {
+    local -a build_args=()
+    if is_true "${DEPLOYMENT_AGENT_NODE}"; then
+        build_args=(-p=1)
+    fi
     temporary_binary="$(mktemp)"
     log "building unified backend"
     (
         cd "${PROJECT_ROOT}/backend"
-        CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o "${temporary_binary}" ./main.go
+        CGO_ENABLED=0 go build "${build_args[@]}" -trimpath -ldflags='-s -w' -o "${temporary_binary}" ./main.go
     )
 
     install -d -m 750 "${INSTALL_DIR}" "${INSTALL_DIR}/cron_journal" "${INSTALL_DIR}/uploads/receipts"
@@ -326,8 +334,8 @@ server {
     server_name ${HOST};
     root ${UI_DIR};
 
-    ssl_certificate /etc/ocserv/certs/cert.pem;
-    ssl_certificate_key /etc/ocserv/certs/cert.key;
+    ssl_certificate ${SERVER_CERT};
+    ssl_certificate_key ${SERVER_KEY};
     ssl_protocols TLSv1.2 TLSv1.3;
     error_page 497 =301 https://\$host:${WEB_PORT}\$request_uri;
 
@@ -369,8 +377,8 @@ server {
     listen [::]:${API_PORT} ssl;
     server_name ${HOST};
 
-    ssl_certificate /etc/ocserv/certs/cert.pem;
-    ssl_certificate_key /etc/ocserv/certs/cert.key;
+    ssl_certificate ${SERVER_CERT};
+    ssl_certificate_key ${SERVER_KEY};
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location / {
@@ -457,6 +465,7 @@ Wants=network-online.target
 
 [Service]
 ExecStart=/usr/sbin/ocserv --foreground --config=/etc/ocserv/ocserv.conf
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5s
 

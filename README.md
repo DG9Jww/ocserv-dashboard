@@ -238,6 +238,12 @@ TELEGRAM_BOT_ENABLED=false
 
 Allow VPN traffic to the agent on `443/tcp` and `443/udp`. Restrict `8080/tcp` to the master server or an administrator network: the agent API is HTTP, not the public dashboard endpoint.
 
+### Run an agent on a small server
+
+Agent builds skip the web applications and use one build job for Go and Ocserv. The Agent Docker image omits nginx and starts its bundled PostgreSQL with 32 MB of shared buffers, 2 MB of work memory per operation, 32 MB of maintenance work memory, and up to 30 connections. The Agent backend uses up to four database connections.
+
+On a 1 vCPU, 1 GB host, you can move PostgreSQL off the Agent host. For either Docker or systemd, set `INSTALL_POSTGRES=false` and configure `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_SSLMODE` for the Agent's own PostgreSQL 18 database. Keep a separate database and credentials for each node. For an existing Agent, back up and restore its database to the external server before switching the connection. Leave `CUSTOMER_API_ENABLED=false` and `TELEGRAM_BOT_ENABLED=false` for a VPN-only Agent.
+
 ### Register an agent with the master
 
 After the agent starts, create its local registration token and store it securely:
