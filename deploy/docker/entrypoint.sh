@@ -44,7 +44,7 @@ normalize_container_environment() {
 }
 
 : "${OCSERV_PORT:=443}"
-: "${OC_NET:=10.0.0.0/24}"
+: "${OC_NET:=10.10.10.0/24}"
 : "${OCSERV_DNS:=8.8.8.8}"
 : "${SSL_CN:=ocserv-dashboard}"
 : "${SSL_ORG:=ocserv-dashboard}"

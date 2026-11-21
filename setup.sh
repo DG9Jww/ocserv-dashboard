@@ -277,7 +277,7 @@ apply_static_defaults() {
         set_env_value SUPERADMIN_PASSWORD "\"$(openssl rand -base64 24 | tr -d '\\n')\""
     fi
     set_env_default OCSERV_PORT 443
-    set_env_default OC_NET "\"10.0.0.0/24\""
+    set_env_default OC_NET "\"10.10.10.0/24\""
     set_env_default OCSERV_DNS "\"8.8.8.8\""
     set_env_default OCSERV_BANNER "\"Welcome to the VPN service\""
     set_env_default OCSERV_PRE_LOGIN_BANNER "\"Welcome\""
