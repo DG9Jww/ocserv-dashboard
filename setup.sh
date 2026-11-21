@@ -463,24 +463,8 @@ ensure_whiptail() {
     command -v whiptail >/dev/null 2>&1 || install_apt_package whiptail
 }
 
-ensure_nano() {
-    command -v nano >/dev/null 2>&1 || install_apt_package nano
-}
-
 ensure_openssl() {
     command -v openssl >/dev/null 2>&1 || install_apt_package openssl
-}
-
-add_nano_help() {
-    local temporary
-    temporary="$(mktemp "${ENV_FILE}.XXXXXX")"
-    {
-        printf '# Nano help: save with Ctrl+O, then Enter; exit with Ctrl+X.\n'
-        printf '# To exit without saving: Ctrl+X, then N.\n\n'
-        cat "${ENV_FILE}"
-    } >"${temporary}"
-    chmod 600 "${temporary}"
-    mv "${temporary}" "${ENV_FILE}"
 }
 
 edit_environment_value() {
@@ -825,11 +809,9 @@ main() {
         edit_environment_graphically
         configure_host
     elif [[ "${environment_created}" == true ]]; then
-        ensure_nano
-        add_nano_help
-        log "opening ${ENV_FILE} in nano in 2 seconds; save and exit to continue"
+        log "opening ${ENV_FILE} in VIM in 2 seconds; save and exit to continue"
         sleep 2
-        nano "${ENV_FILE}"
+        vim "${ENV_FILE}"
     fi
     case "${deployment}" in
         docker)
