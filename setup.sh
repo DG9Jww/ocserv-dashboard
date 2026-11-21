@@ -335,7 +335,14 @@ apply_static_defaults() {
 }
 
 configure_letsencrypt() {
-    local email host
+    local cert key email host
+    cert="$(env_value TLS_CERT_FILE '')"
+    key="$(env_value TLS_KEY_FILE '')"
+    if [[ -n "${cert}" || -n "${key}" ]]; then
+        [[ -n "${cert}" && -n "${key}" ]] || die "set both TLS_CERT_FILE and TLS_KEY_FILE"
+        return
+    fi
+
     email="$(env_value LETSENCRYPT_EMAIL '')"
     [[ -n "${email}" ]] || return 0
     host="$(env_value HOST '')"
@@ -344,17 +351,26 @@ configure_letsencrypt() {
 }
 
 obtain_letsencrypt() {
-    local host email cert
+    local host email cert key
     local -a as_root=()
 
     cert="$(env_value TLS_CERT_FILE '')"
     [[ -n "${cert}" ]] || return 0
+    key="$(env_value TLS_KEY_FILE '')"
     host="$(env_value HOST '')"
     email="$(env_value LETSENCRYPT_EMAIL '')"
-    [[ ! "${host}" =~ ^[0-9.]+$ ]] || die "Let's Encrypt needs a domain name in HOST, not an IP address"
-    [[ -n "${email}" ]] || die "set LETSENCRYPT_EMAIL in ${ENV_FILE}"
-
     [[ "${EUID}" -eq 0 ]] || as_root=(sudo)
+
+    if [[ -z "${email}" ||
+          "${cert}" != "/etc/letsencrypt/live/${host}/fullchain.pem" ||
+          "${key}" != "/etc/letsencrypt/live/${host}/privkey.pem" ]]; then
+        "${as_root[@]}" test -r "${cert}" && "${as_root[@]}" test -r "${key}" ||
+            die "configured TLS_CERT_FILE and TLS_KEY_FILE must both be readable"
+        log "using existing TLS certificate ${cert}"
+        return
+    fi
+
+    [[ ! "${host}" =~ ^[0-9.]+$ ]] || die "Let's Encrypt needs a domain name in HOST, not an IP address"
     command -v certbot >/dev/null 2>&1 || install_apt_package certbot
 
     if ! "${as_root[@]}" test -r "${cert}"; then
@@ -363,6 +379,8 @@ obtain_letsencrypt() {
             --non-interactive --agree-tos --email "${email}" -d "${host}" \
             || die "certbot failed; check DNS for ${host} and that port 80 is open"
     fi
+    "${as_root[@]}" test -r "${cert}" && "${as_root[@]}" test -r "${key}" ||
+        die "Let's Encrypt certificate or private key is not readable"
 
     "${as_root[@]}" install -d -m 755 /etc/letsencrypt/renewal-hooks/deploy
     "${as_root[@]}" tee /etc/letsencrypt/renewal-hooks/deploy/ocserv-dashboard.sh >/dev/null <<'EOF'
