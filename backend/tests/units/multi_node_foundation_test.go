@@ -182,6 +182,9 @@ func (r *agentRepository) Create(_ context.Context, agent *models.OcservAgent) e
 
 func (r *agentRepository) Update(_ context.Context, agent *models.OcservAgent) error {
 	copy := *agent
+	if copy.Token == "" {
+		copy.Token = r.items[agent.ID].Token
+	}
 	r.items[agent.ID] = &copy
 	return nil
 }
@@ -324,6 +327,7 @@ func TestAgentModeRoutesAreConditional(t *testing.T) {
 			}
 			require.False(t, paths["GET /agent/settings/token"])
 			require.Equal(t, test.wantMasterAgents, paths["GET /ocserv/agents"])
+			require.Equal(t, test.wantMasterAgents, paths["GET /ocserv/agents/:id/proxy/*"])
 			for _, route := range []string{
 				"GET /systemd/status",
 				"POST /systemd/restart",

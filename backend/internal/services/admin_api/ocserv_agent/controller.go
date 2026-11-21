@@ -13,10 +13,11 @@ import (
 type Controller struct {
 	request request.CustomRequestInterface
 	agents  *agents.Usecase
+	proxy   *agents.Proxy
 }
 
-func New(usecase *agents.Usecase) *Controller {
-	return &Controller{request: request.NewCustomRequest(), agents: usecase}
+func New(usecase *agents.Usecase, proxy *agents.Proxy) *Controller {
+	return &Controller{request: request.NewCustomRequest(), agents: usecase, proxy: proxy}
 }
 
 // List returns configured master-node Ocserv agents.

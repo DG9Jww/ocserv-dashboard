@@ -140,6 +140,7 @@ COPY --chmod=0644 deploy/common/tls.sh /usr/local/lib/ocserv-dashboard/tls.sh
 
 ENV OCSERV_PORT=443 \
     AGENT_NODE=${AGENT_NODE} \
+    AGENT_API_HTTPS=false \
     IMAGE_AGENT_NODE=${AGENT_NODE} \
     SYSTEMD=false \
     OC_NET=172.16.24.0/24 \
@@ -188,7 +189,11 @@ ENV CUSTOMER_API_ENABLED=${CUSTOMER_API_ENABLED} \
 
 EXPOSE 8080/tcp
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
-    CMD curl --fail --silent http://127.0.0.1:8080/health >/dev/null
+    CMD flag="$(printf '%s' "$AGENT_API_HTTPS" | tr -d "\"'[:space:]" | tr '[:upper:]' '[:lower:]')"; \
+        case "$flag" in \
+            true|t|1) curl --fail --silent --insecure https://127.0.0.1:8080/health >/dev/null ;; \
+            *) curl --fail --silent http://127.0.0.1:8080/health >/dev/null ;; \
+        esac
 
 FROM runtime AS runtime-false
 

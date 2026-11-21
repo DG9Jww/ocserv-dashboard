@@ -10,15 +10,19 @@ import (
 )
 
 type Config struct {
-	Debug              bool
-	Host               string
-	Port               int
-	SecretKey          string
-	AgentNode          bool
-	TelegramEnabled    bool
-	CustomerAPIEnabled bool
-	AllowOrigins       []string
-	DB                 PostgresConfig
+	Debug               bool
+	Host                string
+	Port                int
+	SecretKey           string
+	AgentNode           bool
+	AgentUpstreamScheme string
+	AgentAPIHTTPS       bool
+	TLSCertFile         string
+	TLSKeyFile          string
+	TelegramEnabled     bool
+	CustomerAPIEnabled  bool
+	AllowOrigins        []string
+	DB                  PostgresConfig
 }
 
 type PostgresConfig struct {
@@ -41,15 +45,19 @@ func Init(debug bool, host string, port int) {
 	}
 
 	cfg = &Config{
-		Debug:              debug,
-		Host:               host,
-		Port:               port,
-		SecretKey:          secretKey,
-		AgentNode:          strings.EqualFold(strings.TrimSpace(os.Getenv("AGENT_NODE")), "true"),
-		TelegramEnabled:    getBoolEnv("TELEGRAM_BOT_ENABLED", false),
-		CustomerAPIEnabled: getBoolEnv("CUSTOMER_API_ENABLED", true),
-		AllowOrigins:       strings.Split(allowOrigins, ","),
-		DB:                 loadDatabaseEnv(),
+		Debug:               debug,
+		Host:                host,
+		Port:                port,
+		SecretKey:           secretKey,
+		AgentNode:           strings.EqualFold(strings.TrimSpace(os.Getenv("AGENT_NODE")), "true"),
+		AgentUpstreamScheme: strings.ToLower(strings.TrimSpace(getEnv("AGENT_UPSTREAM_SCHEME", "https"))),
+		AgentAPIHTTPS:       getBoolEnv("AGENT_API_HTTPS", false),
+		TLSCertFile:         tlsPath("TLS_CERT_FILE"),
+		TLSKeyFile:          tlsPath("TLS_KEY_FILE"),
+		TelegramEnabled:     getBoolEnv("TELEGRAM_BOT_ENABLED", false),
+		CustomerAPIEnabled:  getBoolEnv("CUSTOMER_API_ENABLED", true),
+		AllowOrigins:        strings.Split(allowOrigins, ","),
+		DB:                  loadDatabaseEnv(),
 	}
 }
 
@@ -79,7 +87,14 @@ func Validate() error {
 	if cfg == nil || len(cfg.SecretKey) < 32 {
 		return errors.New("SECRET_KEY must be set to a random value of at least 32 characters")
 	}
+	if cfg.AgentNode && cfg.AgentAPIHTTPS && (cfg.TLSCertFile == "" || cfg.TLSKeyFile == "") {
+		return errors.New("AGENT_API_HTTPS requires TLS_CERT_FILE and TLS_KEY_FILE")
+	}
 	return nil
+}
+
+func tlsPath(key string) string {
+	return strings.ReplaceAll(strings.TrimSpace(os.Getenv(key)), "{HOST}", os.Getenv("HOST"))
 }
 
 func getEnv(key, fallback string) string {

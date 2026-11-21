@@ -142,7 +142,7 @@ const agentValid = computed(() =>
   Boolean(
     agent.name.trim() &&
       agent.address.trim() &&
-      agent.token.trim() &&
+      (editingAgentId.value != null || agent.token.trim()) &&
       (agent.port == null ||
         (Number.isInteger(agent.port) && agent.port >= 1 && agent.port <= 65535)),
   ),
@@ -256,7 +256,7 @@ async function editAgent(item: OcservAgent): Promise<void> {
   if (item.id == null) return;
   saving.value = "agent";
   try {
-    Object.assign(agent, await getOcservAgent(item.id));
+    Object.assign(agent, await getOcservAgent(item.id), { token: "" });
     editingAgentId.value = item.id;
     agentDialogOpen.value = true;
   } catch (cause) {
@@ -701,7 +701,7 @@ onMounted(refresh);
               ><Input
                 id="sheet-agent-token"
                 v-model="agent.token"
-                required
+                :required="editingAgentId == null"
                 type="password"
                 :disabled="saving !== null" /></Field></FieldGroup
           ><SheetFooter

@@ -5,7 +5,7 @@ import {
 } from "@/api/auth-token";
 import { api } from "@/api/client";
 import { isTestMode } from "@/api/environment";
-import { httpClient } from "@/api/http";
+import { apiBaseUrl, httpClient } from "@/api/http";
 import type {
   GithubComMmtaeeOcservDashboardBackendInternalServicesAdminApiSystemLoginData,
   GithubComMmtaeeOcservDashboardBackendInternalServicesAdminApiSystemUserLoginResponse,
@@ -39,9 +39,10 @@ export async function login(
     return response;
   }
 
-  const response = await api.systemUsers.systemUsersLoginPost({
-    request: credentials,
-  });
+  const response = await api.systemUsers.systemUsersLoginPost(
+    { request: credentials },
+    { baseURL: apiBaseUrl },
+  );
   setAccessToken(response.data.token);
 
   return response.data;
@@ -54,9 +55,10 @@ export async function logout(): Promise<void> {
   }
 
   try {
-    await api.auth.authLogoutPost({
-      authorization: requireAuthorizationHeader(),
-    });
+    await api.auth.authLogoutPost(
+      { authorization: requireAuthorizationHeader() },
+      { baseURL: apiBaseUrl },
+    );
   } finally {
     clearAccessToken();
   }
@@ -67,9 +69,10 @@ export async function getCurrentUser(): Promise<ModelsUser> {
     return cloneMock(mockCurrentUser);
   }
 
-  const response = await api.systemUsers.systemUsersProfileGet({
-    authorization: requireAuthorizationHeader(),
-  });
+  const response = await api.systemUsers.systemUsersProfileGet(
+    { authorization: requireAuthorizationHeader() },
+    { baseURL: apiBaseUrl },
+  );
 
   return response.data;
 }
@@ -79,10 +82,10 @@ export async function changePassword(
 ): Promise<void> {
   if (isTestMode) return;
 
-  await api.systemUsers.systemUsersPasswordPost({
-    authorization: requireAuthorizationHeader(),
-    request,
-  });
+  await api.systemUsers.systemUsersPasswordPost(
+    { authorization: requireAuthorizationHeader(), request },
+    { baseURL: apiBaseUrl },
+  );
 }
 
 export async function resetAdminPassword(
@@ -93,6 +96,7 @@ export async function resetAdminPassword(
   const response = await httpClient.post<ResetAdminPasswordResponse>(
     "/system/user/reset-password",
     request,
+    { baseURL: apiBaseUrl },
   );
   return response.data;
 }

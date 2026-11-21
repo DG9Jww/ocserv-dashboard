@@ -40,7 +40,7 @@ export type OcservConfigResponse = RuntimeOcservConfig & {
 };
 export type SystemRelease =
   GithubComMmtaeeOcservDashboardBackendInternalServicesAdminApiSystemDashboardRelease;
-export type OcservAgent = ModelsOcservAgent;
+export type OcservAgent = Omit<ModelsOcservAgent, "token">;
 export type OcservAgentCreate = OcservAgentCreateInput;
 export type OcservAgentUpdate = OcservAgentUpdateInput;
 
@@ -77,7 +77,7 @@ export async function getSystemInit(): Promise<SystemInitConfig | null> {
     return cloneMock(mockSystemInit);
   }
 
-  const response = await api.system.systemInitGet();
+  const response = await api.system.systemInitGet({ baseURL: apiBaseUrl });
   return response.data ?? null;
 }
 

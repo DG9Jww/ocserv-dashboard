@@ -236,7 +236,15 @@ CUSTOMER_API_ENABLED=false
 TELEGRAM_BOT_ENABLED=false
 ```
 
-Allow VPN traffic to the agent on `443/tcp` and `443/udp`. Restrict `8080/tcp` to the master server or an administrator network: the agent API is HTTP, not the public dashboard endpoint.
+Allow VPN traffic to the agent on `443/tcp` and `443/udp`. Restrict the agent API port to the Master server's egress IP. The browser uses the Master HTTPS origin for both Master and Agent operations.
+
+### Connect the Master to an Agent
+
+Upgrade the Master backend, admin frontend, and Agent backend together. A Master superadmin selects an Agent by its registered ID. The Master validates the session and forwards supported management requests using the registered Agent token. The Agent associates these requests with its local `SUPERADMIN_USERNAME`. The Master keeps the registered token server-side.
+
+The Master defaults to `AGENT_UPSTREAM_SCHEME=https`. Register the hostname covered by the Agent certificate and the Agent API port. To serve TLS on the Agent directly, set `AGENT_API_HTTPS=true` and point `TLS_CERT_FILE` and `TLS_KEY_FILE` to the Agent's certificate chain and private key. Use a certificate trusted by the Master. For Docker, make both files readable inside the container and recreate it with the new environment. For systemd, update the installed environment and restart `ocserv-dashboard.service`. Reload the certificate by restarting the Agent backend after renewal.
+
+For an encrypted private network that already protects the connection, an HTTP Agent can be used with `AGENT_UPSTREAM_SCHEME=http` on the Master. The selected scheme applies to every registered Agent. The browser always uses the Master origin, so Agent CORS settings do not affect this workflow.
 
 ### Run an agent on a small server
 

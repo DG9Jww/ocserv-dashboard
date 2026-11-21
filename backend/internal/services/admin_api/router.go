@@ -1,6 +1,8 @@
 package adminapi
 
 import (
+	"net/http"
+
 	"github.com/labstack/echo/v5"
 	"github.com/mmtaee/ocserv-dashboard/backend/pkg/middlewares"
 )
@@ -159,4 +161,5 @@ func (s *Service) registerAgentRoutes(e *echo.Group) {
 	g.POST("", s.agents.Create)
 	g.PATCH("/:id", s.agents.Update)
 	g.DELETE("/:id", s.agents.Delete)
+	g.Match([]string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodDelete}, "/:id/proxy/*", s.agents.Proxy)
 }

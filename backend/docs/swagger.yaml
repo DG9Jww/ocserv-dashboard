@@ -768,16 +768,12 @@ definitions:
         maximum: 65535
         minimum: 1
         type: integer
-      token:
-        maxLength: 512
-        type: string
       updated_at:
         type: string
     required:
     - address
     - address_type
     - name
-    - token
     type: object
   models.OcservGroup:
     properties:
@@ -1424,7 +1420,6 @@ definitions:
     - address
     - address_type
     - name
-    - token
     type: object
   ocserv_group.CreateOcservGroupData:
     properties:

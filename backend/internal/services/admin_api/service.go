@@ -97,15 +97,24 @@ func New(telegramRoutes, dockerMode bool) (*Service, error) {
 	}
 	runtimeUC := runtimeusecase.New(runtimecontroller.NewConfigFile(runtimecontroller.DefaultOcservConfigPath), dockerMode || systemdEnabled)
 	var agents *agentcontroller.Controller
+	authenticate := middlewares.AuthMiddleware(sessionRepository)
 	if !cfg.AgentNode {
-		agents = agentcontroller.New(agentusecase.New(repository.NewOcservAgentRepository()))
+		agentUC := agentusecase.New(repository.NewOcservAgentRepository())
+		proxy, err := agentusecase.NewProxy(agentUC, cfg.AgentUpstreamScheme, nil)
+		if err != nil {
+			return nil, err
+		}
+		agents = agentcontroller.New(agentUC, proxy)
+	} else {
+		authenticate = middlewares.AgentAuthentication(authenticate, repository.NewAgentTokenRepository(),
+			userRepository, strings.TrimSpace(os.Getenv("SUPERADMIN_USERNAME")))
 	}
 
 	return &Service{
 		agentNode:      cfg.AgentNode,
 		agents:         agents,
 		auth:           authcontroller.New(authusecase.New(sessionRepository)),
-		authenticate:   middlewares.AuthMiddleware(sessionRepository),
+		authenticate:   authenticate,
 		backup:         backupcontroller.New(backupusecase.New(repository.NewBackupRepository(), ocservGroupUC, ocservUserUC, accountStore)),
 		dashboard:      dashboardcontroller.New(dashboardUC),
 		occtl:          occtlcontroller.New(occtlUC),

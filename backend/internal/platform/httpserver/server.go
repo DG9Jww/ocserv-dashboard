@@ -27,6 +27,9 @@ type namedRegistrar interface {
 type Server struct {
 	http            *http.Server
 	shutdownTimeout time.Duration
+	tlsEnabled      bool
+	tlsCertFile     string
+	tlsKeyFile      string
 }
 
 func New(cfg *config.Config, registrars ...RouteRegistrar) *Server {
@@ -69,12 +72,19 @@ func New(cfg *config.Config, registrars ...RouteRegistrar) *Server {
 	return &Server{
 		http:            &http.Server{Addr: fmt.Sprintf("%s:%d", cfg.Host, cfg.Port), Handler: e, ReadHeaderTimeout: 10 * time.Second},
 		shutdownTimeout: 10 * time.Second,
+		tlsEnabled:      cfg.AgentNode && cfg.AgentAPIHTTPS,
+		tlsCertFile:     cfg.TLSCertFile,
+		tlsKeyFile:      cfg.TLSKeyFile,
 	}
 }
 
 func (s *Server) Run(ctx context.Context) error {
 	errCh := make(chan error, 1)
 	go func() {
+		if s.tlsEnabled {
+			errCh <- s.http.ListenAndServeTLS(s.tlsCertFile, s.tlsKeyFile)
+			return
+		}
 		errCh <- s.http.ListenAndServe()
 	}()
 

@@ -35,7 +35,21 @@ func (r *OcservAgentRepository) Create(ctx context.Context, agent *models.Ocserv
 }
 
 func (r *OcservAgentRepository) Update(ctx context.Context, agent *models.OcservAgent) error {
-	return r.db.WithContext(ctx).Save(agent).Error
+	query := r.db.WithContext(ctx).Model(agent)
+	if agent.Token == "" {
+		query = query.Where("address_type = ? AND address = ? AND port = ?", agent.AddressType, agent.Address, agent.Port).
+			Select("Name", "UpdatedAt")
+	} else {
+		query = query.Select("Name", "AddressType", "Address", "Port", "Token", "UpdatedAt")
+	}
+	result := query.Updates(agent)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *OcservAgentRepository) Delete(ctx context.Context, id uint) error {

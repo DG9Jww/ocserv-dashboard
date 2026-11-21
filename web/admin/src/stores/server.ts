@@ -11,35 +11,15 @@ export function agentServerId(agent: OcservAgent): string {
   return agent.id == null ? `address:${agent.address}` : String(agent.id);
 }
 
-function validIpv4(value: string): boolean {
-  const parts = value.split(".");
-  return (
-    parts.length === 4 &&
-    parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255)
-  );
-}
-
 export function agentApiBaseUrl(agent: OcservAgent): string | null {
-  const address = agent.address.trim();
-  const port = agent.port ?? 8080;
-  if (!address || !Number.isInteger(port) || port < 1 || port > 65535)
-    return null;
-
-  if (agent.address_type === "ip") {
-    if (!validIpv4(address) && !/^[0-9a-f:]+$/i.test(address)) return null;
-    return `http://${address.includes(":") ? `[${address}]` : address}:${port}/api`;
-  }
-
   if (
-    agent.address_type !== "domain" ||
-    !address.includes(".") ||
-    !address
-      .split(".")
-      .every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(label))
+    agent.id == null ||
+    !Number.isSafeInteger(agent.id) ||
+    agent.id < 1 ||
+    !agent.address.trim()
   )
     return null;
-
-  return `http://${address}:${port}/api`;
+  return `${apiBaseUrl}/ocserv/agents/${agent.id}/proxy`;
 }
 
 export const useServerStore = defineStore("server", () => {

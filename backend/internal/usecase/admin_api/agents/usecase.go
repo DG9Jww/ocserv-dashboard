@@ -10,8 +10,9 @@ import (
 )
 
 var (
-	ErrInvalidAddress = errors.New("invalid agent address")
-	ErrInvalidPort    = errors.New("invalid agent port")
+	ErrInvalidAddress     = errors.New("invalid agent address")
+	ErrInvalidPort        = errors.New("invalid agent port")
+	ErrAgentTokenRequired = errors.New("an agent token is required when changing the agent destination")
 )
 
 const defaultPort = 8080
@@ -44,17 +45,31 @@ func (u *Usecase) Create(ctx context.Context, input CreateInput) (*models.Ocserv
 }
 
 func (u *Usecase) Update(ctx context.Context, id uint, input UpdateInput) (*models.OcservAgent, error) {
-	agent, err := buildAgent(input)
-	if err != nil {
-		return nil, err
-	}
 	stored, err := u.repository.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	stored.Name, stored.AddressType, stored.Address, stored.Port, stored.Token = agent.Name, agent.AddressType, agent.Address, agent.Port, agent.Token
+	keepToken := strings.TrimSpace(input.Token) == ""
+	if keepToken {
+		input.Token = stored.Token
+	}
+	agent, err := buildAgent(CreateInput(input))
+	if err != nil {
+		return nil, err
+	}
+	if keepToken && (stored.AddressType != agent.AddressType || stored.Address != agent.Address || stored.Port != agent.Port) {
+		return nil, ErrAgentTokenRequired
+	}
+	stored.Name, stored.AddressType, stored.Address, stored.Port = agent.Name, agent.AddressType, agent.Address, agent.Port
+	stored.Token = strings.TrimSpace(input.Token)
+	if keepToken {
+		stored.Token = ""
+	}
 	if err := u.repository.Update(ctx, stored); err != nil {
 		return nil, err
+	}
+	if keepToken {
+		stored.Token = agent.Token
 	}
 	return stored, nil
 }

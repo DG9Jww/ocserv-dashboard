@@ -5483,8 +5483,7 @@ const docTemplate = `{
             "required": [
                 "address",
                 "address_type",
-                "name",
-                "token"
+                "name"
             ],
             "properties": {
                 "address": {
@@ -5516,10 +5515,6 @@ const docTemplate = `{
                     "type": "integer",
                     "maximum": 65535,
                     "minimum": 1
-                },
-                "token": {
-                    "type": "string",
-                    "maxLength": 512
                 },
                 "updated_at": {
                     "type": "string"
@@ -6370,8 +6365,7 @@ const docTemplate = `{
             "required": [
                 "address",
                 "address_type",
-                "name",
-                "token"
+                "name"
             ],
             "properties": {
                 "address": {

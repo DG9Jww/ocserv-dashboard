@@ -41,6 +41,7 @@ let ocservConfig: RuntimeOcservConfig = {
   udp_port: 443,
 };
 type MockAgent = ModelsOcservAgent;
+type PublicMockAgent = Omit<MockAgent, "token">;
 
 let agents: MockAgent[] = [
   {
@@ -115,28 +116,32 @@ export async function getMockRelease(): Promise<GithubComMmtaeeOcservDashboardBa
     ? { current: "v1.0.0", latest: "v1.0.0" }
     : { current: "v1.0.0", latest: "v1.1.0" };
 }
-export async function getMockAgents(): Promise<ModelsOcservAgent[]> {
+export async function getMockAgents(): Promise<PublicMockAgent[]> {
   await wait();
   if (scenario() === "agent-list-error")
     throw new ApiError("Agent list is unavailable.", { status: 503 });
   if (["empty", "no-agents"].includes(scenario())) return [];
-  if (scenario() === "multiple-agents") return cloneMock(agents);
-  if (scenario() === "agent-unavailable") return cloneMock(agents.slice(0, 1));
+  const publicAgents = agents.map(({ token: _token, ...agent }) => agent);
+  if (scenario() === "multiple-agents") return cloneMock(publicAgents);
+  if (scenario() === "agent-unavailable")
+    return cloneMock(publicAgents.slice(0, 1));
   if (scenario() === "selected-agent-removed")
-    return cloneMock(agents.slice(1));
+    return cloneMock(publicAgents.slice(1));
   if (scenario() === "malformed-agent-address")
-    return cloneMock([{ ...agents[0], address: "" }]);
-  return cloneMock(agents.slice(0, 1));
+    return cloneMock([{ ...publicAgents[0], address: "" }]);
+  return cloneMock(publicAgents.slice(0, 1));
 }
 export async function mutateMockAgent(
   action: "create" | "update" | "delete",
   request?: OcservAgentCreateInput | OcservAgentUpdateInput,
   id?: number,
-): Promise<ModelsOcservAgent | void> {
+): Promise<PublicMockAgent | void> {
   await wait();
   if (
     request &&
-    (!request.name.trim() || !request.address.trim() || !request.token.trim())
+    (!request.name.trim() ||
+      !request.address.trim() ||
+      (action === "create" && !request.token.trim()))
   )
     throw new ApiError("Name, address, and token are required.", {
       status: 400,
@@ -147,7 +152,8 @@ export async function mutateMockAgent(
       id: Math.max(0, ...agents.map(({ id }) => id ?? 0)) + 1,
     };
     agents = [...agents, agent];
-    return cloneMock(agent);
+    const { token: _token, ...result } = agent;
+    return cloneMock(result);
   }
   const index = agents.findIndex((agent) => agent.id === id);
   if (index < 0) throw new ApiError("Agent not found.", { status: 404 });
@@ -155,10 +161,23 @@ export async function mutateMockAgent(
     agents = agents.filter((agent) => agent.id !== id);
     return;
   }
+  const stored = agents[index];
+  const token = request?.token.trim();
+  if (
+    !token &&
+    (request?.address !== stored.address ||
+      request?.address_type !== stored.address_type ||
+      (request?.port ?? 8080) !== (stored.port ?? 8080))
+  )
+    throw new ApiError("An agent token is required when changing the address.", {
+      status: 400,
+    });
   agents[index] = {
-    ...agents[index],
+    ...stored,
     ...request,
+    token: token || stored.token,
     updated_at: "2026-01-02T00:00:00Z",
   };
-  return cloneMock(agents[index]);
+  const { token: _token, ...result } = agents[index];
+  return cloneMock(result);
 }
