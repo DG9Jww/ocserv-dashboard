@@ -38,6 +38,7 @@ export interface Assignment {
   customer_id: string;
   node: string;
   desired: boolean;
+  remove?: boolean;
   version: number;
   applied: number;
   error: string;

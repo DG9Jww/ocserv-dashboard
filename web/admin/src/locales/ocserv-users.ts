@@ -78,7 +78,7 @@ const en = {
   delete: "Delete",
   deleteSelected: "Delete selected",
   managedDeleteBlocked:
-    "Deletion blocked because the selection includes an account managed through Customer Management. To remove access to this node, revoke its grants. To remove the customer from all nodes, delete the customer in Customer Management. The account is archived and its history is preserved.",
+    "The node keeps this account's history, so it cannot be deleted here. In Customer Management, search for the customer. For an active customer, revoke this node's grants or delete the customer to disable access across all nodes. For a deleted customer, check Node Synchronization.",
   deleteSuccess: "The Ocserv user was deleted.",
   description:
     "Create, inspect, update, and operate Ocserv VPN users and sessions.",
@@ -183,7 +183,7 @@ export const ocservUsersMessages = {
   it: {
     ...en,
     managedDeleteBlocked:
-      "Eliminazione bloccata perché la selezione include un account gestito in Gestione clienti. Per rimuovere l’accesso a questo nodo, revoca le relative autorizzazioni. Per rimuovere il cliente da tutti i nodi, eliminalo in Gestione clienti. L’account viene archiviato e la cronologia viene conservata.",
+      "Il nodo conserva la cronologia di questo account, quindi non puoi eliminarlo qui. Cerca il cliente in Gestione clienti. Per un cliente attivo, revoca le autorizzazioni su questo nodo oppure elimina il cliente per disattivare l’accesso a tutti i nodi. Per un cliente eliminato, controlla la sincronizzazione dei nodi.",
     cancel: "Annulla",
     create: "Crea utente",
     delete: "Elimina",
@@ -198,7 +198,7 @@ export const ocservUsersMessages = {
   "zh-cn": {
     ...en,
     managedDeleteBlocked:
-      "所选账号中有统一客户托管的账号，无法在此删除。只需停用当前节点时，请到「客户管理」撤销该节点的授权。若要停用所有节点，请在「客户管理」删除该客户。账号会归档，历史记录会保留。",
+      "节点保留了此账号的历史记录，因此无法在这里删除。请在「客户管理」搜索该客户。若客户仍在使用，撤销当前节点的授权即可停用该节点，删除客户则会停用所有节点。若客户已删除，请查看「节点同步」。",
     cancel: "取消",
     create: "创建用户",
     delete: "删除",
@@ -213,7 +213,7 @@ export const ocservUsersMessages = {
   "zh-tw": {
     ...en,
     managedDeleteBlocked:
-      "所選帳號中有統一客戶託管的帳號，無法在此刪除。若只需停用目前的節點，請到「客戶管理」撤銷該節點的授權。若要停用所有節點，請在「客戶管理」刪除該客戶。帳號會封存，歷史記錄會保留。",
+      "節點保留了此帳號的歷史記錄，因此無法在這裡刪除。請在「客戶管理」搜尋該客戶。若客戶仍在使用，撤銷目前節點的授權即可停用該節點，刪除客戶則會停用所有節點。若客戶已刪除，請查看「節點同步」。",
     cancel: "取消",
     create: "建立使用者",
     delete: "刪除",
@@ -228,7 +228,7 @@ export const ocservUsersMessages = {
   ru: {
     ...en,
     managedDeleteBlocked:
-      "Удаление заблокировано: среди выбранных есть учётная запись из раздела «Управление клиентами». Чтобы отключить доступ к этому узлу, отзовите разрешения на него. Чтобы отключить доступ ко всем узлам, удалите клиента в этом разделе. Учётная запись будет архивирована, а история сохранена.",
+      "Узел хранит историю этой учётной записи, поэтому удалить её здесь нельзя. Найдите клиента в разделе «Управление клиентами». Для активного клиента отзовите разрешения на этот узел или удалите клиента, чтобы отключить доступ ко всем узлам. Для удалённого клиента проверьте синхронизацию узлов.",
     cancel: "Отмена",
     create: "Создать пользователя",
     delete: "Удалить",
@@ -243,7 +243,7 @@ export const ocservUsersMessages = {
   fa: {
     ...en,
     managedDeleteBlocked:
-      "حذف مسدود شد چون در میان حساب‌های انتخاب‌شده حسابی وجود دارد که در بخش مدیریت مشتریان اداره می‌شود. برای قطع دسترسی به این گره، مجوزهای آن را لغو کنید. برای قطع دسترسی به همه گره‌ها، مشتری را در بخش مدیریت مشتریان حذف کنید. حساب بایگانی می‌شود و سابقه آن باقی می‌ماند.",
+      "این گره سابقه حساب را نگه می‌دارد و حذف حساب از اینجا ممکن نیست. مشتری را در بخش مدیریت مشتریان پیدا کنید. برای مشتری فعال، مجوزهای این گره را لغو کنید یا مشتری را حذف کنید تا دسترسی به همه گره‌ها قطع شود. برای مشتری حذف‌شده، وضعیت همگام‌سازی گره‌ها را بررسی کنید.",
     cancel: "لغو",
     create: "ایجاد کاربر",
     delete: "حذف",
@@ -258,7 +258,7 @@ export const ocservUsersMessages = {
   ar: {
     ...en,
     managedDeleteBlocked:
-      "تعذّر الحذف لأن التحديد يتضمن حسابًا تديره صفحة إدارة العملاء. لإيقاف الوصول إلى هذه العقدة، ألغِ الأذونات الممنوحة لها. لإيقاف الوصول إلى جميع العقد، احذف العميل من صفحة إدارة العملاء. سيُؤرشف الحساب ويُحفظ سجله.",
+      "تحتفظ العقدة بسجل هذا الحساب، لذلك يتعذّر حذفه من هنا. ابحث عن العميل في إدارة العملاء. إذا كان العميل نشطًا، ألغِ أذونات هذه العقدة أو احذف العميل لإيقاف الوصول إلى جميع العقد. إذا حُذف العميل بالفعل، فتحقّق من مزامنة العقد.",
     cancel: "إلغاء",
     create: "إنشاء مستخدم",
     delete: "حذف",

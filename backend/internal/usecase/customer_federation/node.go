@@ -60,6 +60,7 @@ type Apply struct {
 	Version      uint64                   `json:"version"`
 	TrustVersion uint64                   `json:"trust_version"`
 	Desired      bool                     `json:"desired"`
+	Remove       bool                     `json:"remove,omitempty"`
 	Default      models.PortalNodeDefault `json:"default"`
 	Trust        Trust                    `json:"trust"`
 }
@@ -196,7 +197,7 @@ func portalConfigReady() bool {
 }
 
 func (n *Node) Apply(ctx context.Context, input Apply) (uint, error) {
-	if !ValidID(input.CustomerID) || !ValidUsername(input.Username) || input.Version == 0 {
+	if !ValidID(input.CustomerID) || !ValidUsername(input.Username) || input.Version == 0 || (input.Desired && input.Remove) {
 		return 0, ErrInvalid
 	}
 	if input.Desired && !portalConfigReady() {
@@ -241,14 +242,12 @@ func (n *Node) createAndApply(ctx context.Context, input Apply, previous models.
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return 0, err
 	}
-	existing, err := os.ReadFile(configfile.OcpasswdPath)
+	_, exists, err := ocpasswdRecord(input.Username)
 	if err != nil {
 		return 0, err
 	}
-	for _, line := range strings.Split(string(existing), "\n") {
-		if name, _, ok := strings.Cut(line, ":"); ok && name == input.Username {
-			return 0, ErrConflict
-		}
+	if exists {
+		return 0, ErrConflict
 	}
 	owner, err := n.admins.GetByUsername(ctx, n.operator)
 	if err != nil {
@@ -273,11 +272,17 @@ func (n *Node) createAndApply(ctx context.Context, input Apply, previous models.
 }
 
 func (n *Node) applyExisting(ctx context.Context, input Apply, local models.PortalLocalAccount) (uint, error) {
-	row, err := n.users.GetByID(ctx, local.OcservID)
+	row, err := n.store.NodeAccount(ctx, local.OcservID)
 	if err != nil {
 		return 0, err
 	}
-	if row.Username != input.Username {
+	if row.Username != input.Username || row.Password != models.PortalManagedPassword {
+		return 0, ErrConflict
+	}
+	if row.DeletedAt.Valid {
+		if !input.Desired {
+			return row.ID, nil
+		}
 		return 0, ErrConflict
 	}
 	if err := os.MkdirAll(gateDirectory, 0700); err != nil {
@@ -292,10 +297,26 @@ func (n *Node) applyExisting(ctx context.Context, input Apply, local models.Port
 		return 0, err
 	}
 	if !input.Desired {
-		_, lockErr := configfile.RunOcpasswd("-l", "-c", configfile.OcpasswdPath, row.Username)
+		if err := n.store.ApplyNodeLock(ctx, local, true); err != nil {
+			return row.ID, err
+		}
+		if err := setOcpasswdState(row.Username, "-l"); err != nil {
+			return row.ID, err
+		}
 		var outcome NodeResult
-		disconnectErr := n.live(ctx, &outcome, row, "terminate")
-		return row.ID, errors.Join(lockErr, disconnectErr)
+		if err := n.live(ctx, &outcome, row, "terminate"); err != nil {
+			return row.ID, err
+		}
+		if input.Remove {
+			if err := setOcpasswdState(row.Username, "-d"); err != nil {
+				return row.ID, err
+			}
+			if err := n.accounts.DeleteConfig(row.Username); err != nil {
+				return row.ID, err
+			}
+			return row.ID, n.store.ArchiveNodeAccount(ctx, row.ID)
+		}
+		return row.ID, nil
 	}
 	if err := n.applyTrust(input.Trust, input.TrustVersion); err != nil {
 		return row.ID, err
@@ -311,6 +332,9 @@ func (n *Node) applyExisting(ctx context.Context, input Apply, local models.Port
 	}
 	// Password edits must not rewrite the user’s runtime configuration or policy.
 	if err := n.accounts.SetPassword(row.Group, row.Username, input.Password); err != nil {
+		return row.ID, err
+	}
+	if err := n.store.ApplyNodeLock(ctx, local, false); err != nil {
 		return row.ID, err
 	}
 	row, err = n.users.GetByID(ctx, row.ID)
@@ -330,6 +354,32 @@ func (n *Node) applyExisting(ctx context.Context, input Apply, local models.Port
 	return row.ID, atomicFile(marker, []byte(strconv.FormatInt(expiry, 10)+"\n"))
 }
 
+func ocpasswdRecord(username string) (string, bool, error) {
+	existing, err := os.ReadFile(configfile.OcpasswdPath)
+	if err != nil {
+		return "", false, err
+	}
+	for _, line := range strings.Split(string(existing), "\n") {
+		if name, data, ok := strings.Cut(line, ":"); ok && name == username {
+			_, password, _ := strings.Cut(data, ":")
+			return password, true, nil
+		}
+	}
+	return "", false, nil
+}
+
+func setOcpasswdState(username, flag string) error {
+	password, exists, err := ocpasswdRecord(username)
+	if err != nil || !exists {
+		return err
+	}
+	if flag == "-l" && strings.HasPrefix(password, "!") {
+		return nil
+	}
+	_, err = configfile.RunOcpasswd(flag, "-c", configfile.OcpasswdPath, username)
+	return err
+}
+
 type Query struct {
 	CustomerID string     `json:"customer_id"`
 	OcservID   uint       `json:"ocserv_id"`
@@ -341,14 +391,15 @@ type Query struct {
 }
 
 type NodeResult struct {
-	OcservID   uint                          `json:"ocserv_id,omitempty"`
-	Account    *models.OcservUser            `json:"account,omitempty"`
-	Sessions   []models.OnlineUserSession    `json:"sessions,omitempty"`
-	Bandwidth  repository.TotalBandwidths    `json:"bandwidth"`
-	Daily      []models.DailyTraffic         `json:"daily,omitempty"`
-	Activities []models.OcservUserSessionLog `json:"activities,omitempty"`
-	Total      int64                         `json:"total,omitempty"`
-	Profile    *NodeProfile                  `json:"profile,omitempty"`
+	LifecycleApplied bool                          `json:"lifecycle_applied,omitempty"`
+	OcservID         uint                          `json:"ocserv_id,omitempty"`
+	Account          *models.OcservUser            `json:"account,omitempty"`
+	Sessions         []models.OnlineUserSession    `json:"sessions,omitempty"`
+	Bandwidth        repository.TotalBandwidths    `json:"bandwidth"`
+	Daily            []models.DailyTraffic         `json:"daily,omitempty"`
+	Activities       []models.OcservUserSessionLog `json:"activities,omitempty"`
+	Total            int64                         `json:"total,omitempty"`
+	Profile          *NodeProfile                  `json:"profile,omitempty"`
 }
 
 type NodeProfile struct {
@@ -368,26 +419,26 @@ func (n *Node) Execute(ctx context.Context, q Query) (NodeResult, error) {
 	if err != nil || local.OcservID != q.OcservID {
 		return out, ErrConflict
 	}
-	row, err := n.users.GetByID(ctx, q.OcservID)
-	if err != nil {
-		return out, err
-	}
 	switch q.Operation {
 	case "bandwidth":
-		out.Bandwidth, err = n.users.TotalBandwidthUserDateRange(ctx, row.ID, q.From, q.Until)
+		out.Bandwidth, err = n.users.TotalBandwidthUserDateRange(ctx, q.OcservID, q.From, q.Until)
 	case "daily":
-		out.Daily, err = n.store.NodeDaily(ctx, row.ID, q.From, q.Until)
+		out.Daily, err = n.store.NodeDaily(ctx, q.OcservID, q.From, q.Until)
 	case "activity":
 		if q.Offset < 0 || q.Limit < 0 || q.Limit > 100 {
 			return out, ErrInvalid
 		}
-		out.Activities, out.Total, err = n.store.NodeActivity(ctx, row.ID, q.From, q.Until, q.Offset, q.Limit)
+		out.Activities, out.Total, err = n.store.NodeActivity(ctx, q.OcservID, q.From, q.Until, q.Offset, q.Limit)
 		for i := range out.Activities {
 			out.Activities[i].PortalKey = strconv.FormatUint(uint64(out.Activities[i].ID), 10)
 		}
 	case "account", "profile", "sessions", "disconnect", "terminate":
 		if !local.Desired {
 			return out, ErrConflict
+		}
+		row, loadErr := n.users.GetByID(ctx, q.OcservID)
+		if loadErr != nil {
+			return out, loadErr
 		}
 		err = n.live(ctx, &out, row, q.Operation)
 	default:

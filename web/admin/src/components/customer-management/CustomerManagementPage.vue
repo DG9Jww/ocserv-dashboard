@@ -64,6 +64,7 @@ const filter = ref("all");
 const page = ref(1);
 const pageSize = 20;
 const editorOpen = ref(false);
+const grantsOnly = ref(false);
 const editorCustomer = ref<PortalCustomer>();
 const syncOpen = ref(false);
 const syncCustomer = ref<PortalCustomer>();
@@ -131,7 +132,8 @@ function showSync(customer: PortalCustomer) {
   syncOpen.value = true;
 }
 
-function openEditor(customer?: PortalCustomer) {
+function openEditor(customer?: PortalCustomer, editGrants = false) {
+  grantsOnly.value = editGrants;
   editorCustomer.value = customer;
   mutationError.value = "";
   success.value = "";
@@ -180,6 +182,8 @@ async function submitAction() {
   );
 }
 function status(row: Assignment) {
+  if (row.remove)
+    return label(row.version === row.applied ? "archived" : "pendingRemove");
   if (row.version === row.applied)
     return label(row.desired ? "active" : "inactive");
   return label(row.desired ? "pending" : "pendingDisable");
@@ -309,6 +313,15 @@ const description = computed(() =>
                   }}</span>
                 </TableCell>
                 <TableCell class="text-end">
+                  <Button
+                    v-if="!customer.deleted_at"
+                    variant="outline"
+                    size="sm"
+                    :disabled="pending"
+                    @click="openEditor(customer, true)"
+                  >
+                    {{ label("manageGrants") }}
+                  </Button>
                   <DropdownMenu v-if="!customer.deleted_at">
                     <DropdownMenuTrigger as-child>
                       <Button
@@ -388,6 +401,7 @@ const description = computed(() =>
       v-if="data"
       v-model:open="editorOpen"
       :customer="editorCustomer"
+      :grants-only="grantsOnly"
       :inventory="data"
       :pending="pending"
       :error="mutationError"

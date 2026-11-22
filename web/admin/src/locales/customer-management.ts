@@ -1,5 +1,11 @@
 export const customerManagementMessages = {
   en: {
+    manageGrants: "Manage access",
+    revokeGrantsHelp:
+      "Uncheck a direct node grant or node group, then save. A node stays authorized while another selected grant still covers it.",
+    pendingRemove: "Pending account removal",
+    nodeLifecycleUpgrade:
+      "The node needs a newer Agent version to apply this change.",
     apiPort: "API Port",
     agentHealth: {
       online: "Online",
@@ -78,7 +84,7 @@ export const customerManagementMessages = {
     unlockDescription:
       "Unlock {username} and restore access to their assigned nodes?",
     deleteDescription:
-      "Delete {username}? Portal access is revoked and node accounts are disabled. Historical records are kept.",
+      "Delete {username}? Its Ocserv accounts will be removed from all nodes. Customer and usage history will be kept.",
     nodeSetup:
       "Upgrade the node and enable unified customer mode and its Ocserv connection check.",
     localGroupMissing:
@@ -107,6 +113,12 @@ export const customerManagementMessages = {
     TotallyRxTx: "Total receive + transmit",
   },
   it: {
+    manageGrants: "Gestisci accesso",
+    revokeGrantsHelp:
+      "Deseleziona un nodo o un gruppo, poi salva. Un nodo resta autorizzato se è coperto da un’altra autorizzazione selezionata.",
+    pendingRemove: "Rimozione account in attesa",
+    nodeLifecycleUpgrade:
+      "Aggiorna l’Agent del nodo per applicare questa modifica.",
     apiPort: "Porta API",
     agentHealth: {
       online: "Online",
@@ -185,7 +197,7 @@ export const customerManagementMessages = {
     unlockDescription:
       "Sbloccare {username} e ripristinare l’accesso ai nodi assegnati?",
     deleteDescription:
-      "Eliminare {username}? L’accesso al portale viene revocato e gli account sui nodi disattivati. Lo storico viene conservato.",
+      "Eliminare {username}? Gli account Ocserv verranno rimossi da tutti i nodi. La cronologia del cliente e del traffico sarà conservata.",
     nodeSetup:
       "Aggiorna il nodo e attiva la modalità unificata con il controllo di connessione Ocserv.",
     localGroupMissing:
@@ -217,6 +229,11 @@ export const customerManagementMessages = {
     TotallyRxTx: "Ricezione + trasmissione totale",
   },
   "zh-cn": {
+    manageGrants: "管理授权",
+    revokeGrantsHelp:
+      "取消勾选直授权节点或节点组，然后保存。只要该节点仍受其他已选授权覆盖，就会继续保有访问权限。",
+    pendingRemove: "待删除节点账号",
+    nodeLifecycleUpgrade: "此节点需要升级 Agent 才能应用这项更改。",
     apiPort: "API 端口",
     agentHealth: {
       online: "在线",
@@ -291,7 +308,7 @@ export const customerManagementMessages = {
       "锁定 {username}？门户访问会立即停止，各节点账号将同步停用。",
     unlockDescription: "解锁 {username} 并恢复其已授权节点的访问？",
     deleteDescription:
-      "删除 {username}？门户访问会被撤销，节点账号将停用，历史记录会保留。",
+      "删除 {username}？各节点的 Ocserv 账号都会被删除，客户和流量历史会保留。",
     nodeSetup: "请升级该节点，启用统一客户模式和 Ocserv 连接检查。",
     localGroupMissing: "节点上不存在配置的 Ocserv 用户组。",
     nodeAuth: "Agent 拒绝了已登记的认证令牌。",
@@ -316,6 +333,11 @@ export const customerManagementMessages = {
     TotallyRxTx: "累计收发",
   },
   "zh-tw": {
+    manageGrants: "管理授權",
+    revokeGrantsHelp:
+      "取消勾選直接授權的節點或節點群組，再儲存。只要其他已選授權涵蓋該節點，就會保留存取權限。",
+    pendingRemove: "等待刪除節點帳號",
+    nodeLifecycleUpgrade: "請升級此節點的 Agent 以套用這項變更。",
     apiPort: "API 連接埠",
     agentHealth: {
       online: "在線",
@@ -390,7 +412,7 @@ export const customerManagementMessages = {
       "鎖定 {username}？入口網站存取會立即停止，各節點帳號將同步停用。",
     unlockDescription: "解除鎖定 {username} 並恢復其已授權節點的存取？",
     deleteDescription:
-      "刪除 {username}？入口網站存取會撤銷，節點帳號將停用，歷史記錄會保留。",
+      "刪除 {username}？各節點的 Ocserv 帳號都會被刪除，客戶和流量歷史會保留。",
     nodeSetup: "請升級該節點，啟用統一客戶模式和 Ocserv 連線檢查。",
     localGroupMissing: "節點上沒有設定的 Ocserv 使用者群組。",
     nodeAuth: "Agent 拒絕了已登記的驗證權杖。",
@@ -415,6 +437,12 @@ export const customerManagementMessages = {
     TotallyRxTx: "累計收發",
   },
   ru: {
+    manageGrants: "Управление доступом",
+    revokeGrantsHelp:
+      "Снимите выбор с узла или группы и сохраните. Доступ к узлу сохраняется, пока его предоставляет другое выбранное разрешение.",
+    pendingRemove: "Ожидается удаление учётной записи",
+    nodeLifecycleUpgrade:
+      "Обновите Agent на этом узле, чтобы применить изменение.",
     apiPort: "Порт API",
     agentHealth: {
       online: "В сети",
@@ -494,7 +522,7 @@ export const customerManagementMessages = {
     unlockDescription:
       "Разблокировать {username} и восстановить доступ к назначенным узлам?",
     deleteDescription:
-      "Удалить {username}? Доступ к порталу будет отозван, а учётные записи на узлах отключены. История сохранится.",
+      "Удалить {username}? Учётные записи Ocserv будут удалены со всех узлов. История клиента и трафика сохранится.",
     nodeSetup:
       "Обновите узел и включите единый режим клиентов и проверку подключения Ocserv.",
     localGroupMissing:
@@ -525,6 +553,12 @@ export const customerManagementMessages = {
     TotallyRxTx: "Приём и передача всего",
   },
   fa: {
+    manageGrants: "مدیریت دسترسی",
+    revokeGrantsHelp:
+      "انتخاب گره یا گروه را بردارید و ذخیره کنید. تا زمانی که مجوز دیگری گره را پوشش دهد، دسترسی آن برقرار می‌ماند.",
+    pendingRemove: "در انتظار حذف حساب گره",
+    nodeLifecycleUpgrade:
+      "برای اعمال این تغییر، عامل این گره را به‌روزرسانی کنید.",
     apiPort: "درگاه API",
     agentHealth: {
       online: "آنلاین",
@@ -603,7 +637,7 @@ export const customerManagementMessages = {
     unlockDescription:
       "قفل {username} باز و دسترسی به گره‌های تخصیص‌یافته بازیابی شود؟",
     deleteDescription:
-      "{username} حذف شود؟ دسترسی پورتال لغو و حساب‌های گره غیرفعال می‌شوند. تاریخچه حفظ می‌شود.",
+      "{username} حذف شود؟ حساب‌های Ocserv از همه گره‌ها حذف می‌شوند و سابقه مشتری و ترافیک باقی می‌ماند.",
     nodeSetup:
       "گره را ارتقا دهید و حالت یکپارچه مشتریان و بررسی اتصال Ocserv را فعال کنید.",
     localGroupMissing: "گروه کاربری Ocserv تنظیم‌شده در گره وجود ندارد.",
@@ -632,6 +666,11 @@ export const customerManagementMessages = {
     TotallyRxTx: "کل دریافت و ارسال",
   },
   ar: {
+    manageGrants: "إدارة الوصول",
+    revokeGrantsHelp:
+      "أزل تحديد العقدة أو المجموعة ثم احفظ. يبقى الوصول إلى العقدة متاحًا ما دام إذن آخر محدد يغطيها.",
+    pendingRemove: "بانتظار حذف حساب العقدة",
+    nodeLifecycleUpgrade: "حدّث الوكيل على هذه العقدة لتطبيق هذا التغيير.",
     apiPort: "منفذ API",
     agentHealth: {
       online: "متصل",
@@ -710,7 +749,7 @@ export const customerManagementMessages = {
     unlockDescription:
       "هل تريد إلغاء قفل {username} واستعادة الوصول إلى العقد المعيّنة؟",
     deleteDescription:
-      "هل تريد حذف {username}؟ يُلغى الوصول إلى البوابة وتُعطّل حسابات العقد مع الاحتفاظ بالسجل.",
+      "هل تريد حذف {username}؟ ستُحذف حسابات Ocserv من جميع العقد، وسيُحتفظ بسجل العميل وحركة البيانات.",
     nodeSetup: "حدّث العقدة وفعّل وضع العملاء الموحّد وفحص اتصال Ocserv.",
     localGroupMissing: "مجموعة مستخدمي Ocserv المحددة غير موجودة على العقدة.",
     nodeAuth: "رفض الوكيل رمز المصادقة المسجل.",

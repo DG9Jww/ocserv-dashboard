@@ -26,7 +26,7 @@ func TestOcservGroupsIncludeAggregatedUserTraffic(t *testing.T) {
 
 	mock.ExpectQuery(`SELECT count\(\*\) FROM "ocserv_groups"`).
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
-	mock.ExpectQuery(`(?s)SELECT .*COALESCE\(user_traffic\.total_rx, 0\) AS total_rx.*COALESCE\(user_traffic\.total_tx, 0\) AS total_tx.*LEFT JOIN \(SELECT "group", SUM\(running_rx\) AS total_rx, SUM\(running_tx\) AS total_tx FROM "ocserv_users" GROUP BY "group"\) AS user_traffic ON user_traffic\."group" = ocserv_groups\.name.*`).
+	mock.ExpectQuery(`(?s)SELECT .*COALESCE\(user_traffic\.total_rx, 0\) AS total_rx.*COALESCE\(user_traffic\.total_tx, 0\) AS total_tx.*LEFT JOIN \(SELECT "group", SUM\(running_rx\) AS total_rx, SUM\(running_tx\) AS total_tx FROM "ocserv_users" WHERE "ocserv_users"\."deleted_at" IS NULL GROUP BY "group"\) AS user_traffic ON user_traffic\."group" = ocserv_groups\.name.*`).
 		WithArgs(10).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "config", "total_rx", "total_tx"}).
 			AddRow(1, "multiple-users", nil, int64(120+80), int64(250+50)).

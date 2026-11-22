@@ -22,6 +22,7 @@ import { Spinner } from "@/components/ui/spinner";
 
 const props = defineProps<{
   customer?: PortalCustomer;
+  grantsOnly?: boolean;
   inventory: Inventory;
   pending: boolean;
   error: string;
@@ -85,15 +86,23 @@ function submit() {
     <SheetContent class="w-full overflow-y-auto sm:max-w-lg">
       <SheetHeader>
         <SheetTitle>{{
-          label(form.id ? "editCustomer" : "newCustomer")
+          label(
+            grantsOnly
+              ? "manageGrants"
+              : form.id
+                ? "editCustomer"
+                : "newCustomer",
+          )
         }}</SheetTitle>
-        <SheetDescription>{{ label("grantHelp") }}</SheetDescription>
+        <SheetDescription>{{
+          grantsOnly ? form.username : label("grantHelp")
+        }}</SheetDescription>
       </SheetHeader>
       <form class="grid gap-4 px-4" novalidate @submit.prevent="submit">
         <Alert v-if="error" variant="error" role="alert"
           ><AlertDescription>{{ error }}</AlertDescription></Alert
         >
-        <label class="grid gap-1 text-sm"
+        <label v-if="!grantsOnly" class="grid gap-1 text-sm"
           >{{ label("username") }}
           <Input
             v-model="form.username"
@@ -103,7 +112,7 @@ function submit() {
             maxlength="32"
           />
         </label>
-        <label class="grid gap-1 text-sm"
+        <label v-if="!grantsOnly" class="grid gap-1 text-sm"
           >{{ label("password") }}
           <Input
             v-model="form.password"
@@ -117,6 +126,9 @@ function submit() {
             label("passwordHint")
           }}</span>
         </label>
+        <p v-if="grantsOnly" class="text-sm text-muted-foreground">
+          {{ label("revokeGrantsHelp") }}
+        </p>
         <div class="grid gap-3 sm:grid-cols-2">
           <fieldset class="grid content-start gap-1 text-sm">
             <legend class="mb-1 font-medium">{{ label("direct") }}</legend>

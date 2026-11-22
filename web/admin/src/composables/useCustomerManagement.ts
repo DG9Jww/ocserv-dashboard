@@ -14,6 +14,7 @@ const messageKeys: Record<string, string> = {
   invalid_customer_configuration: "invalid",
   customer_account_conflict: "conflict",
   customer_node_setup_required: "nodeSetup",
+  customer_node_lifecycle_upgrade_required: "nodeLifecycleUpgrade",
   customer_ocserv_group_missing: "localGroupMissing",
   customer_node_auth_failed: "nodeAuth",
   customer_node_tls_failed: "nodeTLS",

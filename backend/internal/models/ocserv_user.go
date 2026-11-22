@@ -61,16 +61,17 @@ type OcservUserCertificateBackup struct {
 }
 
 type OcservUser struct {
-	ID         uint       `json:"id" gorm:"primaryKey;autoIncrement" validate:"required"`
-	OwnerID    uint       `json:"owner_id" gorm:"not null;index" validate:"required"`
-	Owner      User       `json:"owner" gorm:"foreignKey:OwnerID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
-	Group      string     `json:"group" gorm:"type:varchar(16);default:'defaults'" validate:"required"`
-	Username   string     `json:"username" gorm:"type:varchar(255);not null;uniqueIndex" validate:"required"`
-	Password   string     `json:"password" gorm:"type:varchar(255);not null" validate:"required"`
-	IsLocked   bool       `json:"is_locked" gorm:"default(false)" validate:"required"`
-	CreatedAt  time.Time  `json:"created_at" gorm:"autoCreateTime" validate:"required"`
-	UpdatedAt  time.Time  `json:"updated_at" gorm:"autoUpdateTime" validate:"omitempty"`
-	ExpiryMode ExpiryMode `json:"expiry_mode" gorm:"type:varchar(32);not null" enums:"unlimited,fixed,first_connection" validate:"required"`
+	ID         uint           `json:"id" gorm:"primaryKey;autoIncrement" validate:"required"`
+	OwnerID    uint           `json:"owner_id" gorm:"not null;index" validate:"required"`
+	Owner      User           `json:"owner" gorm:"foreignKey:OwnerID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE"`
+	Group      string         `json:"group" gorm:"type:varchar(16);default:'defaults'" validate:"required"`
+	Username   string         `json:"username" gorm:"type:varchar(255);not null;uniqueIndex" validate:"required"`
+	Password   string         `json:"password" gorm:"type:varchar(255);not null" validate:"required"`
+	IsLocked   bool           `json:"is_locked" gorm:"default(false)" validate:"required"`
+	CreatedAt  time.Time      `json:"created_at" gorm:"autoCreateTime" validate:"required"`
+	UpdatedAt  time.Time      `json:"updated_at" gorm:"autoUpdateTime" validate:"omitempty"`
+	DeletedAt  gorm.DeletedAt `json:"-"`
+	ExpiryMode ExpiryMode     `json:"expiry_mode" gorm:"type:varchar(32);not null" enums:"unlimited,fixed,first_connection" validate:"required"`
 	// ExpireAt is the effective expiry instant. It remains nil for a
 	// first-connection account until the worker observes its first session.
 	ExpireAt                       *time.Time                   `json:"expire_at" gorm:"type:timestamptz" validate:"omitempty"`

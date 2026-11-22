@@ -325,7 +325,7 @@ func (o *OcservUserRepository) Delete(ctx context.Context, id uint) (*models.Ocs
 		if bindings != 0 {
 			return ErrManagedCustomerDelete
 		}
-		if err := tx.Delete(&ocservUser).Error; err != nil {
+		if err := tx.Unscoped().Delete(&ocservUser).Error; err != nil {
 			return err
 		}
 		return nil

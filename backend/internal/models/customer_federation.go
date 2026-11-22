@@ -37,6 +37,7 @@ type PortalAssignment struct {
 	CustomerID string    `json:"customer_id" gorm:"type:uuid;primaryKey"`
 	Node       string    `json:"node" gorm:"primaryKey"`
 	Desired    bool      `json:"desired"`
+	Remove     bool      `json:"remove" gorm:"not null;default:false"`
 	Version    uint64    `json:"version"`
 	Applied    uint64    `json:"applied"`
 	OcservID   uint      `json:"-"`
@@ -45,11 +46,12 @@ type PortalAssignment struct {
 }
 
 type PortalLocalAccount struct {
-	CustomerID string `gorm:"type:uuid;primaryKey"`
-	OcservID   uint   `gorm:"not null;uniqueIndex:portal_local_ocserv_id,where:ocserv_id > 0"`
-	Configured bool
-	Version    uint64
-	Desired    bool
+	CustomerID  string `gorm:"type:uuid;primaryKey"`
+	OcservID    uint   `gorm:"not null;uniqueIndex:portal_local_ocserv_id,where:ocserv_id > 0"`
+	Configured  bool
+	Version     uint64
+	Desired     bool
+	LockApplied bool `gorm:"not null;default:false"`
 }
 
 type PortalSigningCA struct {

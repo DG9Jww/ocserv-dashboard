@@ -87,6 +87,34 @@ func (r *PortalRepository) Local(ctx context.Context, customerID string) (models
 	return local, err
 }
 
+func (r *PortalRepository) NodeAccount(ctx context.Context, id uint) (*models.OcservUser, error) {
+	var row models.OcservUser
+	err := r.db.WithContext(ctx).Unscoped().First(&row, id).Error
+	return &row, err
+}
+
+func (r *PortalRepository) ArchiveNodeAccount(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&models.OcservUser{}, id).Error
+}
+
+// Keep the node's independently applied lock when customer access is restored.
+func (r *PortalRepository) ApplyNodeLock(ctx context.Context, local models.PortalLocalAccount, locked bool) error {
+	if !locked && !local.LockApplied {
+		return nil
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&models.OcservUser{}).Where("id = ? AND is_locked <> ?", local.OcservID, locked).Update("is_locked", locked)
+		if result.Error != nil {
+			return result.Error
+		}
+		applied := locked && (local.LockApplied || result.RowsAffected != 0)
+		if applied == local.LockApplied {
+			return nil
+		}
+		return tx.Model(&local).Update("lock_applied", applied).Error
+	})
+}
+
 func (r *PortalRepository) Reserve(ctx context.Context, customerID string, account *models.OcservUser, reserved bool) (models.PortalLocalAccount, error) {
 	result := models.PortalLocalAccount{CustomerID: customerID}
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

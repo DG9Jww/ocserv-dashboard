@@ -32,6 +32,7 @@ function reconcile() {
     );
     for (const item of history) {
       item.desired = desired.delete(item.node);
+      item.remove = Boolean(customer.deleted_at);
     }
     assignments = [
       ...assignments,

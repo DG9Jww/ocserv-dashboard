@@ -140,7 +140,10 @@ func (m *Master) applyJob(ctx context.Context, job models.PortalAssignment) (uin
 	if err != nil {
 		return 0, err
 	}
-	input := Apply{CustomerID: customer.ID, Username: customer.Username, Version: job.Version, Desired: job.Desired}
+	if job.Desired && (customer.Locked || customer.DeletedAt != nil) {
+		return 0, ErrPending
+	}
+	input := Apply{CustomerID: customer.ID, Username: customer.Username, Version: job.Version, Desired: job.Desired, Remove: job.Remove}
 	if job.Desired {
 		defaults, err := m.store.Defaults(ctx)
 		if err != nil {
@@ -170,11 +173,14 @@ func (m *Master) applyJob(ctx context.Context, job models.PortalAssignment) (uin
 	}
 	var result NodeResult
 	err = m.nodeCall(ctx, job.Node, "apply", input, &result)
+	if err == nil && !job.Desired && !result.LifecycleApplied {
+		return 0, ErrNodeLifecycle
+	}
 	return result.OcservID, err
 }
 
 func provisioningError(err error) string {
-	for _, known := range []error{ErrConflict, ErrInvalid, ErrMissingDefaults, ErrNodeSetup, ErrNodeGroup, ErrNodeAuth, ErrNodeTLS} {
+	for _, known := range []error{ErrConflict, ErrInvalid, ErrMissingDefaults, ErrNodeSetup, ErrNodeLifecycle, ErrNodeGroup, ErrNodeAuth, ErrNodeTLS} {
 		if errors.Is(err, known) {
 			return known.Error()
 		}

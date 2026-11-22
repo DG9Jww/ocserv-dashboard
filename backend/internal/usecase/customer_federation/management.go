@@ -27,6 +27,7 @@ var (
 	ErrNoGrants        = errors.New("customer_grant_required")
 	ErrMissingDefaults = errors.New("customer_node_defaults_missing")
 	ErrNodeSetup       = errors.New("customer_node_setup_required")
+	ErrNodeLifecycle   = errors.New("customer_node_lifecycle_upgrade_required")
 	ErrNodeGroup       = errors.New("customer_ocserv_group_missing")
 	ErrNodeAuth        = errors.New("customer_node_auth_failed")
 	ErrNodeTLS         = errors.New("customer_node_tls_failed")
@@ -162,11 +163,12 @@ func synchronize(ctx context.Context, tx *repository.PortalRepository, customer 
 	}
 	for _, row := range current {
 		want := desired[row.Node]
+		remove := customer.DeletedAt != nil
 		delete(desired, row.Node)
-		if row.Desired == want && !(want && (forceNode == "*" || forceNode == row.Node)) {
+		if row.Desired == want && row.Remove == remove && !(want && (forceNode == "*" || forceNode == row.Node)) {
 			continue
 		}
-		row.Desired, row.Version, row.Error, row.RetryAt = want, row.Version+1, "", time.Now().UTC()
+		row.Desired, row.Remove, row.Version, row.Error, row.RetryAt = want, remove, row.Version+1, "", time.Now().UTC()
 		if err := tx.Save(ctx, &row); err != nil {
 			return err
 		}
