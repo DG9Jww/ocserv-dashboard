@@ -45,7 +45,7 @@ const dashboardComponents: Partial<
   backup: backupView,
   "system-settings": systemSettingsView,
   "customer-management": () => import("@/views/CustomerManagementView.vue"),
-  "portal-node-groups": () => import("@/views/PortalNodeGroupsView.vue"),
+  "agent-nodes": () => import("@/views/AgentNodesView.vue"),
 };
 
 export const router = createRouter({
@@ -62,6 +62,7 @@ export const router = createRouter({
         telegramOnly: route.telegramOnly,
       },
     })),
+    { path: "/node-groups", redirect: { name: "agent-nodes" } },
     {
       path: "/login",
       name: "login",

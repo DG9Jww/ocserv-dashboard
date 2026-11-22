@@ -163,9 +163,9 @@ export const dashboardRoutes: DashboardRoute[] = [
     adminVisible: false,
   },
   {
-    path: "/node-groups",
-    name: "portal-node-groups",
-    titleKey: "customerManagement.groups",
+    path: "/agent-nodes",
+    name: "agent-nodes",
+    titleKey: "customerManagement.agentNodes",
     sectionKey: "navigation.system",
     icon: Network,
     adminVisible: false,

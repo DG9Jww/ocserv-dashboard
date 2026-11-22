@@ -7,13 +7,13 @@ import type {
   PortalCustomerInput,
 } from "@/api/services/customer-management";
 import { ApiError } from "@/api/http";
+import { getMockAgents } from "@/mocks/system";
 import { cloneMock } from "@/mocks/utils";
 
 const groups: NodeGroup[] = [];
 const customers: PortalCustomer[] = [];
 const defaults: NodeDefaults[] = [];
 let assignments: Assignment[] = [];
-const nodes: Inventory["nodes"] = [{ id: "master", name: "" }];
 
 function reconcile() {
   for (const customer of customers) {
@@ -53,7 +53,14 @@ function saveByID<T extends { id: string }>(items: T[], value: T) {
 }
 
 export const mockCustomerManagement = {
-  inventory(): Inventory {
+  async inventory(): Promise<Inventory> {
+    const agents = await getMockAgents();
+    const nodes = [
+      { id: "master", name: "" },
+      ...agents
+        .filter((agent) => agent.id != null)
+        .map((agent) => ({ id: "agent-" + agent.id, name: agent.name })),
+    ];
     return cloneMock({ nodes, groups, customers, defaults, assignments });
   },
   saveCustomer(input: PortalCustomerInput) {

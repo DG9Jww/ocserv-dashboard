@@ -71,6 +71,7 @@ let agents: MockAgent[] = [
     port: 8080,
   },
 ];
+let nextAgentId = 4;
 
 function scenario(): string {
   return import.meta.env.VITE_SYSTEM_MOCK_SCENARIO || "normal";
@@ -121,16 +122,22 @@ export async function getMockAgents(): Promise<PublicMockAgent[]> {
   await wait();
   if (scenario() === "agent-list-error")
     throw new ApiError("Agent list is unavailable.", { status: 503 });
-  if (["empty", "no-agents"].includes(scenario())) return [];
   const publicAgents = agents.map(({ token: _token, ...agent }) => agent);
   if (scenario() === "multiple-agents") return cloneMock(publicAgents);
-  if (scenario() === "agent-unavailable")
-    return cloneMock(publicAgents.slice(0, 1));
-  if (scenario() === "selected-agent-removed")
-    return cloneMock(publicAgents.slice(1));
-  if (scenario() === "malformed-agent-address")
-    return cloneMock([{ ...publicAgents[0], address: "" }]);
-  return cloneMock(publicAgents.slice(0, 1));
+  return cloneMock(
+    publicAgents.flatMap((agent) => {
+      if (agent.id != null && agent.id >= 4) return [agent];
+      if (["empty", "no-agents"].includes(scenario())) return [];
+      if (scenario() === "selected-agent-removed")
+        return agent.id === 1 ? [] : [agent];
+      if (agent.id !== 1) return [];
+      return [
+        scenario() === "malformed-agent-address"
+          ? { ...agent, address: "" }
+          : agent,
+      ];
+    }),
+  );
 }
 export async function mutateMockAgent(
   action: "create" | "update" | "delete",
@@ -150,7 +157,7 @@ export async function mutateMockAgent(
   if (action === "create") {
     const agent = {
       ...request!,
-      id: Math.max(0, ...agents.map(({ id }) => id ?? 0)) + 1,
+      id: nextAgentId++,
     };
     agents = [...agents, agent];
     const { token: _token, ...result } = agent;
@@ -170,9 +177,12 @@ export async function mutateMockAgent(
       request?.address_type !== stored.address_type ||
       (request?.port ?? 8080) !== (stored.port ?? 8080))
   )
-    throw new ApiError("An agent token is required when changing the address.", {
-      status: 400,
-    });
+    throw new ApiError(
+      "An agent token is required when changing the address.",
+      {
+        status: 400,
+      },
+    );
   agents[index] = {
     ...stored,
     ...request,

@@ -1,42 +1,22 @@
 <script setup lang="ts">
-import { Pencil, Plus, RefreshCw, Save, Trash2 } from "@lucide/vue";
+import { RefreshCw, Save } from "@lucide/vue";
 import { computed, onMounted, reactive, shallowRef } from "vue";
-import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { normalizeApiError } from "@/api/http";
-import { MASTER_SERVER, useServerStore } from "@/stores/server";
-import { ModelsAgentAddressType } from "@/api/generated";
 import {
-  createOcservAgent,
-  deleteOcservAgent,
-  getOcservAgent,
   getOcservConfig,
   getSystemConfig,
   getSystemRelease,
-  updateOcservAgent,
   updateOcservConfig,
   updateSystemConfig,
   type OcservConfig,
-  type OcservAgent,
-  type OcservAgentCreate,
   type SystemConfig,
   type SystemUpdateData,
 } from "@/api/services/system";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -44,12 +24,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import {
   Field,
   FieldDescription,
@@ -59,34 +33,16 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-
 const { t } = useI18n({ useScope: "global" });
-const serverStore = useServerStore();
-const { agents, isLoading: agentsLoading, selectedServer } =
-  storeToRefs(serverStore);
 const loading = shallowRef(true),
-  saving = shallowRef<"system" | "ocserv" | "agent" | "delete" | null>(null),
+  saving = shallowRef<"system" | "ocserv" | null>(null),
   error = shallowRef(""),
   success = shallowRef("");
 const release = shallowRef<{ current: string; latest: string } | null>(null),
   ocservOriginal = shallowRef<OcservConfig>({}),
   allowOcservUpdate = shallowRef(false),
   ocservError = shallowRef(""),
-  activeTab = shallowRef<"release" | "panel" | "ocserv" | "agents">("release"),
-  agentDialogOpen = shallowRef(false),
-  editingAgentId = shallowRef<number | null>(null),
-  deleteAgent = shallowRef<OcservAgent | null>(null);
-const refreshing = computed(() =>
-  activeTab.value === "agents" ? agentsLoading.value : loading.value,
-);
+  activeTab = shallowRef<"release" | "panel" | "ocserv">("release");
 const panel = reactive<SystemUpdateData>({
   auto_delete_inactive_users: false,
   client_profile_connection_name: "",
@@ -95,13 +51,6 @@ const panel = reactive<SystemUpdateData>({
   google_captcha_secret_key: "",
   google_captcha_site_key: "",
   keep_inactive_user_days: 0,
-});
-const agent = reactive<OcservAgentCreate>({
-  name: "",
-  address: "",
-  address_type: ModelsAgentAddressType.AgentAddressTypeDomain,
-  port: 443,
-  token: "",
 });
 const ocserv = reactive<OcservConfig>({});
 const certificatePathFields = ["server_cert", "server_key"] as const;
@@ -141,34 +90,11 @@ const textFields: (keyof OcservConfig)[] = [
 const updateAvailable = computed(() =>
   Boolean(release.value && release.value.current !== release.value.latest),
 );
-const agentValid = computed(() =>
-  Boolean(
-    agent.name.trim() &&
-      agent.address.trim() &&
-      (editingAgentId.value != null || agent.token.trim()) &&
-      (agent.port == null ||
-        (Number.isInteger(agent.port) && agent.port >= 1 && agent.port <= 65535)),
-  ),
-);
 function setPanel(value: SystemConfig): boolean {
   const keys = Object.keys(panel) as (keyof SystemUpdateData)[];
   if (keys.some((key) => typeof value[key] !== typeof panel[key])) return false;
   Object.assign(panel, value);
   return true;
-}
-function resetAgent(): void {
-  editingAgentId.value = null;
-  Object.assign(agent, {
-    name: "",
-    address: "",
-    address_type: ModelsAgentAddressType.AgentAddressTypeDomain,
-    port: 443,
-    token: "",
-  });
-}
-function openCreateAgent(): void {
-  resetAgent();
-  agentDialogOpen.value = true;
 }
 function textValue(key: keyof OcservConfig): string {
   return (ocserv[key] as string | undefined) ?? "";
@@ -217,13 +143,6 @@ async function refresh(): Promise<void> {
     loading.value = false;
   }
 }
-async function refreshCurrentTab(): Promise<void> {
-  if (activeTab.value === "agents") {
-    await serverStore.refreshAgents();
-    return;
-  }
-  await refresh();
-}
 async function savePanel(): Promise<void> {
   saving.value = "system";
   error.value = "";
@@ -261,53 +180,6 @@ async function saveOcserv(): Promise<void> {
     saving.value = null;
   }
 }
-async function editAgent(item: OcservAgent): Promise<void> {
-  if (item.id == null) return;
-  saving.value = "agent";
-  try {
-    Object.assign(agent, await getOcservAgent(item.id), { token: "" });
-    editingAgentId.value = item.id;
-    agentDialogOpen.value = true;
-  } catch (cause) {
-    error.value = normalizeApiError(cause).message;
-  } finally {
-    saving.value = null;
-  }
-}
-async function saveAgent(): Promise<void> {
-  if (!agentValid.value) {
-    error.value = t("systemSettings.agentRequired");
-    return;
-  }
-  saving.value = "agent";
-  error.value = "";
-  try {
-    if (editingAgentId.value == null) await createOcservAgent({ ...agent });
-    else await updateOcservAgent(editingAgentId.value, { ...agent });
-    await serverStore.refreshAgents();
-    resetAgent();
-    agentDialogOpen.value = false;
-    success.value = t("systemSettings.agentSaved");
-  } catch (cause) {
-    error.value = normalizeApiError(cause).message;
-  } finally {
-    saving.value = null;
-  }
-}
-async function removeAgent(): Promise<void> {
-  if (deleteAgent.value?.id == null) return;
-  saving.value = "delete";
-  try {
-    await deleteOcservAgent(deleteAgent.value.id);
-    deleteAgent.value = null;
-    await serverStore.refreshAgents();
-    success.value = t("systemSettings.agentDeleted");
-  } catch (cause) {
-    error.value = normalizeApiError(cause).message;
-  } finally {
-    saving.value = null;
-  }
-}
 onMounted(refresh);
 </script>
 
@@ -325,10 +197,10 @@ onMounted(refresh);
       <Button
         type="button"
         variant="outline"
-        :disabled="refreshing || saving !== null"
-        @click="refreshCurrentTab"
+        :disabled="loading || saving !== null"
+        @click="refresh"
       >
-        <Spinner v-if="refreshing" data-icon="inline-start" />
+        <Spinner v-if="loading" data-icon="inline-start" />
         <RefreshCw v-else data-icon="inline-start" />
         {{ t("systemSettings.refresh") }}
       </Button>
@@ -340,18 +212,24 @@ onMounted(refresh);
       ><AlertTitle>{{ t("systemSettings.success") }}</AlertTitle
       ><AlertDescription>{{ success }}</AlertDescription></Alert
     >
-    <div class="flex flex-wrap gap-2" role="tablist">
-      <Button
-        v-for="tab in ['release', 'panel', 'ocserv', 'agents'] as const"
-        v-show="tab !== 'agents' || selectedServer === MASTER_SERVER"
-        :key="tab"
-        type="button"
-        :variant="activeTab === tab ? 'default' : 'outline'"
-        role="tab"
-        :aria-selected="activeTab === tab"
-        @click="activeTab = tab"
-        >{{ t(`systemSettings.tabs.${tab}`) }}</Button
-      >
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap gap-2" role="tablist">
+        <Button
+          v-for="tab in ['release', 'panel', 'ocserv'] as const"
+          :key="tab"
+          type="button"
+          :variant="activeTab === tab ? 'default' : 'outline'"
+          role="tab"
+          :aria-selected="activeTab === tab"
+          @click="activeTab = tab"
+          >{{ t(`systemSettings.tabs.${tab}`) }}</Button
+        >
+      </div>
+      <Button as-child variant="outline">
+        <RouterLink :to="{ name: 'agent-nodes' }">{{
+          t("customerManagement.agentNodes")
+        }}</RouterLink>
+      </Button>
     </div>
     <Card v-if="activeTab === 'release'"
       ><CardHeader
@@ -566,218 +444,6 @@ onMounted(refresh);
           />{{ t("systemSettings.save") }}</Button
         ></CardFooter
       ></Card
-    >
-    <Card
-      v-if="activeTab === 'agents' && selectedServer === MASTER_SERVER"
-      ><CardHeader
-        ><CardTitle>{{ t("systemSettings.agents") }}</CardTitle
-        ><CardDescription>{{
-          t("systemSettings.agentsDescription")
-        }}</CardDescription
-        ><CardAction
-          ><Button
-            type="button"
-            variant="outline"
-            :disabled="saving !== null"
-            @click="openCreateAgent"
-            ><Plus data-icon="inline-start" />{{
-              t("systemSettings.newAgent")
-            }}</Button
-          ></CardAction
-        ></CardHeader
-      ><CardContent class="flex flex-col gap-6"
-        ><Empty v-if="!loading && !agents.length"
-          ><EmptyHeader
-            ><EmptyTitle>{{ t("systemSettings.noAgents") }}</EmptyTitle
-            ><EmptyDescription>{{
-              t("systemSettings.noAgentsDescription")
-            }}</EmptyDescription></EmptyHeader
-          ></Empty
-        >
-        <div v-else class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="text-muted-foreground">
-              <tr>
-                <th class="p-2 text-start">
-                  {{ t("systemSettings.agentName") }}
-                </th>
-                <th class="p-2 text-start">
-                  {{ t("systemSettings.agentAddress") }}
-                </th>
-                <th class="p-2 text-start">
-                  {{ t("systemSettings.addressType") }}
-                </th>
-                <th class="p-2 text-start">
-                  {{ t("systemSettings.serverPort") }}
-                </th>
-                <th class="p-2 text-start">
-                  {{ t("systemSettings.actions") }}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in agents" :key="item.id">
-                <td class="p-2">{{ item.name }}</td>
-                <td class="p-2">{{ item.address }}</td>
-                <td class="p-2">
-                  {{
-                    t(
-                      item.address_type === "ip"
-                        ? "systemSettings.ip"
-                        : "systemSettings.domain",
-                    )
-                  }}
-                </td>
-                <td class="p-2">{{ item.port ?? 443 }}</td>
-                <td class="flex gap-2 p-2">
-                  <Button
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                    :disabled="saving !== null"
-                    @click="editAgent(item)"
-                    ><Pencil data-icon="inline-start" />{{
-                      t("systemSettings.edit")
-                    }}</Button
-                  ><Button
-                    size="sm"
-                    type="button"
-                    variant="destructive"
-                    :disabled="saving !== null"
-                    @click="deleteAgent = item"
-                    ><Trash2 data-icon="inline-start" />{{
-                      t("systemSettings.delete")
-                    }}</Button
-                  >
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        </CardContent>
-      </Card>
-    <Sheet v-model:open="agentDialogOpen"
-      ><SheetContent class="overflow-y-auto"
-        ><form class="flex flex-col gap-6" @submit.prevent="saveAgent">
-          <SheetHeader
-            ><SheetTitle>{{
-              t(
-                editingAgentId === null
-                  ? "systemSettings.createAgent"
-                  : "systemSettings.updateAgent",
-              )
-            }}</SheetTitle
-            ><SheetDescription>{{
-              t("systemSettings.agentsDescription")
-            }}</SheetDescription></SheetHeader
-          ><FieldGroup class="p-4">
-            <Field
-              ><FieldLabel for="sheet-agent-name">{{
-                t("systemSettings.agentName")
-              }}</FieldLabel
-              ><Input
-                id="sheet-agent-name"
-                v-model="agent.name"
-                required
-                :disabled="saving !== null" /></Field
-            ><Field
-              ><FieldLabel for="sheet-agent-address">{{
-                t("systemSettings.agentAddress")
-              }}</FieldLabel
-              ><Input
-                id="sheet-agent-address"
-                v-model="agent.address"
-                required
-                :disabled="saving !== null" /></Field
-            ><Field
-              ><FieldLabel for="sheet-agent-type">{{
-                t("systemSettings.addressType")
-              }}</FieldLabel
-              ><select
-                id="sheet-agent-type"
-                v-model="agent.address_type"
-                class="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-                :disabled="saving !== null"
-              >
-                <option :value="ModelsAgentAddressType.AgentAddressTypeDomain">
-                  {{ t("systemSettings.domain") }}
-                </option>
-                <option :value="ModelsAgentAddressType.AgentAddressTypeIP">
-                  {{ t("systemSettings.ip") }}
-                </option>
-              </select></Field
-            ><Field
-              ><FieldLabel for="sheet-agent-port">{{
-                t("systemSettings.serverPort")
-              }}</FieldLabel
-              ><Input
-                id="sheet-agent-port"
-                v-model.number="agent.port"
-                type="number"
-                min="1"
-                max="65535"
-                :disabled="saving !== null" /></Field
-            ><Field
-              ><FieldLabel for="sheet-agent-token">{{
-                t("systemSettings.agentToken")
-              }}</FieldLabel
-              ><Input
-                id="sheet-agent-token"
-                v-model="agent.token"
-                :required="editingAgentId == null"
-                type="password"
-                :disabled="saving !== null" /></Field></FieldGroup
-          ><SheetFooter
-            ><Button
-              type="button"
-              variant="outline"
-              :disabled="saving !== null"
-              @click="agentDialogOpen = false"
-              >{{ t("systemSettings.cancel") }}</Button
-            ><Button type="submit" :disabled="saving !== null"
-              ><Spinner
-                v-if="saving === 'agent'"
-                data-icon="inline-start"
-              /><Save v-else data-icon="inline-start" />{{
-                t(
-                  editingAgentId === null
-                    ? "systemSettings.createAgent"
-                    : "systemSettings.updateAgent",
-                )
-              }}</Button
-            ></SheetFooter
-          >
-        </form></SheetContent
-      ></Sheet
-    >
-    <AlertDialog :open="deleteAgent !== null"
-      ><AlertDialogContent
-        ><AlertDialogHeader
-          ><AlertDialogTitle>{{
-            t("systemSettings.deleteAgentTitle")
-          }}</AlertDialogTitle
-          ><AlertDialogDescription>{{
-            t("systemSettings.deleteAgentDescription", {
-              name: deleteAgent?.name ?? "",
-            })
-          }}</AlertDialogDescription></AlertDialogHeader
-        ><AlertDialogFooter
-          ><AlertDialogCancel
-            :disabled="saving === 'delete'"
-            @click="deleteAgent = null"
-            >{{ t("systemSettings.cancel") }}</AlertDialogCancel
-          ><AlertDialogAction
-            :disabled="saving === 'delete'"
-            @click.prevent="removeAgent"
-            ><Spinner
-              v-if="saving === 'delete'"
-              data-icon="inline-start"
-            /><Trash2 v-else data-icon="inline-start" />{{
-              t("systemSettings.delete")
-            }}</AlertDialogAction
-          ></AlertDialogFooter
-        ></AlertDialogContent
-      ></AlertDialog
     >
   </div>
 </template>
