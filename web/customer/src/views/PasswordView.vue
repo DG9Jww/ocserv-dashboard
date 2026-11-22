@@ -5,6 +5,7 @@ import { normalizeApiError } from "@/api/http";
 import { changePassword } from "@/api/services/customers";
 import StatusMessage from "@/components/StatusMessage.vue";
 
+const emit = defineEmits<{ changed: [] }>();
 const { t } = useI18n({ useScope: "global" });
 const form = reactive({ password: "", confirmation: "" });
 const loading = shallowRef(false);
@@ -23,10 +24,11 @@ async function submit(): Promise<void> {
   }
   loading.value = true;
   try {
-    await changePassword({ password: form.password });
+    const pending = await changePassword({ password: form.password });
     form.password = "";
     form.confirmation = "";
     success.value = t("common.success");
+    if (pending) emit("changed");
   } catch (cause) {
     error.value = normalizeApiError(cause).message;
   } finally {

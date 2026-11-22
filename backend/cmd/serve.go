@@ -9,14 +9,20 @@ import (
 	"syscall"
 
 	"github.com/joho/godotenv"
+	"github.com/labstack/echo/v5"
 	"github.com/mmtaee/ocserv-dashboard/backend/config"
+	ocservaccount "github.com/mmtaee/ocserv-dashboard/backend/internal/ocserv/user"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/platform/database"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/platform/httpserver"
 	logging "github.com/mmtaee/ocserv-dashboard/backend/internal/platform/logging"
+	vpnruntime "github.com/mmtaee/ocserv-dashboard/backend/internal/platform/ocserv"
+	"github.com/mmtaee/ocserv-dashboard/backend/internal/repository"
 	adminapi "github.com/mmtaee/ocserv-dashboard/backend/internal/services/admin_api"
 	customerapi "github.com/mmtaee/ocserv-dashboard/backend/internal/services/customer_api"
+	customernodes "github.com/mmtaee/ocserv-dashboard/backend/internal/services/customer_nodes"
 	telegrambot "github.com/mmtaee/ocserv-dashboard/backend/internal/services/telegram_bot"
 	workerservice "github.com/mmtaee/ocserv-dashboard/backend/internal/services/worker"
+	"github.com/mmtaee/ocserv-dashboard/backend/internal/usecase/customer_federation"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 )
@@ -68,7 +74,26 @@ func serve() error {
 		return err
 	}
 	registrars := []httpserver.RouteRegistrar{admin}
-	if cfg.CustomerAPIEnabled {
+	var master *federation.Master
+	if cfg.CustomerMultiNodeEnabled {
+		store := repository.NewPortalRepository()
+		node := federation.NewNode(store, repository.NewtOcservUserRepository(), repository.NewSystemRepository(),
+			repository.NewUserRepository(), ocservaccount.NewOcservUser(), vpnruntime.NewClient(), strings.TrimSpace(os.Getenv("SUPERADMIN_USERNAME")))
+		if cfg.AgentNode {
+			registrars = append(registrars, customernodes.Agent{Node: node, Tokens: repository.NewAgentTokenRepository()})
+		} else {
+			master, err = federation.NewMaster(store, repository.NewOcservAgentRepository(), node, cfg.SecretKey)
+			if err != nil {
+				return err
+			}
+			admin.AttachCustomerManagement(func(group *echo.Group, authenticate echo.MiddlewareFunc) {
+				customernodes.RegisterAdmin(group, master, authenticate)
+			})
+			if cfg.CustomerAPIEnabled {
+				registrars = append(registrars, customerapi.NewFederated(master))
+			}
+		}
+	} else if cfg.CustomerAPIEnabled {
 		registrars = append(registrars, customerapi.New(cfg))
 	}
 	apiServer := httpserver.New(cfg, registrars...)
@@ -77,6 +102,9 @@ func serve() error {
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error { return apiServer.Run(groupCtx) })
 	group.Go(func() error { return backgroundWorker.Run(groupCtx) })
+	if master != nil {
+		group.Go(func() error { return master.Run(groupCtx) })
+	}
 	if cfg.TelegramEnabled {
 		receiptsDir := strings.TrimSpace(os.Getenv("TELEGRAM_RECEIPTS_DIR"))
 		if receiptsDir == "" {

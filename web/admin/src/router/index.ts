@@ -44,6 +44,7 @@ const dashboardComponents: Partial<
   "telegram-settings": telegramSettingsView,
   backup: backupView,
   "system-settings": systemSettingsView,
+  "customer-management": () => import("@/views/CustomerManagementView.vue"),
 };
 
 export const router = createRouter({

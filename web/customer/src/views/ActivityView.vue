@@ -1,30 +1,37 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
-import type { ActivitiesResponse } from "@/api/generated";
 import { normalizeApiError } from "@/api/http";
-import { getActivities } from "@/api/services/customers";
+import { getActivities, type PortalActivities } from "@/api/services/customers";
 import StatusMessage from "@/components/StatusMessage.vue";
 
 const { t } = useI18n({ useScope: "global" });
 const query = reactive({ page: 1, size: 20, date_start: "", date_end: "" });
-const data = shallowRef<ActivitiesResponse | null>(null);
+const data = shallowRef<PortalActivities | null>(null);
 const loading = shallowRef(false);
 const error = shallowRef("");
+const partial = shallowRef(false);
 const pages = computed(() =>
   Math.max(1, Math.ceil((data.value?.meta.total_records ?? 0) / query.size)),
 );
 async function load(): Promise<void> {
   loading.value = true;
   error.value = "";
+  partial.value = false;
   try {
-    data.value = await getActivities({
+    const result = await getActivities({
       ...query,
       date_start: query.date_start || undefined,
       date_end: query.date_end || undefined,
     });
+    data.value = result.data;
+    partial.value = result.status.partial;
   } catch (cause) {
-    error.value = normalizeApiError(cause).message;
+    data.value = null;
+    const failure = normalizeApiError(cause);
+    error.value = failure.status === 503 ? t("portal.unavailable")
+      : failure.message === "invalid_customer_configuration" ? t("portal.invalid")
+      : failure.message;
   } finally {
     loading.value = false;
   }
@@ -68,6 +75,7 @@ onMounted(load);
       </button>
     </form>
     <StatusMessage :error="error" />
+    <p v-if="partial" role="status" class="text-sm">{{ t("portal.partial") }}</p>
     <p v-if="loading">{{ t("common.loading") }}</p>
     <p v-else-if="!data?.result?.length" class="card">
       {{ t("common.empty") }}
@@ -83,7 +91,7 @@ onMounted(load);
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in data.result" :key="item.created_at + item.event">
+          <tr v-for="item in data.result" :key="item.portal_key ?? item.created_at + item.event">
             <td>{{ item.created_at }}</td>
             <td>{{ item.event }}</td>
             <td>{{ item.ip ?? "—" }}</td>

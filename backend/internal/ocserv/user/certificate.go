@@ -66,6 +66,9 @@ func (u *OcservUser) CertificatePath(username string) (string, error) {
 }
 
 func (u *OcservUser) CreateCertificate(username, password string) error {
+	if password == models.PortalManagedPassword {
+		return fmt.Errorf("managed customer certificates are signed by the Master")
+	}
 	if !validCertificateUsername(username) {
 		return fmt.Errorf("invalid username: %s", username)
 	}

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"github.com/mmtaee/ocserv-dashboard/backend/config"
 	"time"
 
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
@@ -85,5 +86,10 @@ func (r *WorkerStatsRepository) UpdateAccessState(ctx context.Context, userID ui
 }
 
 func (r *WorkerStatsRepository) SaveSessionLog(ctx context.Context, log *models.OcservUserSessionLog) error {
+	if cfg := config.Get(); cfg != nil && cfg.CustomerMultiNodeEnabled {
+		if err := (&PortalRepository{db: r.db}).MarkLogAccount(ctx, log); err != nil {
+			return err
+		}
+	}
 	return r.db.WithContext(ctx).Save(log).Error
 }

@@ -12,6 +12,7 @@ const stats = shallowRef<DailyTraffic[]>([]);
 const total = shallowRef<Bandwidth | null>(null);
 const loading = shallowRef(false);
 const error = shallowRef("");
+const partial = shallowRef(false);
 const chartItems = computed(() => {
   const peak = Math.max(
     ...stats.value.map((item) => (item.rx ?? 0) + (item.tx ?? 0)),
@@ -34,17 +35,25 @@ const chartItems = computed(() => {
 async function load(): Promise<void> {
   loading.value = true;
   error.value = "";
+  partial.value = false;
   const params = {
     date_start: query.date_start || undefined,
     date_end: query.date_end || undefined,
   };
   try {
-    [stats.value, total.value] = await Promise.all([
+    const [daily, bandwidth] = await Promise.all([
       getStats(params),
       getBandwidth(params),
     ]);
+    stats.value = daily.data;
+    total.value = bandwidth.data;
+    partial.value = daily.status.partial || bandwidth.status.partial;
   } catch (cause) {
-    error.value = normalizeApiError(cause).message;
+    stats.value = []; total.value = null;
+    const failure = normalizeApiError(cause);
+    error.value = failure.status === 503 ? t("portal.unavailable")
+      : failure.message === "invalid_customer_configuration" ? t("portal.invalid")
+      : failure.message;
   } finally {
     loading.value = false;
   }
@@ -69,6 +78,7 @@ onMounted(load);
       </button>
     </form>
     <StatusMessage :error="error" />
+    <p v-if="partial" role="status" class="text-sm">{{ t("portal.partial") }}</p>
     <article v-if="total" class="card">
       <h2 class="font-semibold">{{ t("statistics.total") }}</h2>
       <p>

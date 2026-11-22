@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
+
+	"github.com/mmtaee/ocserv-dashboard/backend/config"
 
 	occtldocker "github.com/mmtaee/ocserv-dashboard/backend/internal/ocserv/docker"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/ocserv/occtl"
@@ -64,7 +68,11 @@ func (j *logJob) Run(ctx context.Context) error {
 		defer close(lines)
 		var err error
 		if j.dockerMode {
-			err = readers.DockerStreamLogs(groupCtx, ocservServiceName, lines)
+			container := strings.TrimSpace(os.Getenv("CONTAINER_NAME"))
+			if container == "" {
+				container = ocservServiceName
+			}
+			err = readers.DockerStreamLogs(groupCtx, container, lines)
 		} else {
 			err = readers.SystemdStreamLogs(groupCtx, ocservServiceName, lines)
 		}
@@ -83,7 +91,7 @@ func (j *logJob) Run(ctx context.Context) error {
 
 func New(dockerMode bool) *Service {
 	var access accessController
-	if dockerMode {
+	if cfg := config.Get(); dockerMode && (cfg == nil || !cfg.CustomerMultiNodeEnabled) {
 		client := occtldocker.NewOcservOcctlDocker()
 		access = accessController{disconnect: client.DisconnectUser, lock: client.Lock, unlock: client.Unlock}
 	} else {

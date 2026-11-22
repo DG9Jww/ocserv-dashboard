@@ -143,6 +143,7 @@ WORKDIR /app
 COPY --from=backend-builder /out/backend /usr/local/bin/backend
 COPY --chmod=755 deploy/docker/entrypoint.sh /usr/local/bin/container-entrypoint
 COPY --chmod=755 deploy/docker/server.sh /usr/local/bin/container-server
+COPY --chmod=0755 deploy/common/portal-connect-check.sh /usr/local/lib/ocserv-dashboard/portal-connect-check
 COPY --chmod=0644 deploy/common/tls.sh /usr/local/lib/ocserv-dashboard/tls.sh
 
 ENV OCSERV_PORT=443 \

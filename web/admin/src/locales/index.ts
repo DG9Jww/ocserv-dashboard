@@ -1,3 +1,4 @@
+import { customerManagementMessages } from "@/locales/customer-management";
 import { createI18n } from "vue-i18n";
 
 import ar from "@/locales/ar";
@@ -2069,6 +2070,7 @@ export const messages = {
     occtl: occtlMessages.en,
     ocservGroups: ocservGroupsMessages.en,
     ocservUsers: ocservUsersMessages.en,
+    customerManagement: customerManagementMessages.en,
     staffs: staffsMessages.en,
     reports: reportsMessages.en,
     navUser: navUserMessages.en,
@@ -2082,6 +2084,7 @@ export const messages = {
     occtl: occtlMessages.it,
     ocservGroups: ocservGroupsMessages.it,
     ocservUsers: ocservUsersMessages.it,
+    customerManagement: customerManagementMessages.it,
     staffs: staffsMessages.it,
     reports: reportsMessages.it,
     navUser: navUserMessages.it,
@@ -2095,6 +2098,7 @@ export const messages = {
     occtl: occtlMessages["zh-cn"],
     ocservGroups: ocservGroupsMessages["zh-cn"],
     ocservUsers: ocservUsersMessages["zh-cn"],
+    customerManagement: customerManagementMessages["zh-cn"],
     staffs: staffsMessages["zh-cn"],
     reports: reportsMessages["zh-cn"],
     navUser: navUserMessages["zh-cn"],
@@ -2108,6 +2112,7 @@ export const messages = {
     occtl: occtlMessages["zh-tw"],
     ocservGroups: ocservGroupsMessages["zh-tw"],
     ocservUsers: ocservUsersMessages["zh-tw"],
+    customerManagement: customerManagementMessages["zh-tw"],
     staffs: staffsMessages["zh-tw"],
     reports: reportsMessages["zh-tw"],
     navUser: navUserMessages["zh-tw"],
@@ -2121,6 +2126,7 @@ export const messages = {
     occtl: occtlMessages.ru,
     ocservGroups: ocservGroupsMessages.ru,
     ocservUsers: ocservUsersMessages.ru,
+    customerManagement: customerManagementMessages.ru,
     staffs: staffsMessages.ru,
     reports: reportsMessages.ru,
     navUser: navUserMessages.ru,
@@ -2134,6 +2140,7 @@ export const messages = {
     occtl: occtlMessages.fa,
     ocservGroups: ocservGroupsMessages.fa,
     ocservUsers: ocservUsersMessages.fa,
+    customerManagement: customerManagementMessages.fa,
     staffs: staffsMessages.fa,
     reports: reportsMessages.fa,
     navUser: navUserMessages.fa,
@@ -2147,6 +2154,7 @@ export const messages = {
     occtl: occtlMessages.ar,
     ocservGroups: ocservGroupsMessages.ar,
     ocservUsers: ocservUsersMessages.ar,
+    customerManagement: customerManagementMessages.ar,
     staffs: staffsMessages.ar,
     reports: reportsMessages.ar,
     navUser: navUserMessages.ar,

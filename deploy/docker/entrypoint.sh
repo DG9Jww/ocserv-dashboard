@@ -29,7 +29,7 @@ normalize_container_environment() {
 
     local -a variables=(
         AGENT_NODE ALLOW_ORIGINS API_PORT BACKEND_HOST BACKEND_PORT CURRENT_RELEASE DEBUG HOST
-        CUSTOMER_API_ENABLED ETH HTTP_PORT NGINX_ENABLED OCSERV_BANNER OCSERV_DEBUG
+        CUSTOMER_API_ENABLED CUSTOMER_MULTI_NODE_ENABLED ETH HTTP_PORT NGINX_ENABLED OCSERV_BANNER OCSERV_DEBUG
         OCSERV_PRE_LOGIN_BANNER OCSERV_REGENERATE_CONFIG RUN_MIGRATIONS SECRET_KEY
         SUPERADMIN_PASSWORD SUPERADMIN_USERNAME SYSTEMD TELEGRAM_BOT_ENABLED WEB_PORT
         TELEGRAM_RECEIPTS_DIR TLS_CERT_FILE TLS_KEY_FILE
@@ -283,6 +283,55 @@ banner = "${banner}"
 EOF
 }
 
+configure_customer_portal_auth() {
+    local hook=/usr/local/lib/ocserv-dashboard/portal-connect-check
+    local ca="${OCSERV_CA_CERT}"
+    local crl="${OCSERV_CRL}"
+    local mode=off
+
+    if is_true "${CUSTOMER_MULTI_NODE_ENABLED:-false}"; then
+        mode=on
+        ca="${OCSERV_SSL_DIR}/portal-trust/ca.pem"
+        crl="${OCSERV_SSL_DIR}/portal-trust/crl.pem"
+        [[ -x "${hook}" ]] || die "customer connection check is missing"
+        if grep -Eq '^[[:space:]]*\[vhost:' "${OCSERV_CONF}"; then
+            die "unified customer mode requires the default Ocserv virtual host"
+        fi
+        if grep -Eq '^[[:space:]]*connect-script[[:space:]]*=' "${OCSERV_CONF}" && \
+           ! grep -Fxq "connect-script = ${hook}" "${OCSERV_CONF}"; then
+            die "unified customer mode requires its Ocserv connection check"
+        fi
+        install -d -m 700 /etc/ocserv/managed-customers
+        if [[ ! -L "${OCSERV_SSL_DIR}/portal-trust" ]]; then
+            install -d -m 700 "${OCSERV_SSL_DIR}/portal-trust-bootstrap"
+            install -m 600 "${OCSERV_CA_CERT}" "${OCSERV_SSL_DIR}/portal-trust-bootstrap/ca.pem"
+            install -m 600 "${OCSERV_CRL}" "${OCSERV_SSL_DIR}/portal-trust-bootstrap/crl.pem"
+            ln -s portal-trust-bootstrap "${OCSERV_SSL_DIR}/portal-trust"
+        fi
+        [[ -f "${ca}" && -f "${crl}" ]] || die "customer CA and CRL are missing"
+    elif ! grep -Fxq "connect-script = ${hook}" "${OCSERV_CONF}"; then
+        return
+    fi
+
+    local config_tmp
+    config_tmp="$(mktemp "${OCSERV_CONF}.XXXXXX")"
+    awk -v hook="${hook}" -v mode="${mode}" -v ca="${ca}" -v crl="${crl}" '
+        /^[[:space:]]*(auth|enable-auth|ca-cert|crl|cert-user-oid)[[:space:]]*=/ { next }
+        /^[[:space:]]*connect-script[[:space:]]*=/ { next }
+        { print }
+        END {
+            print "auth = \"certificate\""
+            print "enable-auth = \"plain[passwd=/etc/ocserv/ocpasswd]\""
+            print "cert-user-oid = 2.5.4.3"
+            print "ca-cert = " ca
+            print "crl = " crl
+            if (mode == "on") print "connect-script = " hook
+        }
+    ' "${OCSERV_CONF}" >"${config_tmp}"
+    chmod --reference="${OCSERV_CONF}" "${config_tmp}"
+    mv -f "${config_tmp}" "${OCSERV_CONF}"
+}
+
 ensure_ocserv_layout() {
     mkdir -p /etc/ocserv/defaults /etc/ocserv/groups /etc/ocserv/users
     touch /etc/ocserv/defaults/group.conf /etc/ocserv/ocpasswd
@@ -307,6 +356,7 @@ ensure_ocserv_layout() {
             sed -i "s|^server-cert = .*|server-cert = ${SERVER_CERT}|; s|^server-key = .*|server-key = ${SERVER_KEY}|" "${OCSERV_CONF}"
         fi
     fi
+    configure_customer_portal_auth
 }
 
 ensure_networking() {

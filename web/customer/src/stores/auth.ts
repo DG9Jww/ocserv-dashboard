@@ -6,16 +6,16 @@ import {
   getAccessToken,
   setAccessToken,
 } from "@/api/auth-token";
-import type { Customer, LoginData, SummaryResponse } from "@/api/generated";
+import type { Customer, LoginData } from "@/api/generated";
 import { normalizeApiError } from "@/api/http";
-import { getSummary, login } from "@/api/services/customers";
+import { getSummary, login, type PortalSummary } from "@/api/services/customers";
 
 export const useAuthStore = defineStore("auth", () => {
   const user = shallowRef<Customer | null>(null);
   const loading = shallowRef(false);
   const error = shallowRef("");
-  let restoringSummary: Promise<SummaryResponse> | null = null;
-  let restoredSummary: SummaryResponse | null = null;
+  let restoringSummary: Promise<PortalSummary> | null = null;
+  let restoredSummary: PortalSummary | null = null;
   const isAuthenticated = computed(() =>
     Boolean(user.value && getAccessToken()),
   );
@@ -60,7 +60,7 @@ export const useAuthStore = defineStore("auth", () => {
       if (restoringSummary === pending) restoringSummary = null;
     }
   }
-  function takeRestoredSummary(): SummaryResponse | null {
+  function takeRestoredSummary(): PortalSummary | null {
     const summary = restoredSummary;
     restoredSummary = null;
     return summary;

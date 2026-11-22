@@ -750,6 +750,7 @@ install_docker() {
         --restart unless-stopped \
         --env-file "${ENV_FILE}" \
         --env "AGENT_NODE=${agent_node}" \
+        --env "CONTAINER_NAME=${container}" \
         --env HOST_PROC=/host/proc \
         --env HOST_SYS=/host/sys \
         --cap-add NET_ADMIN \

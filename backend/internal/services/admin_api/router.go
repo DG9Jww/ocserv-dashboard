@@ -7,7 +7,14 @@ import (
 	"github.com/mmtaee/ocserv-dashboard/backend/pkg/middlewares"
 )
 
+func (s *Service) AttachCustomerManagement(register func(*echo.Group, echo.MiddlewareFunc)) {
+	s.customerManagement = register
+}
+
 func (s *Service) Register(e *echo.Group) {
+	if s.customerManagement != nil {
+		s.customerManagement(e, s.authenticate)
+	}
 	s.registerAuthRoutes(e)
 	s.registerSystemRoutes(e)
 	s.registerGroupRoutes(e)

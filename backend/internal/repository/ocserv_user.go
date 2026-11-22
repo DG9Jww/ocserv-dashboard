@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -243,6 +244,15 @@ func (o *OcservUserRepository) GetByIDsForUpdate(ctx context.Context, ids []uint
 }
 
 func (o *OcservUserRepository) Update(ctx context.Context, ocservUser *models.OcservUser) (*models.OcservUser, error) {
+	if ocservUser.Password != models.PortalManagedPassword {
+		var bindings int64
+		if err := o.db.WithContext(ctx).Model(&models.PortalLocalAccount{}).Where("ocserv_id = ?", ocservUser.ID).Count(&bindings).Error; err != nil {
+			return nil, err
+		}
+		if bindings != 0 {
+			return nil, errors.New("managed customer passwords are changed in the unified portal")
+		}
+	}
 	return ocservUser, o.db.WithContext(ctx).Omit("Owner").Save(ocservUser).Error
 }
 
@@ -305,6 +315,13 @@ func (o *OcservUserRepository) Delete(ctx context.Context, id uint) (*models.Ocs
 	err := o.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("id = ?", id).First(&ocservUser).Error; err != nil {
 			return err
+		}
+		var bindings int64
+		if err := tx.Model(&models.PortalLocalAccount{}).Where("ocserv_id = ?", id).Count(&bindings).Error; err != nil {
+			return err
+		}
+		if bindings != 0 {
+			return errors.New("managed customer accounts retain their node history")
 		}
 		if err := tx.Delete(&ocservUser).Error; err != nil {
 			return err

@@ -1,27 +1,36 @@
 <script setup lang="ts">
 import { onMounted, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
-import type { OnlineUserSession } from "@/api/generated";
+
 import { normalizeApiError } from "@/api/http";
 import {
   disconnectSessions,
   getSessions,
   terminateSessions,
+  type PortalSession,
 } from "@/api/services/customers";
 import StatusMessage from "@/components/StatusMessage.vue";
 
 const { t } = useI18n({ useScope: "global" });
-const sessions = shallowRef<OnlineUserSession[]>([]);
+const sessions = shallowRef<PortalSession[]>([]);
 const loading = shallowRef(true);
 const error = shallowRef("");
+const partial = shallowRef(false);
 const success = shallowRef("");
 async function load(): Promise<void> {
   loading.value = true;
   error.value = "";
+  partial.value = false;
   try {
-    sessions.value = await getSessions();
+    const result = await getSessions();
+    sessions.value = result.data;
+    partial.value = result.status.partial;
   } catch (cause) {
-    error.value = normalizeApiError(cause).message;
+    sessions.value = [];
+    const failure = normalizeApiError(cause);
+    error.value = failure.status === 503 ? t("portal.unavailable")
+      : failure.message === "invalid_customer_configuration" ? t("portal.invalid")
+      : failure.message;
   } finally {
     loading.value = false;
   }
@@ -36,13 +45,16 @@ async function run(action: "disconnect" | "terminate"): Promise<void> {
   error.value = "";
   success.value = "";
   try {
-    await (action === "disconnect"
+    const actionPartial = await (action === "disconnect"
       ? disconnectSessions()
       : terminateSessions());
-    success.value = t("common.success");
+    success.value = t(actionPartial ? "portal.partialAction" : "common.success");
     await load();
   } catch (cause) {
-    error.value = normalizeApiError(cause).message;
+    const failure = normalizeApiError(cause);
+    error.value = failure.status === 503 ? t("portal.unavailable")
+      : failure.message === "invalid_customer_configuration" ? t("portal.invalid")
+      : failure.message;
     loading.value = false;
   }
 }
@@ -71,6 +83,7 @@ onMounted(load);
       </div>
     </div>
     <StatusMessage :error="error" :success="success" />
+    <p v-if="partial" role="status" class="text-sm">{{ t("portal.partial") }}</p>
     <p v-if="loading">{{ t("common.loading") }}</p>
     <p v-else-if="!sessions.length" class="card">{{ t("common.empty") }}</p>
     <div v-else class="card overflow-x-auto">
@@ -85,7 +98,7 @@ onMounted(load);
           </tr>
         </thead>
         <tbody>
-          <tr v-for="session in sessions" :key="session.ID">
+          <tr v-for="session in sessions" :key="session.portal_key ?? session.ID">
             <td>{{ session.Device }}</td>
             <td>{{ session.IPv4 }}</td>
             <td>{{ session["Session started at"] }}</td>

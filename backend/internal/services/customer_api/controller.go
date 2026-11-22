@@ -1,6 +1,8 @@
 package customerapi
 
 import (
+	"context"
+	"errors"
 	"mime"
 	"net/http"
 	"os"
@@ -8,17 +10,38 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v5"
+	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
+	"github.com/mmtaee/ocserv-dashboard/backend/internal/repository"
 	customerusecase "github.com/mmtaee/ocserv-dashboard/backend/internal/usecase/customer_api"
+	"github.com/mmtaee/ocserv-dashboard/backend/internal/usecase/customer_federation"
 	"github.com/mmtaee/ocserv-dashboard/backend/pkg/middlewares"
 	"github.com/mmtaee/ocserv-dashboard/backend/pkg/request"
 )
 
-type CustomerController struct {
-	request request.CustomRequestInterface
-	usecase *customerusecase.Usecase
+type customerBackend interface {
+	Login(context.Context, LoginData) (*LoginResponse, error)
+	Summary(context.Context, string) (*SummaryResponse, error)
+	Sessions(context.Context, string) ([]models.OnlineUserSession, error)
+	Disconnect(context.Context, string) error
+	Terminate(context.Context, string) error
+	ChangePassword(context.Context, string, string) error
+	Statistics(context.Context, string, DateRange) ([]models.DailyTraffic, error)
+	Activities(context.Context, string, *request.Pagination, DateRange) (*customerusecase.Activities, error)
+	Bandwidth(context.Context, string, DateRange) (repository.TotalBandwidths, error)
+	CiscoSetup(context.Context, string, string) (*CiscoSetupResponse, error)
+}
+type localCertificates interface {
+	CertificatePath(context.Context, string) (string, string, error)
+	CiscoCertificatePath(context.Context, string) (string, string, error)
 }
 
-func newCustomerController(usecase *customerusecase.Usecase) *CustomerController {
+type CustomerController struct {
+	request  request.CustomRequestInterface
+	download func(context.Context, string) ([]byte, error)
+	usecase  customerBackend
+}
+
+func newCustomerController(usecase customerBackend) *CustomerController {
 	return &CustomerController{request: request.NewCustomRequest(), usecase: usecase}
 }
 
@@ -38,7 +61,7 @@ func (ctl *CustomerController) Login(c *echo.Context) error {
 	}
 	result, err := ctl.usecase.Login(c.Request().Context(), input)
 	if err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return c.JSON(http.StatusOK, result)
 }
@@ -56,7 +79,7 @@ func (ctl *CustomerController) Summary(c *echo.Context) error {
 	}
 	result, err := ctl.usecase.Summary(c.Request().Context(), username)
 	if err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return c.JSON(http.StatusOK, result)
 }
@@ -74,7 +97,7 @@ func (ctl *CustomerController) Sessions(c *echo.Context) error {
 	}
 	result, err := ctl.usecase.Sessions(c.Request().Context(), username)
 	if err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return c.JSON(http.StatusOK, result)
 }
@@ -90,9 +113,12 @@ func (ctl *CustomerController) DownloadCertificate(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	path, username, err := ctl.usecase.CertificatePath(c.Request().Context(), username)
+	if ctl.download != nil {
+		return ctl.downloadFromMaster(c, username)
+	}
+	path, username, err := ctl.usecase.(localCertificates).CertificatePath(c.Request().Context(), username)
 	if err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return sendCertificate(c, path, username+".p12")
 }
@@ -109,7 +135,7 @@ func (ctl *CustomerController) DisconnectSessions(c *echo.Context) error {
 		return err
 	}
 	if err := ctl.usecase.Disconnect(c.Request().Context(), username); err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return c.JSON(http.StatusAccepted, nil)
 }
@@ -126,7 +152,7 @@ func (ctl *CustomerController) TerminateSessions(c *echo.Context) error {
 		return err
 	}
 	if err := ctl.usecase.Terminate(c.Request().Context(), username); err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return c.JSON(http.StatusAccepted, nil)
 }
@@ -149,7 +175,7 @@ func (ctl *CustomerController) ChangePassword(c *echo.Context) error {
 		return ctl.request.BadRequest(c, err)
 	}
 	if err := ctl.usecase.ChangePassword(c.Request().Context(), username, input.Password); err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return c.NoContent(http.StatusNoContent)
 }
@@ -169,11 +195,11 @@ func (ctl *CustomerController) Stats(c *echo.Context) error {
 	}
 	var input DateRange
 	if err := c.Bind(&input); err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	result, err := ctl.usecase.Statistics(c.Request().Context(), username, input)
 	if err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return c.JSON(http.StatusOK, result)
 }
@@ -195,12 +221,12 @@ func (ctl *CustomerController) Activities(c *echo.Context) error {
 	}
 	var input DateRange
 	if err := c.Bind(&input); err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	pagination := ctl.request.Pagination(c)
 	result, err := ctl.usecase.Activities(c.Request().Context(), username, pagination, input)
 	if err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return c.JSON(http.StatusOK, ActivitiesResponse{Meta: request.Meta{Page: pagination.Page, PageSize: pagination.PageSize, TotalRecords: result.Total}, Result: result.Logs})
 }
@@ -220,11 +246,11 @@ func (ctl *CustomerController) Bandwidth(c *echo.Context) error {
 	}
 	var input DateRange
 	if err := c.Bind(&input); err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	result, err := ctl.usecase.Bandwidth(c.Request().Context(), username, input)
 	if err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return c.JSON(http.StatusOK, result)
 }
@@ -242,7 +268,7 @@ func (ctl *CustomerController) CiscoSetup(c *echo.Context) error {
 	}
 	result, err := ctl.usecase.CiscoSetup(c.Request().Context(), username, publicAPIBaseURL(c))
 	if err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return c.JSON(http.StatusOK, result)
 }
@@ -258,25 +284,54 @@ func (ctl *CustomerController) DownloadCiscoSetupCertificate(c *echo.Context) er
 	if err != nil {
 		return err
 	}
-	path, username, err := ctl.usecase.CiscoCertificatePath(c.Request().Context(), username)
+	if ctl.download != nil {
+		return ctl.downloadFromMaster(c, username)
+	}
+	path, username, err := ctl.usecase.(localCertificates).CiscoCertificatePath(c.Request().Context(), username)
 	if err != nil {
-		return ctl.request.BadRequest(c, err)
+		return ctl.respondError(c, err)
 	}
 	return sendCertificate(c, path, username+".p12")
 }
 
-func sendCertificate(c *echo.Context, path, filename string) error {
+func certificateHeaders(c *echo.Context, filename string) {
 	headers := c.Response().Header()
 	headers.Set(echo.HeaderContentType, "application/x-pkcs12")
 	headers.Set(echo.HeaderContentDisposition, mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
 	headers.Set(echo.HeaderCacheControl, "no-store")
 	headers.Set("Pragma", "no-cache")
 	headers.Set("X-Content-Type-Options", "nosniff")
+}
+func sendCertificate(c *echo.Context, path, filename string) error {
+	certificateHeaders(c, filename)
 	// Certificates are stored outside the default filesystem rooted at the app directory.
 	return c.FileFS(filepath.Base(path), os.DirFS(filepath.Dir(path)))
 }
 
+func (ctl *CustomerController) respondError(c *echo.Context, err error) error {
+	switch {
+	case errors.Is(err, federation.ErrUnavailable):
+		return c.JSON(http.StatusServiceUnavailable, map[string]any{"message": []string{err.Error()}})
+	case errors.Is(err, federation.ErrPending), errors.Is(err, federation.ErrDefault):
+		return c.JSON(http.StatusConflict, map[string]any{"message": []string{err.Error()}})
+	default:
+		return ctl.request.BadRequest(c, err)
+	}
+}
+
+func (ctl *CustomerController) downloadFromMaster(c *echo.Context, name string) error {
+	data, err := ctl.download(c.Request().Context(), name)
+	if err != nil {
+		return ctl.respondError(c, err)
+	}
+	certificateHeaders(c, name+".p12")
+	return c.Blob(http.StatusOK, "application/x-pkcs12", data)
+}
+
 func customerUsername(c *echo.Context) (string, error) {
+	if name, ok := c.Get("unified-customer-name").(string); ok && name != "" {
+		return name, nil
+	}
 	principal, err := middlewares.Principal(c)
 	if err != nil {
 		return "", middlewares.UnauthorizedError(c, "invalid token")

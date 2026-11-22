@@ -155,6 +155,14 @@ export const dashboardRoutes: DashboardRoute[] = [
     telegramOnly: true,
   },
   {
+    path: "/customer-management",
+    name: "customer-management",
+    titleKey: "customerManagement.title",
+    sectionKey: "navigation.system",
+    icon: Users,
+    adminVisible: false,
+  },
+  {
     path: "/system",
     alias: "/system-settings",
     name: "system-settings",

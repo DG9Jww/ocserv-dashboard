@@ -70,6 +70,8 @@ func (r *WorkerUserExpiryRepository) SystemSettings(ctx context.Context) (*model
 }
 
 func (r *WorkerUserExpiryRepository) DeleteExpired(ctx context.Context, cutoff time.Time) (int64, error) {
-	result := r.db.WithContext(ctx).Where("expire_at IS NOT NULL AND expire_at <= ?", cutoff).Delete(&models.OcservUser{})
+	result := r.db.WithContext(ctx).Where("expire_at IS NOT NULL AND expire_at <= ?", cutoff).
+		Where("NOT EXISTS (SELECT 1 FROM portal_local_accounts WHERE ocserv_id = ocserv_users.id)").
+		Delete(&models.OcservUser{})
 	return result.RowsAffected, result.Error
 }

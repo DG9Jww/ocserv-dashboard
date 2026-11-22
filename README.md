@@ -448,6 +448,16 @@ For a new translation key, update all supported language catalogs in the same ch
 - Allow only the required firewall ports and protect administrative access with strong credentials.
 - Legacy PostgreSQL 17 data at `/opt/ocserv_dashboard/docker_volumes/pg_db` is not mounted by the PostgreSQL 18 deployment. Migrate it explicitly with `pg_upgrade`; never copy PostgreSQL 17 files directly into the PostgreSQL 18 directory.
 
+## Unified customer portal
+
+Set `CUSTOMER_MULTI_NODE_ENABLED=true` on the Master and each participating Agent, then redeploy. Keep `CUSTOMER_API_ENABLED=true` on Master. Agents need `AGENT_API_HTTPS=true` and a certificate trusted by Master. Master uses its `SECRET_KEY` to protect stored provisioning credentials and certificate keys. Keep that key with the Master database backup.
+
+In **Customer management**, create node groups, give each node an Ocserv user group and traffic/expiry defaults, and choose its certificate group. Then create customers and grant groups or individual nodes. Set a default connection for each customer who should be able to download a certificate and create a Cisco connection. The node chosen for this default must have a Cisco connection profile in its system settings.
+
+Customers use the existing `/customer/` path. They see combined traffic and activity, and receive a certificate for their default connection. A certificate can be reused on other permitted nodes in that certificate group. Manage the node's access through its customer grants. An offline node shows pending deactivation until it receives and applies the change.
+
+The managed mode uses a node-local Ocserv connection check for both certificate and password authentication. Start with fresh test accounts or clear conflicting local accounts before granting access. Keep the persistent `/etc/ocserv` volume on each node. The installer configures the default Ocserv virtual host and requires its own connection check.
+
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).

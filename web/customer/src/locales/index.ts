@@ -1,3 +1,4 @@
+import { portalMessages } from "@/locales/customer-portal";
 import { createI18n } from "vue-i18n";
 
 const en = {
@@ -74,14 +75,12 @@ const en = {
   },
   downloads: {
     title: "Certificates and Cisco setup",
-    certificate: "Customer certificate",
     ciscoCertificate: "Cisco setup certificate",
     connectionName: "Connection name",
     server: "Server",
     certificatePassword: "Certificate password",
     import: "Import certificate",
     connect: "Create connection",
-    unavailable: "Certificate is unavailable.",
   },
   password: {
     title: "Change password",
@@ -168,14 +167,12 @@ const translations = {
     },
     downloads: {
       title: "Certificati e configurazione Cisco",
-      certificate: "Certificato cliente",
       ciscoCertificate: "Certificato configurazione Cisco",
       connectionName: "Nome connessione",
       server: "Server",
       certificatePassword: "Password certificato",
       import: "Importa certificato",
       connect: "Crea connessione",
-      unavailable: "Certificato non disponibile.",
     },
     password: {
       title: "Cambia password",
@@ -260,14 +257,12 @@ const translations = {
     },
     downloads: {
       title: "证书与 Cisco 设置",
-      certificate: "客户证书",
       ciscoCertificate: "Cisco 设置证书",
       connectionName: "连接名称",
       server: "服务器",
       certificatePassword: "证书密码",
       import: "导入证书",
       connect: "创建连接",
-      unavailable: "证书不可用。",
     },
     password: {
       title: "修改密码",
@@ -352,14 +347,12 @@ const translations = {
     },
     downloads: {
       title: "憑證與 Cisco 設定",
-      certificate: "客戶憑證",
       ciscoCertificate: "Cisco 設定憑證",
       connectionName: "連線名稱",
       server: "伺服器",
       certificatePassword: "憑證密碼",
       import: "匯入憑證",
       connect: "建立連線",
-      unavailable: "憑證無法使用。",
     },
     password: {
       title: "變更密碼",
@@ -444,14 +437,12 @@ const translations = {
     },
     downloads: {
       title: "Сертификаты и настройка Cisco",
-      certificate: "Сертификат клиента",
       ciscoCertificate: "Сертификат настройки Cisco",
       connectionName: "Имя подключения",
       server: "Сервер",
       certificatePassword: "Пароль сертификата",
       import: "Импортировать сертификат",
       connect: "Создать подключение",
-      unavailable: "Сертификат недоступен.",
     },
     password: {
       title: "Изменить пароль",
@@ -536,14 +527,12 @@ const translations = {
     },
     downloads: {
       title: "گواهی‌ها و راه‌اندازی Cisco",
-      certificate: "گواهی مشتری",
       ciscoCertificate: "گواهی راه‌اندازی Cisco",
       connectionName: "نام اتصال",
       server: "سرور",
       certificatePassword: "گذرواژه گواهی",
       import: "واردکردن گواهی",
       connect: "ایجاد اتصال",
-      unavailable: "گواهی در دسترس نیست.",
     },
     password: {
       title: "تغییر گذرواژه",
@@ -628,14 +617,12 @@ const translations = {
     },
     downloads: {
       title: "الشهادات وإعداد Cisco",
-      certificate: "شهادة العميل",
       ciscoCertificate: "شهادة إعداد Cisco",
       connectionName: "اسم الاتصال",
       server: "الخادم",
       certificatePassword: "كلمة مرور الشهادة",
       import: "استيراد الشهادة",
       connect: "إنشاء اتصال",
-      unavailable: "الشهادة غير متاحة.",
     },
     password: {
       title: "تغيير كلمة المرور",
@@ -663,7 +650,15 @@ export const i18n = createI18n({
   legacy: false,
   locale: localStorage.getItem("ocserv-customer.locale") || "en",
   fallbackLocale: "en",
-  messages: { en, ...translations },
+  messages: {
+    en: { ...en, portal: portalMessages.en },
+    it: { ...translations.it, portal: portalMessages.it },
+    "zh-cn": { ...translations["zh-cn"], portal: portalMessages["zh-cn"] },
+    "zh-tw": { ...translations["zh-tw"], portal: portalMessages["zh-tw"] },
+    ru: { ...translations.ru, portal: portalMessages.ru },
+    fa: { ...translations.fa, portal: portalMessages.fa },
+    ar: { ...translations.ar, portal: portalMessages.ar },
+  },
   numberFormats: Object.fromEntries(
     localeOptions.map(([locale]) => [
       locale,

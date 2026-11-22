@@ -17,6 +17,7 @@ type Iroute struct {
 }
 
 type OnlineUserSession struct {
+	PortalKey        string `json:"portal_key,omitempty"`
 	ID               int    `json:"ID" validate:"required"`
 	Username         string `json:"Username"`
 	Group            string `json:"Groupname"`

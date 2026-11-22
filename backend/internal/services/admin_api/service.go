@@ -51,21 +51,22 @@ import (
 )
 
 type Service struct {
-	agentNode      bool
-	agents         *agentcontroller.Controller
-	auth           *authcontroller.Controller
-	authenticate   echo.MiddlewareFunc
-	backup         *backupcontroller.Controller
-	dashboard      *dashboardcontroller.Controller
-	occtl          *occtlcontroller.Controller
-	groups         *groupcontroller.Controller
-	users          *usercontroller.Controller
-	reports        *reportcontroller.Controller
-	serviceControl *servicecontrolcontroller.Controller
-	system         *systemcontroller.Controller
-	runtime        *runtimecontroller.Controller
-	telegram       *telegramcontroller.Controller
-	telegramRoutes bool
+	agentNode          bool
+	customerManagement func(*echo.Group, echo.MiddlewareFunc)
+	agents             *agentcontroller.Controller
+	auth               *authcontroller.Controller
+	authenticate       echo.MiddlewareFunc
+	backup             *backupcontroller.Controller
+	dashboard          *dashboardcontroller.Controller
+	occtl              *occtlcontroller.Controller
+	groups             *groupcontroller.Controller
+	users              *usercontroller.Controller
+	reports            *reportcontroller.Controller
+	serviceControl     *servicecontrolcontroller.Controller
+	system             *systemcontroller.Controller
+	runtime            *runtimecontroller.Controller
+	telegram           *telegramcontroller.Controller
+	telegramRoutes     bool
 }
 
 func (s *Service) ServiceName() string { return "admin-api" }
