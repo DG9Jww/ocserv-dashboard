@@ -258,7 +258,8 @@ EOF
             cat <<'EOF'
 
     location = /customer {
-        return 301 /customer/;
+        absolute_redirect off;
+        return 301 /customer/$is_args$args;
     }
 
     location /customer/ {
