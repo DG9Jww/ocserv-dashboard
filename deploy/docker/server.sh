@@ -18,6 +18,7 @@ set -Eeuo pipefail
 : "${OCSERV_DEBUG:=999}"
 : "${AGENT_NODE:=false}"
 : "${CUSTOMER_API_ENABLED:=true}"
+: "${ADMIN_BASE_PATH:=${IMAGE_ADMIN_BASE_PATH:-/}}"
 : "${TELEGRAM_BOT_ENABLED:=false}"
 : "${NGINX_ENABLED:=true}"
 : "${WEB_PORT:=3000}"
@@ -190,6 +191,9 @@ validate_image_mode() {
 }
 
 configure_nginx() {
+    local admin_prefix="${ADMIN_BASE_PATH%/}"
+    local api_upstream=http://127.0.0.1:8080
+
     rm -f /etc/nginx/sites-enabled/default
     if is_true "${AGENT_NODE}" || ! is_true "${NGINX_ENABLED}"; then
         log "nginx and UI routes disabled"
@@ -197,7 +201,15 @@ configure_nginx() {
     fi
     [[ "${WEB_PORT}" =~ ^[0-9]+$ ]] || { log "WEB_PORT must be numeric"; return 1; }
     [[ "${API_PORT}" =~ ^[0-9]+$ ]] || { log "API_PORT must be numeric"; return 1; }
+    if [[ "${ADMIN_BASE_PATH}" != "${IMAGE_ADMIN_BASE_PATH:-/}" ]] || \
+       [[ -n "${admin_prefix}" && ! "${admin_prefix}" =~ ^/[A-Za-z0-9_-]+$ ]]; then
+        log "ADMIN_BASE_PATH must match the Docker image build argument"
+        return 1
+    fi
     resolve_tls_paths || return 1
+    if [[ -n "${admin_prefix}" ]]; then
+        api_upstream+=/api/
+    fi
 
     {
         cat <<EOF
@@ -212,13 +224,14 @@ server {
     ssl_protocols TLSv1.2 TLSv1.3;
     error_page 497 =301 https://\$host:${WEB_PORT}\$request_uri;
 
-    location /api/ {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_http_version 1.1;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_http_version 1.1;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+
+    location ${admin_prefix}/api/ {
+        proxy_pass ${api_upstream};
     }
 
     location = /health {
@@ -234,6 +247,14 @@ server {
     }
 EOF
         if is_true "${CUSTOMER_API_ENABLED}"; then
+            if [[ -n "${admin_prefix}" ]]; then
+                cat <<'EOF'
+
+    location /api/customers/ {
+        proxy_pass http://127.0.0.1:8080;
+    }
+EOF
+            fi
             cat <<'EOF'
 
     location = /customer {
@@ -252,14 +273,40 @@ EOF
     }
 EOF
         fi
-        cat <<'EOF'
+        if [[ -z "${admin_prefix}" ]]; then
+            cat <<'EOF'
 
     location / {
         try_files $uri $uri/ /index.html;
     }
-}
 EOF
+        else
+            cat <<EOF
+
+    location = ${admin_prefix} {
+        absolute_redirect off;
+        return 308 ${admin_prefix}/\$is_args\$args;
+    }
+
+    location = ${admin_prefix}/api {
+        return 404;
+    }
+
+    location ${admin_prefix}/assets/ {
+        try_files \$uri =404;
+    }
+
+    location ${admin_prefix}/ {
+        try_files \$uri \$uri/ ${admin_prefix}/index.html;
+    }
+
+    location / {
+        return 404;
+    }
+EOF
+        fi
         cat <<EOF
+}
 
 server {
     listen ${API_PORT} ssl;

@@ -20,20 +20,27 @@ RUN if [ "${AGENT_NODE}" = "true" ]; then export GOFLAGS=-p=1; fi; \
 FROM node:${NODE_VERSION}-bookworm AS web-builder
 
 ARG CUSTOMER_API_ENABLED=true
+ARG ADMIN_BASE_PATH=/
 
 WORKDIR /src
 COPY web/admin/ ./web/admin/
 COPY web/customer/ ./web/customer/
 RUN set -eux; \
-        mkdir -p /out/admin /out/customer; \
+        case "${ADMIN_BASE_PATH}" in \
+            /) ;; \
+            /api|/assets|/customer|/favicon_io|/health|/swagger|''|[!/]*|/*/*|*[!a-zA-Z0-9_/-]*) \
+                echo "ADMIN_BASE_PATH must be / or a single non-reserved path segment" >&2; exit 1 ;; \
+        esac; \
+        admin_prefix="${ADMIN_BASE_PATH%/}"; \
+        mkdir -p "/out/admin${admin_prefix}" /out/customer; \
         corepack enable; \
         cd /src/web/admin; \
         yarn install --immutable; \
-        VITE_API_BASE_URL=/api \
+        VITE_API_BASE_URL="${admin_prefix}/api" \
         VITE_API_TIMEOUT_MS=15000 \
         VITE_I18N_LANGUAGES="en:English,it:Italiano,zh-cn:中文(简体),zh-tw:中文(繁體),ru:Русский,fa:فارسی,ar:العربية" \
-        yarn build; \
-        cp -a dist/. /out/admin/; \
+        yarn build --base="${admin_prefix}/"; \
+        cp -a dist/. "/out/admin${admin_prefix}/"; \
         if [ "${CUSTOMER_API_ENABLED}" = "true" ]; then \
             cd /src/web/customer; \
             yarn install --immutable; \
@@ -197,10 +204,12 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \
 
 FROM runtime AS runtime-false
 
+ARG ADMIN_BASE_PATH=/
 ARG CUSTOMER_API_ENABLED=true
 ARG TELEGRAM_BOT_ENABLED=true
 ENV CUSTOMER_API_ENABLED=${CUSTOMER_API_ENABLED} \
     IMAGE_CUSTOMER_API_ENABLED=${CUSTOMER_API_ENABLED} \
+    IMAGE_ADMIN_BASE_PATH=${ADMIN_BASE_PATH} \
     TELEGRAM_BOT_ENABLED=${TELEGRAM_BOT_ENABLED}
 
 RUN apt-get update \

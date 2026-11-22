@@ -94,6 +94,12 @@ Use `--node agent` for an agent node. The installer sets `AGENT_NODE=true` for a
 
 After installation, open `https://YOUR_DOMAIN_OR_IP:3000/` and sign in with the superadmin credentials configured in `.env` (or use your configured `WEB_PORT`).
 
+### Publish the Docker Master dashboard under a path
+
+Set `ADMIN_BASE_PATH=/privatepath` in your existing `.env` and run `./setup.sh --deployment docker --node master --yes`. The installer builds the image before replacing the container and reuses the configured volumes. Use a single segment containing letters, digits, hyphens, or underscores. The names `api`, `assets`, `customer`, `favicon_io`, `health`, and `swagger` are reserved. The default `/` serves the dashboard at the root.
+
+In Cloudflare Tunnel, keep the current origin and protocol on `127.0.0.1:3000` and set the admin route's **Path** to `^/privatepath(/.*)?$`. Open `https://vpn.example.com/privatepath/`. If you publish the customer portal on the same hostname, keep its separate routes. To change the admin prefix later, update `ADMIN_BASE_PATH`, rebuild and recreate the Master, and update the Tunnel path. For a manual Docker build, pass `--build-arg ADMIN_BASE_PATH=/privatepath`. [Cloudflare Tunnel path matching](https://developers.cloudflare.com/tunnel/features/locally-managed-tunnels/configuration-file/#how-traffic-is-matched)
+
 ## 📦 Pre-built Docker images
 
 Every pushed release tag (`v*`) publishes multi-architecture images for `linux/amd64` and `linux/arm64` to Docker Hub and GitHub Container Registry. Docker Hub is the default in the examples below; GHCR is an equivalent alternative.
@@ -310,6 +316,7 @@ Use the installer above where possible. The following is the supported manual Do
          dockerfile: deploy/docker/Dockerfile
          args:
            AGENT_NODE: ${AGENT_NODE:-false}
+           ADMIN_BASE_PATH: ${ADMIN_BASE_PATH:-/}
            CUSTOMER_API_ENABLED: ${CUSTOMER_API_ENABLED:-true}
            TELEGRAM_BOT_ENABLED: ${TELEGRAM_BOT_ENABLED:-true}
        env_file: .env

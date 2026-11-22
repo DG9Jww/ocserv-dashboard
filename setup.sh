@@ -694,6 +694,7 @@ install_docker() {
     local container="${CONTAINER_NAME:-ocserv}"
     local data_root="${DEPLOY_DATA_ROOT:-/opt/ocserv_dashboard/docker_volumes}"
     local dockerfile="${PROJECT_ROOT}/deploy/docker/Dockerfile"
+    local admin_base_path=/
     local customer_api_enabled
     local telegram_bot_enabled
     local web_port
@@ -719,6 +720,7 @@ install_docker() {
     if [[ "${agent_node}" == true ]]; then
         service_publish_args=(--publish 8080:8080/tcp)
     else
+        admin_base_path="$(env_value ADMIN_BASE_PATH /)"
         service_publish_args=(
             --publish "${web_port}:${web_port}/tcp"
             --publish "${api_port}:${api_port}/tcp"
@@ -727,21 +729,22 @@ install_docker() {
 
     check_docker
     [[ -f "${dockerfile}" ]] || die "Dockerfile not found: ${dockerfile}"
-    if "${docker_cmd[@]}" container inspect "${container}" >/dev/null 2>&1; then
-        log "removing existing container ${container} before reinstalling"
-        "${docker_cmd[@]}" container rm --force "${container}"
-    fi
     create_docker_volumes "${data_root}"
 
     "${docker_cmd[@]}" build \
         --build-arg "GO_VERSION=$(env_value GO_VERSION 1.27.1)" \
         --build-arg "NODE_VERSION=$(env_value NODE_VERSION 24)" \
         --build-arg "AGENT_NODE=${agent_node}" \
+        --build-arg "ADMIN_BASE_PATH=${admin_base_path}" \
         --build-arg "CUSTOMER_API_ENABLED=${customer_api_enabled}" \
         --build-arg "TELEGRAM_BOT_ENABLED=${telegram_bot_enabled}" \
         --file "${dockerfile}" \
         --tag "${image}" \
         "${PROJECT_ROOT}"
+    if "${docker_cmd[@]}" container inspect "${container}" >/dev/null 2>&1; then
+        log "replacing existing container ${container} after successful build"
+        "${docker_cmd[@]}" container rm --force "${container}"
+    fi
     "${docker_cmd[@]}" run --detach \
         --name "${container}" \
         --restart unless-stopped \
@@ -767,7 +770,7 @@ install_docker() {
     log "started Docker ${node_mode} node in container ${container}"
     log "Ocserv: ${host}:${ocserv_port} (TCP/UDP)"
     if [[ "${agent_node}" == false ]]; then
-        log "UI: https://${host}:${web_port}"
+        log "UI: https://${host}:${web_port}${admin_base_path%/}/"
         log "dashboard username: $(env_value SUPERADMIN_USERNAME admin)"
         log "dashboard password: $(env_value SUPERADMIN_PASSWORD '')"
     fi
