@@ -1,9 +1,15 @@
 import { apiBaseUrl, httpClient } from "@/api/http";
 import { isTestMode } from "@/api/environment";
+import { mockCustomerManagement } from "@/mocks/customer-management";
 
 export const trafficTypes = [
-  "Free", "MonthlyTransmit", "MonthlyReceive", "MonthlyRxTx",
-  "TotallyTransmit", "TotallyReceive", "TotallyRxTx",
+  "Free",
+  "MonthlyTransmit",
+  "MonthlyReceive",
+  "MonthlyRxTx",
+  "TotallyTransmit",
+  "TotallyReceive",
+  "TotallyRxTx",
 ] as const;
 
 export interface NodeGroup {
@@ -13,6 +19,8 @@ export interface NodeGroup {
 }
 export interface PortalCustomer {
   id: string;
+  locked?: boolean;
+  deleted_at?: string;
   username: string;
   default_node: string;
   nodes: string[];
@@ -46,20 +54,51 @@ const url = "/customer-management";
 const master = { baseURL: apiBaseUrl };
 
 export async function loadCustomerManagement(): Promise<Inventory> {
-  if (isTestMode) return { nodes: [{ id: "master", name: "" }], groups: [], customers: [], defaults: [], assignments: [] };
+  if (isTestMode) return mockCustomerManagement.inventory();
   return (await httpClient.get<Inventory>(url, master)).data;
 }
 
-export async function savePortalCustomer(customer: PortalCustomer & { password: string }): Promise<void> {
-  if (customer.id) await httpClient.patch(url + "/accounts/" + customer.id, customer, master);
+export type PortalCustomerInput = Pick<
+  PortalCustomer,
+  "id" | "username" | "nodes" | "groups" | "default_node"
+> & { password: string };
+
+export async function savePortalCustomer(
+  customer: PortalCustomerInput,
+): Promise<void> {
+  if (isTestMode) return mockCustomerManagement.saveCustomer(customer);
+  if (customer.id)
+    await httpClient.patch(url + "/accounts/" + customer.id, customer, master);
   else await httpClient.post(url + "/accounts", customer, master);
 }
 
 export async function savePortalGroup(group: NodeGroup): Promise<void> {
-  if (group.id) await httpClient.patch(url + "/groups/" + group.id, group, master);
+  if (isTestMode) return mockCustomerManagement.saveGroup(group);
+  if (group.id)
+    await httpClient.patch(url + "/groups/" + group.id, group, master);
   else await httpClient.post(url + "/groups", group, master);
 }
 
-export async function savePortalDefaults(defaults: NodeDefaults): Promise<void> {
+export async function savePortalDefaults(
+  defaults: NodeDefaults,
+): Promise<void> {
+  if (isTestMode) return mockCustomerManagement.saveDefaults(defaults);
   await httpClient.patch(url + "/nodes/" + defaults.node, defaults, master);
+}
+
+export async function setPortalCustomerLocked(
+  id: string,
+  locked: boolean,
+): Promise<void> {
+  if (isTestMode) return mockCustomerManagement.setStatus(id, locked);
+  await httpClient.patch(
+    url + "/accounts/" + id + "/status",
+    { locked },
+    master,
+  );
+}
+
+export async function deletePortalCustomer(id: string): Promise<void> {
+  if (isTestMode) return mockCustomerManagement.setStatus(id, true, true);
+  await httpClient.delete(url + "/accounts/" + id, master);
 }

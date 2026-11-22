@@ -1,174 +1,407 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, ref, watch } from "vue";
+import { MoreHorizontal, Plus, RefreshCw, Search, Users } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
-import { normalizeApiError } from "@/api/http";
 import {
-  loadCustomerManagement, savePortalCustomer, savePortalDefaults, savePortalGroup,
-  trafficTypes, type Assignment, type Inventory, type NodeDefaults, type NodeGroup, type PortalCustomer,
+  deletePortalCustomer,
+  savePortalCustomer,
+  setPortalCustomerLocked,
+  type Assignment,
+  type PortalCustomer,
+  type PortalCustomerInput,
 } from "@/api/services/customer-management";
+import PortalCustomerEditor from "@/components/customer-management/PortalCustomerEditor.vue";
+import OcservUserActionDialog from "@/components/ocserv-users/OcservUserActionDialog.vue";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useCustomerManagement } from "@/composables/useCustomerManagement";
 
 const { t } = useI18n({ useScope: "global" });
-const label = (name: string) => t("customerManagement." + name);
-const data = ref<Inventory | null>(null);
+const {
+  label,
+  data,
+  loading,
+  loadError,
+  nodeName,
+  describe,
+  errorMessage,
+  refresh,
+} = useCustomerManagement(true);
+const search = ref("");
+const filter = ref("all");
+const page = ref(1);
+const pageSize = 20;
+const editorOpen = ref(false);
+const editorCustomer = ref<PortalCustomer>();
+const syncOpen = ref(false);
+const syncCustomer = ref<PortalCustomer>();
+const actionOpen = ref(false);
+const action = ref<"lock" | "unlock" | "delete">("lock");
+const actionCustomer = ref<PortalCustomer>();
 const pending = ref(false);
-const error = ref("");
-const saved = ref(false);
-const group = ref<NodeGroup>({ id: "", name: "", nodes: [] });
-const customer = ref<PortalCustomer & { password: string }>({
-  id: "", username: "", password: "", nodes: [], groups: [], default_node: "",
+const mutationError = ref("");
+const success = ref("");
+
+const filtered = computed(() => {
+  const query = search.value.trim().toLowerCase();
+  return (data.value?.customers ?? []).filter((customer) => {
+    if (!customer.username.toLowerCase().includes(query)) return false;
+    if (filter.value === "deleted") return Boolean(customer.deleted_at);
+    if (customer.deleted_at) return false;
+    return (
+      filter.value === "all" ||
+      Boolean(customer.locked) === (filter.value === "locked")
+    );
+  });
 });
-const defaults = ref<NodeDefaults>({
-  node: "", group: "defaults", traffic_type: "Free", traffic_size: 0, expiry_days: 0, certificate_group: "",
+const pages = computed(() =>
+  Math.max(1, Math.ceil(filtered.value.length / pageSize)),
+);
+const visible = computed(() =>
+  filtered.value.slice((page.value - 1) * pageSize, page.value * pageSize),
+);
+watch([search, filter], () => {
+  page.value = 1;
 });
-const selectClass = "h-9 w-full rounded-md border bg-background px-2 text-sm";
-const nodeNames = computed(() => new Map(data.value?.nodes.map((node) => [node.id, node.name])));
-const nodeName = (id: string) => id === "master" ? label("master") : nodeNames.value.get(id) ?? id;
-const selectedNodes = computed(() => new Set([
-  ...customer.value.nodes,
-  ...(data.value?.groups ?? []).filter((g) => customer.value.groups.includes(g.id)).flatMap((g) => g.nodes),
-]));
-const certificates = computed(() => data.value?.groups ?? []);
+watch(pages, (count) => {
+  page.value = Math.min(count, page.value);
+});
 const assignments = computed(() => {
-  const byCustomer = new Map<string, Assignment[]>();
-  for (const item of data.value?.assignments ?? []) {
-    if (!byCustomer.has(item.customer_id)) byCustomer.set(item.customer_id, []);
-    byCustomer.get(item.customer_id)?.push(item);
+  const result = new Map<string, Assignment[]>();
+  for (const row of data.value?.assignments ?? []) {
+    const current = result.get(row.customer_id) ?? [];
+    current.push(row);
+    result.set(row.customer_id, current);
   }
-  return byCustomer;
+  return result;
 });
-function status(a: Assignment) {
-  if (a.error) return label(a.error === "customer_account_conflict" ? "conflict" : "failed");
-  if (a.version === a.applied) return label(a.desired ? "active" : "inactive");
-  return label(a.desired ? "pending" : "pendingDisable");
+const selectedAssignments = computed(() =>
+  syncCustomer.value
+    ? (assignments.value.get(syncCustomer.value.id) ?? [])
+    : [],
+);
+
+function keyAssignment(rows: Assignment[]) {
+  return (
+    rows.find((row) => row.error) ??
+    rows.find((row) => row.version !== row.applied) ??
+    rows[0]
+  );
 }
-function editGroup(id: string) {
-  const item = data.value?.groups?.find((g) => g.id === id);
-  group.value = item ? { ...item, nodes: [...item.nodes] } : { id: "", name: "", nodes: [] };
+const tableRows = computed(() =>
+  visible.value.map((customer) => {
+    const rows = assignments.value.get(customer.id) ?? [];
+    return { customer, summary: keyAssignment(rows), nodeCount: rows.length };
+  }),
+);
+function showSync(customer: PortalCustomer) {
+  syncCustomer.value = customer;
+  syncOpen.value = true;
 }
-function editCustomer(id: string) {
-  const item = data.value?.customers?.find((c) => c.id === id);
-  customer.value = item ? { ...item, password: "", nodes: [...item.nodes], groups: [...item.groups] } :
-    { id: "", username: "", password: "", nodes: [], groups: [], default_node: "" };
+
+function openEditor(customer?: PortalCustomer) {
+  editorCustomer.value = customer;
+  mutationError.value = "";
+  success.value = "";
+  editorOpen.value = true;
 }
-function editDefaults(node: string) {
-  const item = data.value?.defaults?.find((n) => n.node === node);
-  defaults.value = item ? { ...item } : { node, group: "defaults", traffic_type: "Free", traffic_size: 0, expiry_days: 0, certificate_group: "" };
+function confirm(customer: PortalCustomer, operation: typeof action.value) {
+  actionCustomer.value = customer;
+  action.value = operation;
+  mutationError.value = "";
+  success.value = "";
+  actionOpen.value = true;
 }
-async function execute(task?: () => Promise<void>) {
+async function mutate(task: () => Promise<void>, close: () => void) {
   pending.value = true;
-  error.value = "";
-  saved.value = false;
+  mutationError.value = "";
   try {
-    await task?.();
-    data.value = await loadCustomerManagement();
-    saved.value = Boolean(task);
+    await task();
+    close();
+    success.value = label("saved");
+    await refresh();
   } catch (cause) {
-    const code = normalizeApiError(cause).status;
-    error.value = code === 404 ? "disabled" : code === 409 ? "conflict" : code === 400 ? "invalid" : "failed";
+    mutationError.value = errorMessage(cause);
   } finally {
     pending.value = false;
   }
 }
-onMounted(() => execute());
+async function save(input: PortalCustomerInput) {
+  await mutate(
+    () => savePortalCustomer(input),
+    () => {
+      editorOpen.value = false;
+    },
+  );
+}
+async function submitAction() {
+  const customer = actionCustomer.value;
+  if (!customer) return;
+  await mutate(
+    () =>
+      action.value === "delete"
+        ? deletePortalCustomer(customer.id)
+        : setPortalCustomerLocked(customer.id, action.value === "lock"),
+    () => {
+      actionOpen.value = false;
+    },
+  );
+}
+function status(row: Assignment) {
+  if (row.version === row.applied)
+    return label(row.desired ? "active" : "inactive");
+  return label(row.desired ? "pending" : "pendingDisable");
+}
+const description = computed(() =>
+  t("customerManagement." + action.value + "Description", {
+    username: actionCustomer.value?.username ?? "",
+  }),
+);
 </script>
 
 <template>
-  <div class="grid gap-5 p-4">
-    <header class="flex flex-wrap items-center justify-between gap-2">
-      <h1 class="text-xl font-semibold">{{ label("title") }}</h1>
-      <Button variant="outline" :disabled="pending" @click="execute()">{{ label("refresh") }}</Button>
-    </header>
-    <p v-if="error" role="alert" class="text-sm text-destructive">{{ label(error) }}</p>
-    <p v-else-if="saved" role="status" class="text-sm">{{ label("saved") }}</p>
-    <p v-else-if="pending" role="status" class="text-sm">{{ label("loading") }}</p>
-    <template v-if="data">
-      <div class="grid gap-4 lg:grid-cols-2">
-        <form class="grid content-start gap-3 rounded-lg border p-4" @submit.prevent="execute(() => savePortalGroup(group))">
-          <h2 class="font-semibold">{{ label("groups") }}</h2>
-          <label class="grid gap-1 text-sm">
-            {{ label("group") }}
-            <select :class="selectClass" :value="group.id" @change="editGroup(($event.target as HTMLSelectElement).value)">
-              <option value="">{{ label("new") }}</option>
-              <option v-for="item in data.groups" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-          </label>
-          <label class="grid gap-1 text-sm">{{ label("name") }}<Input v-model="group.name" required maxlength="128" /></label>
-          <fieldset class="grid gap-1 text-sm">
-            <legend>{{ label("nodes") }}</legend>
-            <label v-for="node in data.nodes" :key="node.id" class="flex items-center gap-2">
-              <input v-model="group.nodes" type="checkbox" :value="node.id" />{{ nodeName(node.id) }}
-            </label>
-          </fieldset>
-          <Button class="justify-self-start" :disabled="pending">{{ label("save") }}</Button>
-        </form>
-
-        <form class="grid content-start gap-3 rounded-lg border p-4" @submit.prevent="execute(() => savePortalDefaults(defaults))">
-          <h2 class="font-semibold">{{ label("defaults") }}</h2>
-          <label class="grid gap-1 text-sm">{{ label("node") }}
-            <select :class="selectClass" :value="defaults.node" required @change="editDefaults(($event.target as HTMLSelectElement).value)">
-              <option value="">{{ label("select") }}</option>
-              <option v-for="node in data.nodes" :key="node.id" :value="node.id">{{ nodeName(node.id) }}</option>
-            </select>
-          </label>
-          <label class="grid gap-1 text-sm">{{ label("ocservGroup") }}<Input v-model="defaults.group" required maxlength="16" /></label>
-          <label class="grid gap-1 text-sm">{{ label("certificateGroup") }}
-            <select v-model="defaults.certificate_group" :class="selectClass">
-              <option value="">{{ label("independent") }}</option>
-              <option v-for="item in certificates" :key="item.id" :value="item.id">{{ item.name }}</option>
-            </select>
-          </label>
-          <label class="grid gap-1 text-sm">{{ label("trafficPolicy") }}
-            <select v-model="defaults.traffic_type" :class="selectClass">
-              <option v-for="kind in trafficTypes" :key="kind" :value="kind">{{ t("ocservUsers.trafficTypes." + kind) }}</option>
-            </select>
-          </label>
-          <label class="grid gap-1 text-sm">{{ label("trafficBytes") }}
-            <input v-model.number="defaults.traffic_size" type="number" min="0" :class="selectClass" :disabled="defaults.traffic_type === 'Free'" required />
-          </label>
-          <label class="grid gap-1 text-sm">{{ label("expiryDays") }}
-            <input v-model.number="defaults.expiry_days" type="number" min="0" max="36500" :class="selectClass" required />
-          </label>
-          <Button class="justify-self-start" :disabled="pending">{{ label("save") }}</Button>
-        </form>
-      </div>
-
-      <form class="grid gap-3 rounded-lg border p-4" @submit.prevent="execute(async () => { await savePortalCustomer(customer); customer.password = ''; })">
-        <h2 class="font-semibold">{{ label("customers") }}</h2>
-        <label class="grid gap-1 text-sm">{{ label("customer") }}
-          <select :class="selectClass" :value="customer.id" @change="editCustomer(($event.target as HTMLSelectElement).value)">
-            <option value="">{{ label("new") }}</option>
-            <option v-for="item in data.customers" :key="item.id" :value="item.id">{{ item.username }}</option>
+  <div class="grid gap-4 p-4">
+    <Alert v-if="loadError" role="alert" variant="error"
+      ><AlertDescription>{{ loadError }}</AlertDescription></Alert
+    >
+    <Alert v-if="success" role="status"
+      ><AlertDescription>{{ success }}</AlertDescription></Alert
+    >
+    <Card>
+      <CardHeader>
+        <CardTitle>{{ label("title") }}</CardTitle>
+        <CardAction class="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            :disabled="loading || pending"
+            @click="refresh()"
+          >
+            <RefreshCw data-icon="inline-start" />{{ label("refresh") }}
+          </Button>
+          <Button :disabled="!data || pending" @click="openEditor()">
+            <Plus data-icon="inline-start" />{{ label("newCustomer") }}
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent class="grid gap-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="relative w-full max-w-xs">
+            <Search
+              class="pointer-events-none absolute start-3 top-2.5 size-4 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              v-model="search"
+              class="ps-9"
+              :placeholder="t('ocservUsers.search')"
+              :aria-label="t('ocservUsers.search')"
+            />
+          </div>
+          <select
+            v-model="filter"
+            class="h-9 rounded-md border bg-background px-2 text-sm"
+            :aria-label="label('status')"
+          >
+            <option value="all">{{ label("all") }}</option>
+            <option value="enabled">{{ label("enabled") }}</option>
+            <option value="locked">{{ label("locked") }}</option>
+            <option value="deleted">{{ label("archived") }}</option>
           </select>
-        </label>
-        <label class="grid gap-1 text-sm">{{ label("username") }}<Input v-model="customer.username" :disabled="Boolean(customer.id)" required minlength="2" maxlength="32" /></label>
-        <label class="grid gap-1 text-sm">{{ label("password") }}<Input v-model="customer.password" type="password" autocomplete="new-password" :required="!customer.id" minlength="2" maxlength="32" /></label>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <fieldset class="grid gap-1 text-sm">
-            <legend>{{ label("direct") }}</legend>
-            <label v-for="node in data.nodes" :key="node.id" class="flex items-center gap-2">
-              <input v-model="customer.nodes" type="checkbox" :value="node.id" />{{ nodeName(node.id) }}
-            </label>
-          </fieldset>
-          <fieldset class="grid gap-1 text-sm">
-            <legend>{{ label("groups") }}</legend>
-            <label v-for="item in data.groups" :key="item.id" class="flex items-center gap-2">
-              <input v-model="customer.groups" type="checkbox" :value="item.id" />{{ item.name }}
-            </label>
-          </fieldset>
         </div>
-        <label class="grid gap-1 text-sm">{{ label("defaultConnection") }}
-          <select v-model="customer.default_node" :class="selectClass">
-            <option value="">{{ label("unassigned") }}</option>
-            <option v-for="node in data.nodes.filter((n) => selectedNodes.has(n.id) || n.id === customer.default_node)" :key="node.id" :value="node.id">{{ nodeName(node.id) }}</option>
-          </select>
-        </label>
-        <ul v-if="assignments.get(customer.id)?.length" class="grid gap-1 text-sm">
-          <li v-for="row in assignments.get(customer.id)" :key="row.node">{{ nodeName(row.node) }} · {{ status(row) }}</li>
+        <div class="rounded-md border">
+          <Table>
+            <TableHeader
+              ><TableRow>
+                <TableHead>{{ label("username") }}</TableHead>
+                <TableHead>{{ label("status") }}</TableHead>
+                <TableHead>{{ label("defaultConnection") }}</TableHead>
+                <TableHead>{{ label("syncStatus") }}</TableHead>
+                <TableHead class="w-12"
+                  ><span class="sr-only">{{
+                    label("actions")
+                  }}</span></TableHead
+                >
+              </TableRow></TableHeader
+            >
+            <TableBody>
+              <TableRow
+                v-for="{ customer, summary, nodeCount } in tableRows"
+                :key="customer.id"
+              >
+                <TableCell class="font-medium">{{
+                  customer.username
+                }}</TableCell>
+                <TableCell>
+                  <Badge :variant="customer.locked ? 'secondary' : 'outline'">
+                    {{
+                      customer.deleted_at
+                        ? label("archived")
+                        : customer.locked
+                          ? label("locked")
+                          : label("enabled")
+                    }}
+                  </Badge>
+                </TableCell>
+                <TableCell>{{
+                  customer.default_node
+                    ? nodeName(customer.default_node)
+                    : label("unassigned")
+                }}</TableCell>
+                <TableCell>
+                  <template v-if="summary">
+                    <div>
+                      <span>{{ nodeName(summary.node) }}</span>
+                      <Badge
+                        class="ms-2"
+                        :variant="summary.error ? 'destructive' : 'secondary'"
+                        >{{ status(summary) }}</Badge
+                      >
+                      <p
+                        v-if="summary.error"
+                        class="mt-1 text-xs text-destructive"
+                      >
+                        {{ describe(summary.error) }}
+                      </p>
+                    </div>
+                    <Button
+                      v-if="nodeCount > 1"
+                      class="h-auto px-0"
+                      size="sm"
+                      variant="link"
+                      @click="showSync(customer)"
+                      >{{ label("syncStatus") }} ({{ nodeCount }})</Button
+                    >
+                  </template>
+                  <span v-else class="text-muted-foreground">{{
+                    label("unassigned")
+                  }}</span>
+                </TableCell>
+                <TableCell class="text-end">
+                  <DropdownMenu v-if="!customer.deleted_at">
+                    <DropdownMenuTrigger as-child>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        :aria-label="label('actions')"
+                        :disabled="pending"
+                        ><MoreHorizontal
+                      /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem @select="openEditor(customer)">{{
+                        t("ocservUsers.edit")
+                      }}</DropdownMenuItem>
+                      <DropdownMenuItem
+                        @select="
+                          confirm(customer, customer.locked ? 'unlock' : 'lock')
+                        "
+                      >
+                        {{ label(customer.locked ? "unlock" : "lock") }}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        class="text-destructive"
+                        @select="confirm(customer, 'delete')"
+                        >{{ t("ocservUsers.delete") }}</DropdownMenuItem
+                      >
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              </TableRow>
+              <TableRow v-if="!visible.length">
+                <TableCell
+                  colspan="5"
+                  class="h-28 text-center text-muted-foreground"
+                >
+                  <Users class="mx-auto mb-2 size-5" aria-hidden="true" />
+                  {{ loading ? label("loading") : label("noCustomers") }}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+      <CardFooter v-if="pages > 1" class="justify-end gap-2">
+        <Button variant="outline" :disabled="page <= 1" @click="page--">{{
+          label("previous")
+        }}</Button>
+        <span class="text-sm tabular-nums">{{ page }} / {{ pages }}</span>
+        <Button variant="outline" :disabled="page >= pages" @click="page++">{{
+          label("next")
+        }}</Button>
+      </CardFooter>
+    </Card>
+    <Sheet v-model:open="syncOpen">
+      <SheetContent class="w-full overflow-y-auto sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle>{{ label("syncStatus") }}</SheetTitle>
+          <SheetDescription>{{ syncCustomer?.username }}</SheetDescription>
+        </SheetHeader>
+        <ul class="divide-y px-4">
+          <li v-for="row in selectedAssignments" :key="row.node" class="py-3">
+            <span>{{ nodeName(row.node) }}</span>
+            <Badge
+              class="ms-2"
+              :variant="row.error ? 'destructive' : 'secondary'"
+              >{{ status(row) }}</Badge
+            >
+            <p v-if="row.error" class="mt-1 text-sm text-destructive">
+              {{ describe(row.error) }}
+            </p>
+          </li>
         </ul>
-        <Button class="justify-self-start" :disabled="pending">{{ label("save") }}</Button>
-      </form>
-    </template>
+      </SheetContent>
+    </Sheet>
+    <PortalCustomerEditor
+      v-if="data"
+      v-model:open="editorOpen"
+      :customer="editorCustomer"
+      :inventory="data"
+      :pending="pending"
+      :error="mutationError"
+      @save="save"
+    />
+    <OcservUserActionDialog
+      v-model:open="actionOpen"
+      :title="action === 'delete' ? t('ocservUsers.delete') : label(action)"
+      :action="action === 'delete' ? t('ocservUsers.delete') : label(action)"
+      :description="description"
+      :destructive="action === 'delete'"
+      :pending="pending"
+      :error="mutationError"
+      @confirm="submitAction"
+    />
   </div>
 </template>

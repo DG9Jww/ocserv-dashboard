@@ -45,6 +45,7 @@ const dashboardComponents: Partial<
   backup: backupView,
   "system-settings": systemSettingsView,
   "customer-management": () => import("@/views/CustomerManagementView.vue"),
+  "portal-node-groups": () => import("@/views/PortalNodeGroupsView.vue"),
 };
 
 export const router = createRouter({

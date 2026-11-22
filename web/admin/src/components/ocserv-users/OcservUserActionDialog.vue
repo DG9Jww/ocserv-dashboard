@@ -18,6 +18,7 @@ defineProps<{
   description: string;
   destructive?: boolean;
   pending?: boolean;
+  error?: string;
   title: string;
 }>();
 const emit = defineEmits<{ confirm: [] }>();
@@ -32,6 +33,9 @@ const { t } = useI18n({ useScope: "global" });
         <AlertDialogTitle>{{ title }}</AlertDialogTitle>
         <AlertDialogDescription>{{ description }}</AlertDialogDescription>
       </AlertDialogHeader>
+      <p v-if="error" role="alert" class="text-sm text-destructive">
+        {{ error }}
+      </p>
       <AlertDialogFooter>
         <AlertDialogCancel :disabled="pending">
           {{ t("ocservUsers.cancel") }}

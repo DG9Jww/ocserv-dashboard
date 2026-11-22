@@ -200,7 +200,7 @@ func (n *Node) Apply(ctx context.Context, input Apply) (uint, error) {
 		return 0, ErrInvalid
 	}
 	if input.Desired && !portalConfigReady() {
-		return 0, ErrInvalid
+		return 0, ErrNodeSetup
 	}
 	if input.Desired && (input.TrustVersion == 0 || !validPassword(input.Password) || !groupPattern.MatchString(input.Default.Group) ||
 		!input.Default.TrafficType.IsValid() || input.Default.TrafficSize < 0 || input.Default.ExpiryDays < 0 || input.Default.ExpiryDays > 36500) {
@@ -256,7 +256,7 @@ func (n *Node) createAndApply(ctx context.Context, input Apply, previous models.
 	}
 	if input.Default.Group != "defaults" {
 		if info, err := os.Stat(configfile.GroupConfigFilePathCreator(input.Default.Group)); err != nil || !info.Mode().IsRegular() {
-			return 0, ErrInvalid
+			return 0, ErrNodeGroup
 		}
 	}
 	row := &models.OcservUser{OwnerID: owner.ID, Username: input.Username, Password: models.PortalManagedPassword, Group: input.Default.Group,

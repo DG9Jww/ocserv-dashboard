@@ -85,6 +85,19 @@ func RegisterAdmin(api *echo.Group, master *federation.Master, authenticate echo
 	}
 	group.POST("/accounts", saveCustomer)
 	group.PATCH("/accounts/:id", saveCustomer)
+	group.PATCH("/accounts/:id/status", func(c *echo.Context) error {
+		var input struct {
+			Locked *bool `json:"locked"`
+		}
+		if err := c.Bind(&input); err != nil || input.Locked == nil {
+			return failure(c, federation.ErrInvalid)
+		}
+		return saved(c, master.SetCustomerStatus(c.Request().Context(), c.Param("id"), *input.Locked, false))
+	})
+	group.DELETE("/accounts/:id", func(c *echo.Context) error {
+		return saved(c, master.SetCustomerStatus(c.Request().Context(), c.Param("id"), true, true))
+	})
+
 	saveGroup := func(c *echo.Context) error {
 		var input models.PortalNodeGroup
 		if err := c.Bind(&input); err != nil {
@@ -115,8 +128,10 @@ func saved(c *echo.Context, err error) error {
 func failure(c *echo.Context, err error) error {
 	status, code := http.StatusServiceUnavailable, federation.ErrUnavailable.Error()
 	switch {
-	case errors.Is(err, federation.ErrInvalid):
-		status, code = http.StatusBadRequest, federation.ErrInvalid.Error()
+	case errors.Is(err, federation.ErrInvalid), errors.Is(err, federation.ErrMissingDefaults), errors.Is(err, federation.ErrNoGrants),
+		errors.Is(err, federation.ErrNodeSetup), errors.Is(err, federation.ErrNodeGroup),
+		errors.Is(err, federation.ErrUsername), errors.Is(err, federation.ErrPassword):
+		status, code = http.StatusBadRequest, err.Error()
 	case errors.Is(err, federation.ErrConflict), errors.Is(err, gorm.ErrDuplicatedKey), strings.Contains(err.Error(), "SQLSTATE 23505"):
 		status, code = http.StatusConflict, federation.ErrConflict.Error()
 	case errors.Is(err, federation.ErrDefault), errors.Is(err, gorm.ErrRecordNotFound):

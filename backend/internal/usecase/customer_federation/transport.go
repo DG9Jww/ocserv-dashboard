@@ -3,6 +3,7 @@ package federation
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"io"
@@ -46,15 +47,34 @@ func (m *Master) nodeCall(ctx context.Context, node, endpoint string, input any,
 	req.Header.Set("Authorization", authz.AgentAuthorizationPrefix+agent.Token)
 	resp, err := m.client.Do(req)
 	if err != nil {
+		var certificate *tls.CertificateVerificationError
+		if errors.As(err, &certificate) {
+			return ErrNodeTLS
+		}
 		return err
 	}
 	defer resp.Body.Close()
 	switch resp.StatusCode {
 	case http.StatusConflict:
 		return ErrConflict
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return ErrNodeAuth
 	case http.StatusNotFound:
+		if endpoint == "apply" {
+			return ErrNodeSetup
+		}
 		return ErrDefault
 	case http.StatusBadRequest:
+		var failure struct {
+			Message []string `json:"message"`
+		}
+		if json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&failure) == nil && len(failure.Message) == 1 {
+			for _, known := range []error{ErrNodeSetup, ErrNodeGroup} {
+				if failure.Message[0] == known.Error() {
+					return known
+				}
+			}
+		}
 		return ErrInvalid
 	case http.StatusOK:
 		return json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(out)
@@ -98,13 +118,8 @@ func (m *Master) processJobs(ctx context.Context) {
 		}
 		localID, err := m.applyJob(ctx, job)
 		if err != nil {
-			code := "customer_nodes_unavailable"
-			if errors.Is(err, ErrConflict) {
-				code = ErrConflict.Error()
-			}
-			if errors.Is(err, ErrInvalid) {
-				code = ErrInvalid.Error()
-			}
+			code := provisioningError(err)
+			logger.Warn("customer sync failed for node %s, account %s: %s", job.Node, job.CustomerID, code)
 			if saveErr := m.store.Finish(ctx, job, map[string]any{"error": code, "retry_at": time.Now().UTC().Add(15 * time.Second)}); saveErr != nil {
 				logger.Warn("unable to record customer sync failure: %v", saveErr)
 			}
@@ -156,4 +171,13 @@ func (m *Master) applyJob(ctx context.Context, job models.PortalAssignment) (uin
 	var result NodeResult
 	err = m.nodeCall(ctx, job.Node, "apply", input, &result)
 	return result.OcservID, err
+}
+
+func provisioningError(err error) string {
+	for _, known := range []error{ErrConflict, ErrInvalid, ErrMissingDefaults, ErrNodeSetup, ErrNodeGroup, ErrNodeAuth, ErrNodeTLS} {
+		if errors.Is(err, known) {
+			return known.Error()
+		}
+	}
+	return ErrUnavailable.Error()
 }

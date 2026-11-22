@@ -163,6 +163,14 @@ export const dashboardRoutes: DashboardRoute[] = [
     adminVisible: false,
   },
   {
+    path: "/node-groups",
+    name: "portal-node-groups",
+    titleKey: "customerManagement.groups",
+    sectionKey: "navigation.system",
+    icon: Network,
+    adminVisible: false,
+  },
+  {
     path: "/system",
     alias: "/system-settings",
     name: "system-settings",

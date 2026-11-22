@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"errors"
-	"fmt"
 	"net/http"
 	"regexp"
 	"slices"
@@ -21,14 +20,22 @@ import (
 )
 
 var (
-	ErrInvalid      = errors.New("invalid_customer_configuration")
-	ErrUnavailable  = errors.New("customer_nodes_unavailable")
-	ErrDefault      = errors.New("customer_default_unavailable")
-	ErrPending      = errors.New("customer_sync_pending")
-	ErrConflict     = errors.New("customer_account_conflict")
-	usernamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]{2,32}$`)
-	groupPattern    = regexp.MustCompile(`^[A-Za-z0-9_-]{1,16}$`)
-	idPattern       = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	ErrInvalid         = errors.New("invalid_customer_configuration")
+	ErrUnavailable     = errors.New("customer_nodes_unavailable")
+	ErrDefault         = errors.New("customer_default_unavailable")
+	ErrPending         = errors.New("customer_sync_pending")
+	ErrNoGrants        = errors.New("customer_grant_required")
+	ErrMissingDefaults = errors.New("customer_node_defaults_missing")
+	ErrNodeSetup       = errors.New("customer_node_setup_required")
+	ErrNodeGroup       = errors.New("customer_ocserv_group_missing")
+	ErrNodeAuth        = errors.New("customer_node_auth_failed")
+	ErrNodeTLS         = errors.New("customer_node_tls_failed")
+	ErrUsername        = errors.New("customer_invalid_username")
+	ErrPassword        = errors.New("customer_invalid_password")
+	ErrConflict        = errors.New("customer_account_conflict")
+	usernamePattern    = regexp.MustCompile(`^[A-Za-z0-9._-]{2,32}$`)
+	groupPattern       = regexp.MustCompile(`^[A-Za-z0-9_-]{1,16}$`)
+	idPattern          = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 )
 
 type Master struct {
@@ -131,6 +138,9 @@ func validPassword(password string) bool {
 
 func effective(customer models.PortalCustomer, groups []models.PortalNodeGroup) map[string]bool {
 	nodes := make(map[string]bool)
+	if customer.Locked || customer.DeletedAt != nil {
+		return nodes
+	}
 	for _, node := range customer.Nodes {
 		nodes[node] = true
 	}
@@ -207,12 +217,27 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 				return err
 			}
 		} else if !ValidUsername(customer.Username) {
-			return ErrInvalid
+			return ErrUsername
+		}
+		if customer.DeletedAt != nil {
+			return ErrConflict
 		}
 		oldDefault := customer.DefaultNode
+		previous := customer
+		previous.Locked = false
+		previousNodes := effective(previous, groups)
 		customer.Nodes, customer.Groups, customer.DefaultNode = append([]string{}, input.Nodes...), append([]string{}, input.Groups...), input.DefaultNode
-		if input.DefaultNode != "" && !effective(customer, groups)[input.DefaultNode] && (id == "" || input.DefaultNode != oldDefault) {
+		requested := customer
+		requested.Locked = false
+		targets := effective(requested, groups)
+		if id == "" && len(targets) == 0 {
+			return ErrNoGrants
+		}
+		if input.DefaultNode != "" && !targets[input.DefaultNode] && (id == "" || input.DefaultNode != oldDefault) {
 			return ErrInvalid
+		}
+		if err := ensureNodeDefaults(ctx, tx, targets, previousNodes); err != nil {
+			return err
 		}
 		force := ""
 		if id == "" || input.Password != "" {
@@ -235,7 +260,7 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 
 func (m *Master) setPassword(customer *models.PortalCustomer, password string) error {
 	if !validPassword(password) {
-		return ErrInvalid
+		return ErrPassword
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -343,7 +368,59 @@ func scope(d models.PortalNodeDefault) string {
 func defaultsFor(defaults []models.PortalNodeDefault, node string) (models.PortalNodeDefault, error) {
 	index := slices.IndexFunc(defaults, func(d models.PortalNodeDefault) bool { return d.Node == node })
 	if index < 0 {
-		return models.PortalNodeDefault{}, fmt.Errorf("node defaults unavailable: %w", ErrInvalid)
+		return models.PortalNodeDefault{}, ErrMissingDefaults
 	}
 	return defaults[index], nil
+}
+
+func ensureNodeDefaults(ctx context.Context, tx *repository.PortalRepository, targets, old map[string]bool) error {
+	defaults, err := tx.Defaults(ctx)
+	if err != nil {
+		return err
+	}
+	for node := range targets {
+		if old[node] {
+			continue
+		}
+		if _, err := defaultsFor(defaults, node); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *Master) SetCustomerStatus(ctx context.Context, id string, locked, remove bool) error {
+	if !ValidID(id) {
+		return ErrInvalid
+	}
+	return m.store.Transaction(ctx, func(tx *repository.PortalRepository) error {
+		customer, err := tx.Customer(ctx, id)
+		if err != nil {
+			return err
+		}
+		if customer.DeletedAt != nil {
+			if remove {
+				return nil
+			}
+			return ErrConflict
+		}
+		groups, err := tx.Groups(ctx)
+		if err != nil {
+			return err
+		}
+		previous := effective(customer, groups)
+		customer.Locked = locked || remove
+		if remove {
+			now := time.Now().UTC()
+			customer.DeletedAt = &now
+			customer.Nodes, customer.Groups, customer.DefaultNode = []string{}, []string{}, ""
+		}
+		if err := ensureNodeDefaults(ctx, tx, effective(customer, groups), previous); err != nil {
+			return err
+		}
+		if err := tx.Save(ctx, &customer); err != nil {
+			return err
+		}
+		return synchronize(ctx, tx, customer, groups, "")
+	})
 }

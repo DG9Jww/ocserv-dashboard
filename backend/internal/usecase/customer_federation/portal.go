@@ -58,7 +58,7 @@ func (m *Master) signature(body string) string {
 
 func (m *Master) Login(ctx context.Context, input customerapi.Credentials) (*customerapi.LoginResponse, error) {
 	customer, err := m.store.ByUsername(ctx, input.Username)
-	if err != nil || bcrypt.CompareHashAndPassword(customer.PasswordHash, []byte(input.Password)) != nil {
+	if err != nil || customer.Locked || customer.DeletedAt != nil || bcrypt.CompareHashAndPassword(customer.PasswordHash, []byte(input.Password)) != nil {
 		return nil, customerapi.ErrInvalidCredentials
 	}
 	expires := time.Now().Add(7 * time.Hour)
@@ -85,7 +85,7 @@ func (m *Master) AuthenticatePortalToken(ctx context.Context, token string) (str
 		return "", customerapi.ErrInvalidToken
 	}
 	customer, err := m.store.Customer(ctx, claims.ID)
-	if err != nil {
+	if err != nil || customer.Locked || customer.DeletedAt != nil {
 		return "", customerapi.ErrInvalidToken
 	}
 	return customer.Username, nil
@@ -96,6 +96,9 @@ func (m *Master) read(ctx context.Context, name string) (models.PortalCustomer, 
 	if err != nil {
 		return user, nil, err
 	}
+	if user.Locked || user.DeletedAt != nil {
+		return user, nil, customerapi.ErrInvalidToken
+	}
 	rows, err := m.store.Assignments(ctx, user.ID)
 	return user, rows, err
 }
@@ -105,6 +108,9 @@ func (m *Master) ChangePassword(ctx context.Context, name, password string) erro
 		user, err := tx.ByUsername(ctx, name)
 		if err != nil {
 			return err
+		}
+		if user.Locked || user.DeletedAt != nil {
+			return customerapi.ErrInvalidToken
 		}
 		if err := m.setPassword(&user, password); err != nil {
 			return err
