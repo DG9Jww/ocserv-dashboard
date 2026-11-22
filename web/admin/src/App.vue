@@ -20,7 +20,7 @@ const server = useServerStore();
         <RouterView v-slot="{ Component }">
           <component
             :is="Component"
-            :key="server.revision"
+            :key="server.selectedServer"
             class="min-h-0! flex-1"
           />
         </RouterView>

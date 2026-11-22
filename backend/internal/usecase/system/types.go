@@ -28,6 +28,8 @@ func (method RekeyMethod) IsValid() bool {
 type OcservConfig struct {
 	TCPPort            *int         `json:"tcp_port,omitempty"`
 	UDPPort            *int         `json:"udp_port,omitempty"`
+	ServerCert         *string      `json:"server_cert,omitempty"`
+	ServerKey          *string      `json:"server_key,omitempty"`
 	IPv4Network        *string      `json:"ipv4_network,omitempty"`
 	DNS                *[]string    `json:"dns,omitempty"`
 	MaxClients         *int         `json:"max_clients,omitempty"`

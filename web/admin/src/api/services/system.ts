@@ -34,8 +34,11 @@ export type SystemUpdateData =
   GithubComMmtaeeOcservDashboardBackendInternalServicesAdminApiSystemPatchSystemUpdateData;
 export type SystemConfig =
   GithubComMmtaeeOcservDashboardBackendInternalServicesAdminApiSystemGetSystemResponse;
-export type OcservConfig = RuntimeOcservConfig;
-export type OcservConfigResponse = RuntimeOcservConfig & {
+export type OcservConfig = RuntimeOcservConfig & {
+  server_cert?: string;
+  server_key?: string;
+};
+export type OcservConfigResponse = OcservConfig & {
   allow_update: boolean;
 };
 export type SystemRelease =

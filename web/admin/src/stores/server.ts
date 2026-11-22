@@ -27,7 +27,6 @@ export const useServerStore = defineStore("server", () => {
   const selectedServer = shallowRef<string>(MASTER_SERVER);
   const error = shallowRef<ServerError | null>(null);
   const isLoading = shallowRef(false);
-  const revision = shallowRef(0);
   const selectableAgents = computed(() =>
     agents.value.filter((agent) => agentApiBaseUrl(agent) !== null),
   );
@@ -35,11 +34,9 @@ export const useServerStore = defineStore("server", () => {
   let refreshPromise: Promise<void> | null = null;
 
   function useMaster(nextError: ServerError | null = null): void {
-    const changed = selectedServer.value !== MASTER_SERVER;
     selectedServer.value = MASTER_SERVER;
     setApiBaseUrl(apiBaseUrl);
     error.value = nextError;
-    if (changed) revision.value += 1;
   }
 
   function selectServer(value: string): void {
@@ -52,7 +49,6 @@ export const useServerStore = defineStore("server", () => {
     selectedServer.value = value;
     setApiBaseUrl(baseUrl);
     error.value = null;
-    revision.value += 1;
   }
 
   function setAgents(nextAgents: OcservAgent[]): void {
@@ -62,27 +58,35 @@ export const useServerStore = defineStore("server", () => {
       (agent) => agentServerId(agent) === selectedServer.value,
     );
     if (!selected) return useMaster("unavailable");
-    const baseUrl = agentApiBaseUrl(selected);
-    if (!baseUrl) return useMaster("invalidAddress");
-    setApiBaseUrl(baseUrl);
-    revision.value += 1;
+  }
+
+  function reset(): void {
+    refreshPromise = null;
+    agents.value = [];
+    isLoading.value = false;
+    useMaster();
   }
 
   function refreshAgents(): Promise<void> {
     if (refreshPromise) return refreshPromise;
     isLoading.value = true;
     error.value = null;
-    refreshPromise = getOcservAgents()
-      .then(setAgents)
+    const request = getOcservAgents()
+      .then((nextAgents) => {
+        if (refreshPromise === request) setAgents(nextAgents);
+      })
       .catch(() => {
+        if (refreshPromise !== request) return;
         error.value = "agentList";
         if (!agents.value.length) useMaster("agentList");
       })
       .finally(() => {
+        if (refreshPromise !== request) return;
         isLoading.value = false;
         refreshPromise = null;
       });
-    return refreshPromise;
+    refreshPromise = request;
+    return request;
   }
 
   function markUnavailable(): void {
@@ -96,7 +100,7 @@ export const useServerStore = defineStore("server", () => {
     isLoading,
     markUnavailable,
     refreshAgents,
-    revision,
+    reset,
     selectableAgents,
     selectedServer,
     setAgents,

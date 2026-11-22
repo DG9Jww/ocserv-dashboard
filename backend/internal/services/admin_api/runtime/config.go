@@ -3,10 +3,12 @@ package runtime
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,7 +19,10 @@ import (
 
 const DefaultOcservConfigPath = "/etc/ocserv/ocserv.conf"
 
+const tlsPathsMarker = "# Ocserv Dashboard: certificate paths saved in Settings"
+
 var supportedConfigKeys = []string{
+	"server-cert", "server-key",
 	"tcp-port", "udp-port", "ipv4-network", "dns", "max-clients", "max-same-clients",
 	"keepalive", "dpd", "mobile-dpd", "switch-to-tcp-timeout", "try-mtu-discovery",
 	"auth-timeout", "min-reauth-time", "max-ban-score", "ban-reset-time", "cookie-timeout",
@@ -53,7 +58,8 @@ func (f *ConfigFile) Write(ctx context.Context, changes systemusecase.OcservConf
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if strings.EqualFold(strings.TrimSpace(os.Getenv("OCSERV_REGENERATE_CONFIG")), "true") {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("OCSERV_REGENERATE_CONFIG"))) {
+	case "1", "true", "yes", "on":
 		return nil, errors.New("OCSERV_REGENERATE_CONFIG must be disabled before API-managed configuration can be saved")
 	}
 	content, err := os.ReadFile(f.path)
@@ -68,6 +74,11 @@ func (f *ConfigFile) Write(ctx context.Context, changes systemusecase.OcservConf
 	if err != nil {
 		return nil, err
 	}
+	if changes.ServerCert != nil || changes.ServerKey != nil {
+		if err := validateTLSFiles(parsed.ServerCert, parsed.ServerKey); err != nil {
+			return nil, err
+		}
+	}
 	if err := writeAtomic(f.path, updated); err != nil {
 		return nil, err
 	}
@@ -79,14 +90,27 @@ func (f *ConfigFile) Write(ctx context.Context, changes systemusecase.OcservConf
 func ParseConfig(content []byte) (*systemusecase.OcservConfig, error) {
 	var result systemusecase.OcservConfig
 	var dns []string
+	var certPath, keyPath *string
 	scanner := bufio.NewScanner(strings.NewReader(string(content)))
 	for scanner.Scan() {
-		key, value, ok := parseDirective(scanner.Text())
+		line := scanner.Text()
+		if strings.HasPrefix(strings.TrimSpace(line), "[") {
+			break
+		}
+		key, value, ok := parseDirective(line)
 		if !ok {
 			continue
 		}
 		var err error
 		switch key {
+		case "server-cert":
+			if certPath == nil {
+				certPath = stringPointer(unquote(value))
+			}
+		case "server-key":
+			if keyPath == nil {
+				keyPath = stringPointer(unquote(value))
+			}
 		case "tcp-port":
 			result.TCPPort, err = parseInt(value)
 		case "udp-port":
@@ -160,6 +184,12 @@ func ParseConfig(content []byte) (*systemusecase.OcservConfig, error) {
 	if err := systemusecase.ValidateConfig(result); err != nil && !errors.Is(err, systemusecase.ErrNoConfigChanges) {
 		return nil, err
 	}
+	if certPath != nil && filepath.IsAbs(*certPath) {
+		result.ServerCert = certPath
+	}
+	if keyPath != nil && filepath.IsAbs(*keyPath) {
+		result.ServerKey = keyPath
+	}
 	return &result, nil
 }
 
@@ -168,7 +198,15 @@ func applyConfigChanges(content []byte, changes systemusecase.OcservConfig) ([]b
 	lines := strings.Split(strings.TrimSuffix(string(content), "\n"), "\n")
 	output := make([]string, 0, len(lines)+len(updates))
 	written := make(map[string]bool, len(updates))
-	for _, line := range lines {
+	if (changes.ServerCert != nil || changes.ServerKey != nil) && !slices.Contains(lines, tlsPathsMarker) {
+		output = append(output, tlsPathsMarker)
+	}
+	sectionStart := len(lines)
+	for index, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "[") {
+			sectionStart = index
+			break
+		}
 		key, _, ok := parseDirective(line)
 		values, managed := updates[key]
 		if !ok || !managed {
@@ -178,6 +216,8 @@ func applyConfigChanges(content []byte, changes systemusecase.OcservConfig) ([]b
 		if !written[key] {
 			output = append(output, values...)
 			written[key] = true
+		} else if key == "server-cert" || key == "server-key" {
+			output = append(output, line)
 		}
 	}
 	for _, key := range supportedConfigKeys {
@@ -185,6 +225,7 @@ func applyConfigChanges(content []byte, changes systemusecase.OcservConfig) ([]b
 			output = append(output, values...)
 		}
 	}
+	output = append(output, lines[sectionStart:]...)
 	return []byte(strings.Join(output, "\n") + "\n"), nil
 }
 
@@ -211,6 +252,8 @@ func configUpdates(config systemusecase.OcservConfig) map[string][]string {
 	}
 	addInt("tcp-port", config.TCPPort)
 	addInt("udp-port", config.UDPPort)
+	addString("server-cert", config.ServerCert, false)
+	addString("server-key", config.ServerKey, false)
 	addString("ipv4-network", config.IPv4Network, false)
 	if config.DNS != nil {
 		lines := make([]string, 0, len(*config.DNS))
@@ -248,6 +291,22 @@ func configUpdates(config systemusecase.OcservConfig) map[string][]string {
 	addString("pre-login-banner", config.PreLoginBanner, true)
 	addString("banner", config.Banner, true)
 	return updates
+}
+
+func validateTLSFiles(certPath, keyPath *string) error {
+	if certPath == nil || keyPath == nil {
+		return fmt.Errorf("%w: set both server certificate and private key file paths", systemusecase.ErrInvalidConfig)
+	}
+	for _, path := range []string{*certPath, *keyPath} {
+		info, err := os.Stat(path)
+		if err != nil || !info.Mode().IsRegular() {
+			return fmt.Errorf("%w: TLS path %q must point to a regular file", systemusecase.ErrInvalidConfig, path)
+		}
+	}
+	if _, err := tls.LoadX509KeyPair(*certPath, *keyPath); err != nil {
+		return fmt.Errorf("%w: unable to load server certificate and private key: %v", systemusecase.ErrInvalidConfig, err)
+	}
+	return nil
 }
 
 func writeAtomic(path string, content []byte) (returnErr error) {

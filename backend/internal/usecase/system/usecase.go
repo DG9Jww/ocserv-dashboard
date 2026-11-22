@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"path/filepath"
 	"strings"
+	"unicode"
 )
 
 type Usecase struct {
@@ -37,6 +39,12 @@ func (u *Usecase) UpdateConfig(ctx context.Context, changes OcservConfig) (*Ocse
 func ValidateConfig(config OcservConfig) error {
 	if !hasChanges(config) {
 		return ErrNoConfigChanges
+	}
+	for name, value := range map[string]*string{"server_cert": config.ServerCert, "server_key": config.ServerKey} {
+		if value != nil && (!filepath.IsAbs(*value) || strings.TrimSpace(*value) != *value ||
+			strings.ContainsAny(*value, "#;\"'\\") || strings.ContainsFunc(*value, unicode.IsControl)) {
+			return invalid(name, "must be an absolute certificate or private key file path")
+		}
 	}
 	for name, port := range map[string]*int{"tcp_port": config.TCPPort, "udp_port": config.UDPPort} {
 		if port != nil && (*port < 1 || *port > 65535) {
@@ -100,7 +108,8 @@ func ValidateConfig(config OcservConfig) error {
 }
 
 func hasChanges(config OcservConfig) bool {
-	return config.TCPPort != nil || config.UDPPort != nil || config.IPv4Network != nil || config.DNS != nil ||
+	return config.TCPPort != nil || config.UDPPort != nil || config.ServerCert != nil || config.ServerKey != nil ||
+		config.IPv4Network != nil || config.DNS != nil ||
 		config.MaxClients != nil || config.MaxSameClients != nil || config.Keepalive != nil || config.DPD != nil ||
 		config.MobileDPD != nil || config.SwitchToTCPTimeout != nil || config.TryMTUDiscovery != nil ||
 		config.AuthTimeout != nil || config.MinReauthTime != nil || config.MaxBanScore != nil ||

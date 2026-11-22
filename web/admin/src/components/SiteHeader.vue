@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { AlertTriangle, Moon, Server, SidebarIcon, Sun } from "@lucide/vue";
-import { computed, onMounted } from "vue";
+import { computed } from "vue";
 import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
@@ -59,10 +59,6 @@ async function handleLogout(): Promise<void> {
   await auth.signOut();
   await router.replace({ name: "login" });
 }
-
-onMounted(() => {
-  if (auth.user?.superadmin) void serverStore.refreshAgents();
-});
 </script>
 
 <template>

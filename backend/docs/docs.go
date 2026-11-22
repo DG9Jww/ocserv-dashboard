@@ -7035,6 +7035,12 @@ const docTemplate = `{
                 "rekey_time": {
                     "type": "integer"
                 },
+                "server_cert": {
+                    "type": "string"
+                },
+                "server_key": {
+                    "type": "string"
+                },
                 "switch_to_tcp_timeout": {
                     "type": "integer"
                 },
@@ -7137,6 +7143,12 @@ const docTemplate = `{
                 },
                 "rekey_time": {
                     "type": "integer"
+                },
+                "server_cert": {
+                    "type": "string"
+                },
+                "server_key": {
+                    "type": "string"
                 },
                 "switch_to_tcp_timeout": {
                     "type": "integer"

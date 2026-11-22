@@ -1,5 +1,5 @@
 import { createPinia } from "pinia";
-import { createApp } from "vue";
+import { createApp, watch } from "vue";
 
 import App from "./App.vue";
 import {
@@ -47,6 +47,17 @@ async function bootstrap(): Promise<void> {
   setServerRequestErrorHandler(server.markUnavailable);
 
   await router.isReady();
+  watch(
+    () =>
+      auth.user?.superadmin && systemInit.isAvailable && systemInit.isInitialized
+        ? (auth.user.id ?? auth.user.username)
+        : null,
+    (operator) => {
+      server.reset();
+      if (operator !== null) void server.refreshAgents();
+    },
+    { immediate: true },
+  );
   app.mount("#app");
 }
 

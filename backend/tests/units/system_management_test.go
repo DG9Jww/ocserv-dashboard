@@ -3,14 +3,20 @@ package units
 import (
 	"bytes"
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/labstack/echo/v5"
@@ -190,6 +196,53 @@ func TestOcservConfigParsingAndAtomicUpdate(t *testing.T) {
 	info, err := os.Stat(path)
 	require.NoError(t, err)
 	require.Equal(t, os.FileMode(0o640), info.Mode().Perm())
+}
+
+func TestOcservCertificatePathsPreserveOtherPairsAndVHosts(t *testing.T) {
+	t.Setenv("OCSERV_REGENERATE_CONFIG", "false")
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "ocserv.conf")
+	vhost := "[vhost:other.example.com]\nserver-cert = /other/cert.pem\nserver-key = /other/key.pem\n"
+	original := "# Managed by the ocserv-dashboard container\n" +
+		"server-cert = /old/cert.pem\nserver-key = /old/key.pem\n" +
+		"server-cert = /alt/cert.pem\nserver-key = /alt/key.pem\n" + vhost
+	require.NoError(t, os.WriteFile(configPath, []byte(original), 0o640))
+
+	store := runtimeservice.NewConfigFile(configPath)
+	current, err := store.Read(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, "/old/cert.pem", *current.ServerCert)
+	require.Equal(t, "/old/key.pem", *current.ServerKey)
+
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	now := time.Now()
+	template := &x509.Certificate{SerialNumber: big.NewInt(1), NotBefore: now, NotAfter: now.Add(time.Hour)}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, publicKey, privateKey)
+	require.NoError(t, err)
+	keyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	require.NoError(t, err)
+	certPath := filepath.Join(dir, "certificate.pem")
+	keyPath := filepath.Join(dir, "private.key")
+	require.NoError(t, os.WriteFile(certPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o640))
+	require.NoError(t, os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}), 0o600))
+
+	usecase := systemusecase.New(store, true)
+	updated, err := usecase.UpdateConfig(t.Context(), systemusecase.OcservConfig{ServerCert: &certPath, ServerKey: &keyPath})
+	require.NoError(t, err)
+	require.Equal(t, certPath, *updated.ServerCert)
+	require.Equal(t, keyPath, *updated.ServerKey)
+	content, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	require.Contains(t, string(content), "# Ocserv Dashboard: certificate paths saved in Settings")
+	require.Contains(t, string(content), "server-cert = /alt/cert.pem\nserver-key = /alt/key.pem\n"+vhost)
+
+	badKey := certPath
+	_, err = usecase.UpdateConfig(t.Context(), systemusecase.OcservConfig{ServerKey: &badKey})
+	require.ErrorIs(t, err, systemusecase.ErrInvalidConfig)
+	unmodified, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	require.Equal(t, content, unmodified)
 }
 
 func TestOcservConfigRejectsInvalidAndUnsupportedValues(t *testing.T) {

@@ -5,10 +5,7 @@ import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { normalizeApiError } from "@/api/http";
 import { MASTER_SERVER, useServerStore } from "@/stores/server";
-import {
-  ModelsAgentAddressType,
-  type RuntimeOcservConfig,
-} from "@/api/generated";
+import { ModelsAgentAddressType } from "@/api/generated";
 import {
   createOcservAgent,
   deleteOcservAgent,
@@ -19,6 +16,7 @@ import {
   updateOcservAgent,
   updateOcservConfig,
   updateSystemConfig,
+  type OcservConfig,
   type OcservAgent,
   type OcservAgentCreate,
   type SystemConfig,
@@ -72,19 +70,23 @@ import {
 
 const { t } = useI18n({ useScope: "global" });
 const serverStore = useServerStore();
-const { agents, selectedServer } = storeToRefs(serverStore);
+const { agents, isLoading: agentsLoading, selectedServer } =
+  storeToRefs(serverStore);
 const loading = shallowRef(true),
   saving = shallowRef<"system" | "ocserv" | "agent" | "delete" | null>(null),
   error = shallowRef(""),
   success = shallowRef("");
 const release = shallowRef<{ current: string; latest: string } | null>(null),
-  ocservOriginal = shallowRef<RuntimeOcservConfig>({}),
+  ocservOriginal = shallowRef<OcservConfig>({}),
   allowOcservUpdate = shallowRef(false),
   ocservError = shallowRef(""),
   activeTab = shallowRef<"release" | "panel" | "ocserv" | "agents">("release"),
   agentDialogOpen = shallowRef(false),
   editingAgentId = shallowRef<number | null>(null),
   deleteAgent = shallowRef<OcservAgent | null>(null);
+const refreshing = computed(() =>
+  activeTab.value === "agents" ? agentsLoading.value : loading.value,
+);
 const panel = reactive<SystemUpdateData>({
   auto_delete_inactive_users: false,
   client_profile_connection_name: "",
@@ -101,8 +103,9 @@ const agent = reactive<OcservAgentCreate>({
   port: 443,
   token: "",
 });
-const ocserv = reactive<RuntimeOcservConfig>({});
-const numberFields: (keyof RuntimeOcservConfig)[] = [
+const ocserv = reactive<OcservConfig>({});
+const certificatePathFields = ["server_cert", "server_key"] as const;
+const numberFields: (keyof OcservConfig)[] = [
   "auth_timeout",
   "ban_reset_time",
   "cookie_timeout",
@@ -121,7 +124,7 @@ const numberFields: (keyof RuntimeOcservConfig)[] = [
   "tcp_port",
   "udp_port",
 ];
-const booleanFields: (keyof RuntimeOcservConfig)[] = [
+const booleanFields: (keyof OcservConfig)[] = [
   "cisco_client_compat",
   "deny_roaming",
   "dtls_legacy",
@@ -130,7 +133,7 @@ const booleanFields: (keyof RuntimeOcservConfig)[] = [
   "try_mtu_discovery",
   "tunnel_all_dns",
 ];
-const textFields: (keyof RuntimeOcservConfig)[] = [
+const textFields: (keyof OcservConfig)[] = [
   "banner",
   "ipv4_network",
   "pre_login_banner",
@@ -167,28 +170,28 @@ function openCreateAgent(): void {
   resetAgent();
   agentDialogOpen.value = true;
 }
-function textValue(key: keyof RuntimeOcservConfig): string {
+function textValue(key: keyof OcservConfig): string {
   return (ocserv[key] as string | undefined) ?? "";
 }
-function numberValue(key: keyof RuntimeOcservConfig): number | undefined {
+function numberValue(key: keyof OcservConfig): number | undefined {
   return ocserv[key] as number | undefined;
 }
-function booleanValue(key: keyof RuntimeOcservConfig): boolean | undefined {
+function booleanValue(key: keyof OcservConfig): boolean | undefined {
   return ocserv[key] as boolean | undefined;
 }
-function updateText(key: keyof RuntimeOcservConfig, value: string): void {
+function updateText(key: keyof OcservConfig, value: string): void {
   (ocserv as Record<string, unknown>)[key] = value || undefined;
 }
-function updateBoolean(key: keyof RuntimeOcservConfig, value: boolean): void {
+function updateBoolean(key: keyof OcservConfig, value: boolean): void {
   (ocserv as Record<string, unknown>)[key] = value;
 }
-function setOcserv(value: RuntimeOcservConfig): void {
+function setOcserv(value: OcservConfig): void {
   Object.keys(ocserv).forEach(
-    (key) => delete ocserv[key as keyof RuntimeOcservConfig],
+    (key) => delete ocserv[key as keyof OcservConfig],
   );
   Object.assign(ocserv, value);
 }
-function updateNumber(key: keyof RuntimeOcservConfig, value: string): void {
+function updateNumber(key: keyof OcservConfig, value: string): void {
   (ocserv as Record<string, unknown>)[key] =
     value === "" ? undefined : Number(value);
 }
@@ -200,7 +203,6 @@ async function refresh(): Promise<void> {
       getSystemConfig(),
       getOcservConfig(),
       getSystemRelease(),
-      serverStore.refreshAgents(),
     ]);
     if (!setPanel(system))
       throw new Error(t("systemSettings.invalidSystemConfig"));
@@ -214,6 +216,13 @@ async function refresh(): Promise<void> {
   } finally {
     loading.value = false;
   }
+}
+async function refreshCurrentTab(): Promise<void> {
+  if (activeTab.value === "agents") {
+    await serverStore.refreshAgents();
+    return;
+  }
+  await refresh();
 }
 async function savePanel(): Promise<void> {
   saving.value = "system";
@@ -236,9 +245,9 @@ async function saveOcserv(): Promise<void> {
     Object.entries(ocserv).filter(
       ([key, value]) =>
         JSON.stringify(value) !==
-        JSON.stringify(ocservOriginal.value[key as keyof RuntimeOcservConfig]),
+        JSON.stringify(ocservOriginal.value[key as keyof OcservConfig]),
     ),
-  ) as RuntimeOcservConfig;
+  ) as OcservConfig;
   saving.value = "ocserv";
   error.value = "";
   ocservError.value = "";
@@ -316,13 +325,13 @@ onMounted(refresh);
       <Button
         type="button"
         variant="outline"
-        :disabled="loading || saving !== null"
-        @click="refresh"
-        ><Spinner v-if="loading" data-icon="inline-start" /><RefreshCw
-          v-else
-          data-icon="inline-start"
-        />{{ t("systemSettings.refresh") }}</Button
+        :disabled="refreshing || saving !== null"
+        @click="refreshCurrentTab"
       >
+        <Spinner v-if="refreshing" data-icon="inline-start" />
+        <RefreshCw v-else data-icon="inline-start" />
+        {{ t("systemSettings.refresh") }}
+      </Button>
     </div>
     <Alert v-if="error" variant="error"
       ><AlertTitle>{{ t("systemSettings.requestFailed") }}</AlertTitle
@@ -463,9 +472,23 @@ onMounted(refresh);
         ><CardDescription>{{
           t("systemSettings.ocservDescription")
         }}</CardDescription></CardHeader
-      ><CardContent
-        ><FieldGroup
-          ><Field v-for="key in textFields" :key="key"
+      ><CardContent>
+        <FieldGroup>
+          <Field v-for="key in certificatePathFields" :key="key">
+            <FieldLabel :for="`ocserv-${key}`">
+              {{ t(`systemSettings.tlsPaths.${key}`) }}
+            </FieldLabel>
+            <Input
+              :id="`ocserv-${key}`"
+              :model-value="ocserv[key] ?? ''"
+              :disabled="loading || saving !== null || !allowOcservUpdate"
+              @update:model-value="ocserv[key] = String($event).trim()"
+            />
+            <FieldDescription v-if="key === 'server_key'">
+              {{ t("systemSettings.tlsPaths.help") }}
+            </FieldDescription>
+          </Field>
+          <Field v-for="key in textFields" :key="key"
             ><FieldLabel :for="`ocserv-${key}`">{{
               t("systemSettings.configField", { field: key })
             }}</FieldLabel

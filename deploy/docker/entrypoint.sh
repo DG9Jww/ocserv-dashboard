@@ -291,14 +291,19 @@ ensure_ocserv_layout() {
     ensure_client_pki
     ensure_server_certificate
 
+    local panel_manages_tls=false
+    if grep -Fxq '# Ocserv Dashboard: certificate paths saved in Settings' "${OCSERV_CONF}" 2>/dev/null; then
+        panel_manages_tls=true
+    fi
     if [[ ! -f "${OCSERV_CONF}" ]] || \
        is_true "${OCSERV_REGENERATE_CONFIG:-false}" || \
        { ! grep -q '^# Managed by the ocserv-dashboard container$' "${OCSERV_CONF}" && \
+         [[ "${panel_manages_tls}" == false ]] && \
          ! is_true "${OCSERV_PRESERVE_CONFIG}"; }; then
         write_ocserv_config
     else
         log "preserving existing ${OCSERV_CONF}"
-        if grep -q '^# Managed by the ocserv-dashboard container$' "${OCSERV_CONF}"; then
+        if [[ "${panel_manages_tls}" == false ]] && grep -q '^# Managed by the ocserv-dashboard container$' "${OCSERV_CONF}"; then
             sed -i "s|^server-cert = .*|server-cert = ${SERVER_CERT}|; s|^server-key = .*|server-key = ${SERVER_KEY}|" "${OCSERV_CONF}"
         fi
     fi

@@ -6,10 +6,9 @@ import type {
   ModelsOcservAgent,
   OcservAgentCreateInput,
   OcservAgentUpdateInput,
-  RuntimeOcservConfig,
 } from "@/api/generated";
 import { ApiError } from "@/api/http";
-import type { OcservConfigResponse } from "@/api/services/system";
+import type { OcservConfig, OcservConfigResponse } from "@/api/services/system";
 import { cloneMock } from "@/mocks/utils";
 
 export const mockSystemInit = {
@@ -31,12 +30,14 @@ export const mockSystemConfig = {
 
 let systemConfig: GithubComMmtaeeOcservDashboardBackendInternalServicesAdminApiSystemGetSystemResponse =
   cloneMock(mockSystemConfig);
-let ocservConfig: RuntimeOcservConfig = {
+let ocservConfig: OcservConfig = {
   auth_timeout: 240,
   dns: ["1.1.1.1", "8.8.8.8"],
   ipv4_network: "10.10.0.0/24",
   max_clients: 128,
   mtu: 1420,
+  server_cert: "/etc/ocserv/certs/cert.pem",
+  server_key: "/etc/ocserv/certs/cert.key",
   tcp_port: 443,
   udp_port: 443,
 };
@@ -100,8 +101,8 @@ export async function getMockOcservConfig(): Promise<OcservConfigResponse> {
   };
 }
 export async function updateMockOcservConfig(
-  request: RuntimeOcservConfig,
-): Promise<RuntimeOcservConfig> {
+  request: OcservConfig,
+): Promise<OcservConfig> {
   await wait();
   if (scenario() === "read-only")
     throw new ApiError("Ocserv configuration updates are disabled.", {
