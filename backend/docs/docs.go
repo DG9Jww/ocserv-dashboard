@@ -1128,6 +1128,49 @@ const docTemplate = `{
                 }
             }
         },
+        "/ocserv/agents/status": {
+            "get": {
+                "tags": [
+                    "Ocserv Agents"
+                ],
+                "summary": "Get Ocserv agent statuses",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer TOKEN",
+                        "name": "Authorization",
+                        "in": "header",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/agents.HealthSnapshot"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/request.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/request.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/request.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/ocserv/agents/{id}": {
             "get": {
                 "tags": [
@@ -4385,6 +4428,35 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "agents.HealthSnapshot": {
+            "type": "object",
+            "properties": {
+                "refreshing": {
+                    "type": "boolean"
+                },
+                "statuses": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/agents.HealthStatus"
+                    }
+                }
+            }
+        },
+        "agents.HealthStatus": {
+            "type": "string",
+            "enum": [
+                "checking",
+                "online",
+                "offline",
+                "unavailable"
+            ],
+            "x-enum-varnames": [
+                "HealthChecking",
+                "HealthOnline",
+                "HealthOffline",
+                "HealthUnavailable"
+            ]
+        },
         "auth.Session": {
             "type": "object",
             "properties": {

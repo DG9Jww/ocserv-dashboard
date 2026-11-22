@@ -111,6 +111,7 @@ const rows = computed<AgentNodeRow[]>(() => {
     const settings = defaults.get(node.id);
     return {
       ...node,
+      health: node.agent ? serverStore.agentStatus(node.agent) : undefined,
       defaults: settings,
       groups: groupsByNode.get(node.id) ?? [],
       certificateGroup: settings?.certificate_group

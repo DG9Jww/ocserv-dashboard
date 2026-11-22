@@ -2,12 +2,18 @@ package units
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v5"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
@@ -115,4 +121,104 @@ func TestAgentEditingKeepsCredentialOnlyForSameDestination(t *testing.T) {
 	edit.Address = "another.example.com"
 	_, err = agentUC.Update(ctx, agent.ID, edit)
 	require.ErrorIs(t, err, agents.ErrAgentTokenRequired)
+}
+
+func TestAgentHealthUsesAuthenticatedSystemEndpointAndCachesResults(t *testing.T) {
+	ctx := context.Background()
+	usecase := agents.New(newAgentRepository())
+	nodes := make(map[string]*models.OcservAgent)
+	for _, name := range []string{"online", "offline", "denied", "tls", "invalid"} {
+		node, err := usecase.Create(ctx, agents.CreateInput{
+			Name: name, AddressType: models.AgentAddressTypeDomain,
+			Address: name + ".example.com", Token: "token-" + name,
+		})
+		require.NoError(t, err)
+		nodes[name] = node
+	}
+
+	var calls atomic.Int32
+	proxy, err := agents.NewProxy(usecase, "https", agentProxyTransport(func(req *http.Request) (*http.Response, error) {
+		calls.Add(1)
+		name, _, _ := strings.Cut(req.URL.Hostname(), ".")
+		if req.URL.Scheme != "https" || req.URL.Port() != "8080" || req.URL.Path != "/api/system" || req.Method != http.MethodGet {
+			t.Errorf("unexpected probe destination: %s %s", req.Method, req.URL)
+		}
+		if req.Header.Get("Authorization") != "OcservAgent token-"+name {
+			return &http.Response{StatusCode: http.StatusUnauthorized, Body: http.NoBody}, nil
+		}
+		deadline, ok := req.Context().Deadline()
+		if !ok || time.Until(deadline) > 3*time.Second {
+			t.Error("probe has no short deadline")
+		}
+		switch name {
+		case "offline":
+			return nil, &net.OpError{Op: "dial", Err: errors.New("connection refused")}
+		case "denied":
+			return &http.Response{StatusCode: http.StatusForbidden, Body: http.NoBody}, nil
+		case "tls":
+			return nil, &tls.CertificateVerificationError{Err: errors.New("untrusted certificate")}
+		case "invalid":
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"status":"Healthy"}`))}, nil
+		default:
+			return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"first_init":false,"google_captcha_secret_key":"private-settings"}`))}, nil
+		}
+	}))
+	require.NoError(t, err)
+
+	master := echo.New()
+	admin := master.Group("/api/ocserv/agents", middlewares.AuthMiddleware(staticAuthenticator{}), middlewares.SuperadminPermission())
+	admin.GET("/status", controller.New(usecase, proxy).Health)
+	getStatus := func(credential string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodGet, "/api/ocserv/agents/status", nil)
+		req.Header.Set("Authorization", credential)
+		out := httptest.NewRecorder()
+		master.ServeHTTP(out, req)
+		return out
+	}
+	require.Equal(t, http.StatusUnauthorized, getStatus("").Code)
+	require.Equal(t, http.StatusForbidden, getStatus("Bearer normal").Code)
+	require.Zero(t, calls.Load())
+
+	read := func() agents.HealthSnapshot {
+		out := getStatus("Bearer superadmin")
+		require.Equal(t, http.StatusOK, out.Code)
+		require.Equal(t, "no-store", out.Header().Get("Cache-Control"))
+		require.NotContains(t, out.Body.String(), "private-settings")
+		require.NotContains(t, out.Body.String(), "token-")
+		var snapshot agents.HealthSnapshot
+		require.NoError(t, json.Unmarshal(out.Body.Bytes(), &snapshot))
+		return snapshot
+	}
+	started := read()
+	require.True(t, started.Refreshing)
+	require.Equal(t, agents.HealthChecking, started.Statuses[nodes["online"].ID])
+
+	waitForRefresh := func() agents.HealthSnapshot {
+		deadline := time.Now().Add(time.Second)
+		for {
+			snapshot := read()
+			if !snapshot.Refreshing {
+				return snapshot
+			}
+			require.False(t, time.Now().After(deadline), "probe batch did not finish")
+			time.Sleep(time.Millisecond)
+		}
+	}
+	snapshot := waitForRefresh()
+	require.Equal(t, agents.HealthOnline, snapshot.Statuses[nodes["online"].ID])
+	require.Equal(t, agents.HealthOffline, snapshot.Statuses[nodes["offline"].ID])
+	for _, name := range []string{"denied", "tls", "invalid"} {
+		require.Equal(t, agents.HealthUnavailable, snapshot.Statuses[nodes[name].ID], name)
+	}
+	require.Equal(t, snapshot, read())
+	require.EqualValues(t, len(nodes), calls.Load())
+
+	node := nodes["online"]
+	_, err = usecase.Update(ctx, node.ID, agents.UpdateInput{
+		Name: node.Name, Address: node.Address, AddressType: node.AddressType, Port: node.Port, Token: "rotated",
+	})
+	require.NoError(t, err)
+	require.Equal(t, agents.HealthChecking, read().Statuses[node.ID])
+	require.Equal(t, agents.HealthUnavailable, waitForRefresh().Statuses[node.ID])
+	require.EqualValues(t, len(nodes)+1, calls.Load())
 }

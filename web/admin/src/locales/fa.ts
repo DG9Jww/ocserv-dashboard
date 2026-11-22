@@ -13,7 +13,7 @@ export default {
     switchToLightTheme: "تغییر به پوسته روشن",
     switchToDarkTheme: "تغییر به پوسته تیره",
     mobileSidebarDescription: "نوار کناری نسخه موبایل را نمایش می‌دهد.",
-    masterServer: "سرور اصلی",
+    masterServer: "Master",
     serverSelector: "انتخاب سرور",
     serverErrors: {
       agentList: "فهرست سرورهای عامل بارگذاری نشد.",

@@ -13,7 +13,7 @@ export default {
     switchToLightTheme: "Passa al tema chiaro",
     switchToDarkTheme: "Passa al tema scuro",
     mobileSidebarDescription: "Mostra la barra laterale su dispositivi mobili.",
-    masterServer: "Principale",
+    masterServer: "Master",
     serverSelector: "Selettore server",
     serverErrors: {
       agentList: "Impossibile caricare l'elenco dei server agent.",

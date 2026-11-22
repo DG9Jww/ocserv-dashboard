@@ -2,6 +2,27 @@ basePath: /api
 consumes:
 - application/json
 definitions:
+  agents.HealthSnapshot:
+    properties:
+      refreshing:
+        type: boolean
+      statuses:
+        additionalProperties:
+          $ref: '#/definitions/agents.HealthStatus'
+        type: object
+    type: object
+  agents.HealthStatus:
+    enum:
+    - checking
+    - online
+    - offline
+    - unavailable
+    type: string
+    x-enum-varnames:
+    - HealthChecking
+    - HealthOnline
+    - HealthOffline
+    - HealthUnavailable
   auth.Session:
     properties:
       created_at:
@@ -2834,6 +2855,34 @@ paths:
           schema:
             $ref: '#/definitions/request.ErrorResponse'
       summary: Update Ocserv agent
+      tags:
+      - Ocserv Agents
+  /ocserv/agents/status:
+    get:
+      parameters:
+      - description: Bearer TOKEN
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/agents.HealthSnapshot'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/request.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/request.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/request.ErrorResponse'
+      summary: Get Ocserv agent statuses
       tags:
       - Ocserv Agents
   /ocserv/groups:

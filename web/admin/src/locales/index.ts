@@ -491,7 +491,7 @@ const systemSettingsMessages = {
     panelDescription: "Connection profile and maintenance settings.",
     connectionName: "Connection name",
     serverAddress: "Server address",
-    serverPort: "Server port",
+    serverPort: "Server Port",
     inactiveDays: "Inactive user days",
     autoDelete: "Automatically delete inactive users",
     captchaSite: "CAPTCHA site key",

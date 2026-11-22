@@ -5,6 +5,7 @@ import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import { useRouter } from "vue-router";
 import LanguageSwitcher from "@/components/LanguageSwitcher.vue";
+import AgentStatusIndicator from "@/components/AgentStatusIndicator.vue";
 import NavUser from "@/components/NavUser.vue";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -48,6 +49,11 @@ const serverModel = computed({
   get: () => selectedServer.value,
   set: serverStore.selectServer,
 });
+const selectedAgent = computed(() =>
+  selectableAgents.value.find(
+    (agent) => agentServerId(agent) === selectedServer.value,
+  ),
+);
 
 function agentOptionLabel(
   agent: (typeof selectableAgents.value)[number],
@@ -90,7 +96,16 @@ async function handleLogout(): Promise<void> {
             :title="t('common.serverSelector')"
           >
             <Server />
-            <SelectValue :placeholder="t('common.serverSelector')" />
+            <SelectValue :placeholder="t('common.serverSelector')">
+              <span class="truncate">{{
+                selectedAgent?.name ?? t("common.masterServer")
+              }}</span>
+            </SelectValue>
+            <AgentStatusIndicator
+              v-if="selectedAgent"
+              :status="serverStore.agentStatus(selectedAgent)"
+              compact
+            />
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
@@ -103,7 +118,10 @@ async function handleLogout(): Promise<void> {
                 :key="agentServerId(agent)"
                 :value="agentServerId(agent)"
               >
-                {{ agentOptionLabel(agent) }}
+                <span>{{ agentOptionLabel(agent) }}</span>
+                <AgentStatusIndicator
+                  :status="serverStore.agentStatus(agent)"
+                />
               </SelectItem>
             </SelectGroup>
           </SelectContent>

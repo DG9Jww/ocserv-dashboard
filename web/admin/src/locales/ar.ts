@@ -13,7 +13,7 @@ export default {
     switchToLightTheme: "التبديل إلى السمة الفاتحة",
     switchToDarkTheme: "التبديل إلى السمة الداكنة",
     mobileSidebarDescription: "يعرض الشريط الجانبي على الأجهزة المحمولة.",
-    masterServer: "الخادم الرئيسي",
+    masterServer: "Master",
     serverSelector: "محدد الخادم",
     serverErrors: {
       agentList: "تعذر تحميل قائمة خوادم الوكلاء.",

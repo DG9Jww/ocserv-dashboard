@@ -2,7 +2,12 @@ import { defineStore } from "pinia";
 import { computed, shallowRef } from "vue";
 
 import { apiBaseUrl, setApiBaseUrl } from "@/api/http";
-import { getOcservAgents, type OcservAgent } from "@/api/services/system";
+import {
+  getAgentHealth,
+  getOcservAgents,
+  type AgentHealth,
+  type OcservAgent,
+} from "@/api/services/system";
 
 export const MASTER_SERVER = "master";
 export type ServerError = "agentList" | "invalidAddress" | "unavailable";
@@ -27,11 +32,44 @@ export const useServerStore = defineStore("server", () => {
   const selectedServer = shallowRef<string>(MASTER_SERVER);
   const error = shallowRef<ServerError | null>(null);
   const isLoading = shallowRef(false);
+  const statuses = shallowRef<Record<string, AgentHealth>>({});
+  const statusRequestFailed = shallowRef(false);
   const selectableAgents = computed(() =>
     agents.value.filter((agent) => agentApiBaseUrl(agent) !== null),
   );
   const hasAgents = computed(() => selectableAgents.value.length > 0);
   let refreshPromise: Promise<void> | null = null;
+  let statusPromise: Promise<void> | null = null;
+  let statusTimer: ReturnType<typeof setTimeout> | undefined;
+
+  function agentStatus(agent: OcservAgent): AgentHealth {
+    if (agent.id == null) return "unknown";
+    if (statusRequestFailed.value) return "unknown";
+    return statuses.value[agent.id] ?? "checking";
+  }
+
+  function refreshStatus(): void {
+    clearTimeout(statusTimer);
+    statusTimer = undefined;
+    if (statusPromise || !agents.value.length) return;
+    let interval = 30_000;
+    const request = getAgentHealth(agents.value)
+      .then((snapshot) => {
+        if (statusPromise !== request) return;
+        statuses.value = snapshot.statuses;
+        statusRequestFailed.value = false;
+        if (snapshot.refreshing) interval = 3_000;
+      })
+      .catch(() => {
+        if (statusPromise === request) statusRequestFailed.value = true;
+      })
+      .finally(() => {
+        if (statusPromise !== request) return;
+        statusPromise = null;
+        statusTimer = setTimeout(refreshStatus, interval);
+      });
+    statusPromise = request;
+  }
 
   function useMaster(nextError: ServerError | null = null): void {
     selectedServer.value = MASTER_SERVER;
@@ -51,17 +89,45 @@ export const useServerStore = defineStore("server", () => {
     error.value = null;
   }
 
-  function setAgents(nextAgents: OcservAgent[]): void {
-    agents.value = nextAgents;
-    if (selectedServer.value === MASTER_SERVER) return;
-    const selected = selectableAgents.value.find(
-      (agent) => agentServerId(agent) === selectedServer.value,
+  function setAgents(nextAgents: OcservAgent[]): boolean {
+    const previous = new Map(agents.value.map((agent) => [agent.id, agent]));
+    const current = statuses.value;
+    let changed = nextAgents.length !== agents.value.length;
+    statuses.value = Object.fromEntries(
+      nextAgents.flatMap((agent) => {
+        const prior = previous.get(agent.id);
+        if (
+          !prior ||
+          prior.updated_at !== agent.updated_at ||
+          prior.address !== agent.address ||
+          prior.port !== agent.port ||
+          prior.address_type !== agent.address_type
+        ) {
+          changed = true;
+          return [];
+        }
+        const status = agent.id == null ? undefined : current[agent.id];
+        return status ? [[agent.id, status]] : [];
+      }),
     );
-    if (!selected) return useMaster("unavailable");
+    agents.value = nextAgents;
+    if (
+      selectedServer.value !== MASTER_SERVER &&
+      !selectableAgents.value.some(
+        (agent) => agentServerId(agent) === selectedServer.value,
+      )
+    )
+      useMaster("unavailable");
+    return changed;
   }
 
   function reset(): void {
     refreshPromise = null;
+    statusPromise = null;
+    clearTimeout(statusTimer);
+    statusTimer = undefined;
+    statuses.value = {};
+    statusRequestFailed.value = false;
     agents.value = [];
     isLoading.value = false;
     useMaster();
@@ -73,7 +139,11 @@ export const useServerStore = defineStore("server", () => {
     error.value = null;
     const request = getOcservAgents()
       .then((nextAgents) => {
-        if (refreshPromise === request) setAgents(nextAgents);
+        if (refreshPromise !== request) return;
+        const changed = setAgents(nextAgents);
+        if (changed) statusPromise = null;
+        if (changed || (!statusPromise && statusTimer === undefined))
+          refreshStatus();
       })
       .catch(() => {
         if (refreshPromise !== request) return;
@@ -94,6 +164,7 @@ export const useServerStore = defineStore("server", () => {
   }
 
   return {
+    agentStatus,
     agents,
     error,
     hasAgents,

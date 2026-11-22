@@ -11,6 +11,20 @@ node_modules
 dist
 dist-ssr
 *.local
+*.tsbuildinfo
+
+# Local test output and scratch data
+coverage/
+test-results/
+playwright-report/
+/tmp/
+/.tmp/
+/test-artifacts/
+/test-data/
+/backend/*.test
+/backend/*.prof
+/backend/coverage.out
+*.coverprofile
 
 # Yarn Berry caches and unplugged packages (keep configs only)
 .yarn/*
@@ -30,14 +44,34 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.tmp
+*.bak
+*.orig
+*.rej
 *.yarn
+
+# Local databases, runtime data, and environment overrides
 *.db
 *.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.sqlite3-wal
+*.sqlite3-shm
+*.sqlite3-journal
 
 .env
+.env.*
+!.env.example
+!.env.test
 volumes
 .volumes
 .volume/
+docker_volumes/
 note
 
 db/
@@ -46,5 +80,3 @@ draft_prompt.md
 PULL_NOTE.md
 RELEASE.md
 old_codes
-
-.release

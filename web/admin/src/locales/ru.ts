@@ -14,7 +14,7 @@ export default {
     switchToDarkTheme: "Переключить на тёмную тему",
     mobileSidebarDescription:
       "Отображает боковую панель на мобильных устройствах.",
-    masterServer: "Основной",
+    masterServer: "Master",
     serverSelector: "Выбор сервера",
     serverErrors: {
       agentList: "Не удалось загрузить список серверов-агентов.",

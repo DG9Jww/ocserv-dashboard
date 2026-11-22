@@ -8,7 +8,11 @@ import type {
   OcservAgentUpdateInput,
 } from "@/api/generated";
 import { ApiError } from "@/api/http";
-import type { OcservConfig, OcservConfigResponse } from "@/api/services/system";
+import type {
+  AgentHealthSnapshot,
+  OcservConfig,
+  OcservConfigResponse,
+} from "@/api/services/system";
 import { cloneMock } from "@/mocks/utils";
 
 export const mockSystemInit = {
@@ -139,6 +143,20 @@ export async function getMockAgents(): Promise<PublicMockAgent[]> {
     }),
   );
 }
+export function getMockAgentHealth(
+  agents: PublicMockAgent[],
+): AgentHealthSnapshot {
+  return {
+    statuses: Object.fromEntries(
+      agents.map(({ id }) => [
+        String(id),
+        id === 2 ? "offline" : id === 3 ? "unavailable" : "online",
+      ]),
+    ),
+    refreshing: false,
+  };
+}
+
 export async function mutateMockAgent(
   action: "create" | "update" | "delete",
   request?: OcservAgentCreateInput | OcservAgentUpdateInput,

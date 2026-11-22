@@ -164,6 +164,7 @@ func (s *Service) registerTelegramRoutes(e *echo.Group) {
 func (s *Service) registerAgentRoutes(e *echo.Group) {
 	g := e.Group("/ocserv/agents", s.authenticate, middlewares.SuperadminPermission())
 	g.GET("", s.agents.List)
+	g.GET("/status", s.agents.Health)
 	g.GET("/:id", s.agents.Get)
 	g.POST("", s.agents.Create)
 	g.PATCH("/:id", s.agents.Update)

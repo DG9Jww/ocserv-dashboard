@@ -3,6 +3,7 @@ import { api } from "@/api/client";
 import { isTestMode } from "@/api/environment";
 import { apiBaseUrl } from "@/api/http";
 import type {
+  AgentsHealthStatus,
   GithubComMmtaeeOcservDashboardBackendInternalServicesAdminApiSystemGetSystemInitResponse,
   GithubComMmtaeeOcservDashboardBackendInternalServicesAdminApiSystemGetSystemResponse,
   GithubComMmtaeeOcservDashboardBackendInternalServicesAdminApiSystemPatchSystemUpdateData,
@@ -16,6 +17,7 @@ import type {
 } from "@/api/generated";
 import {
   cloneMock,
+  getMockAgentHealth,
   getMockAgents,
   getMockOcservConfig,
   getMockSystemConfig,
@@ -46,6 +48,11 @@ export type SystemRelease =
 export type OcservAgent = Omit<ModelsOcservAgent, "token">;
 export type OcservAgentCreate = OcservAgentCreateInput;
 export type OcservAgentUpdate = OcservAgentUpdateInput;
+export type AgentHealth = AgentsHealthStatus | "unknown";
+export interface AgentHealthSnapshot {
+  statuses: Record<string, AgentsHealthStatus>;
+  refreshing: boolean;
+}
 
 export type OcservRuntimeActionResult = RuntimeActionResponse;
 export const OcservRuntimeAction = {
@@ -139,6 +146,20 @@ export async function getOcservAgents(): Promise<OcservAgent[]> {
       { baseURL: apiBaseUrl },
     )
   ).data;
+}
+
+export async function getAgentHealth(
+  agents: OcservAgent[],
+): Promise<AgentHealthSnapshot> {
+  if (isTestMode) return getMockAgentHealth(agents);
+  const { data } = await api.agents.ocservAgentsStatusGet(
+    { authorization: requireAuthorizationHeader() },
+    { baseURL: apiBaseUrl },
+  );
+  return {
+    statuses: data.statuses ?? {},
+    refreshing: data.refreshing ?? false,
+  };
 }
 
 export async function getOcservAgent(id: number): Promise<OcservAgent> {

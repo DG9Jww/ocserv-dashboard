@@ -137,7 +137,7 @@ function submit() {
           </Field>
           <Field>
             <FieldLabel for="sheet-agent-port">{{
-              t("systemSettings.serverPort")
+              t("customerManagement.apiPort")
             }}</FieldLabel>
             <Input
               id="sheet-agent-port"

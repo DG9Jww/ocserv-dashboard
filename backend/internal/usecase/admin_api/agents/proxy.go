@@ -1,7 +1,9 @@
 package agents
 
 import (
+	"context"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/authz"
+	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
 )
 
 var ErrAgentPath = errors.New("unsupported agent API path")
@@ -17,6 +20,7 @@ type Proxy struct {
 	agents *Usecase
 	client *http.Client
 	scheme string
+	health agentHealthCache
 }
 
 func NewProxy(agents *Usecase, scheme string, transport http.RoundTripper) (*Proxy, error) {
@@ -46,14 +50,7 @@ func (p *Proxy) Forward(id uint, nodePath string, incoming *http.Request) (*http
 	if err != nil {
 		return nil, err
 	}
-	if agent.Port < 1 || agent.Port > 65535 || !validAddress(agent.AddressType, agent.Address) || agent.Token == "" {
-		return nil, errors.New("invalid stored agent destination")
-	}
-	target := url.URL{
-		Scheme: p.scheme, Host: net.JoinHostPort(agent.Address, strconv.Itoa(agent.Port)),
-		Path: "/api" + nodePath, RawQuery: incoming.URL.RawQuery,
-	}
-	outgoing, err := http.NewRequestWithContext(incoming.Context(), incoming.Method, target.String(), incoming.Body)
+	outgoing, err := p.agentRequest(incoming.Context(), agent, incoming.Method, nodePath, incoming.URL.RawQuery, incoming.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -63,6 +60,21 @@ func (p *Proxy) Forward(id uint, nodePath string, incoming *http.Request) (*http
 			outgoing.Header.Add(header, value)
 		}
 	}
-	outgoing.Header.Set("Authorization", authz.AgentAuthorizationPrefix+agent.Token)
 	return p.client.Do(outgoing)
+}
+
+func (p *Proxy) agentRequest(ctx context.Context, agent *models.OcservAgent, method, nodePath, query string, body io.Reader) (*http.Request, error) {
+	if agent.Port < 1 || agent.Port > 65535 || !validAddress(agent.AddressType, agent.Address) || agent.Token == "" {
+		return nil, errors.New("invalid stored agent destination")
+	}
+	target := url.URL{
+		Scheme: p.scheme, Host: net.JoinHostPort(agent.Address, strconv.Itoa(agent.Port)),
+		Path: "/api" + nodePath, RawQuery: query,
+	}
+	outgoing, err := http.NewRequestWithContext(ctx, method, target.String(), body)
+	if err != nil {
+		return nil, err
+	}
+	outgoing.Header.Set("Authorization", authz.AgentAuthorizationPrefix+agent.Token)
+	return outgoing, nil
 }

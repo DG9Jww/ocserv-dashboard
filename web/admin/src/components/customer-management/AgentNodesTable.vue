@@ -12,7 +12,8 @@ import type {
   NodeDefaults,
   NodeGroup,
 } from "@/api/services/customer-management";
-import type { OcservAgent } from "@/api/services/system";
+import type { AgentHealth, OcservAgent } from "@/api/services/system";
+import AgentStatusIndicator from "@/components/AgentStatusIndicator.vue";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +44,7 @@ export type AgentNodeRow = {
   id: string;
   name: string;
   agent?: OcservAgent;
+  health?: AgentHealth;
   defaults?: NodeDefaults;
   groups: NodeGroup[];
   certificateGroup?: string;
@@ -69,7 +71,8 @@ const { t } = useI18n({ useScope: "global" });
         <TableRow>
           <TableHead>{{ t("systemSettings.agentName") }}</TableHead>
           <TableHead>{{ t("systemSettings.agentAddress") }}</TableHead>
-          <TableHead>{{ t("systemSettings.serverPort") }}</TableHead>
+          <TableHead>{{ t("customerManagement.apiPort") }}</TableHead>
+          <TableHead>{{ t("customerManagement.status") }}</TableHead>
           <TableHead>{{ t("customerManagement.groups") }}</TableHead>
           <TableHead>{{ t("customerManagement.ocservGroup") }}</TableHead>
           <TableHead>{{ t("customerManagement.certificateGroup") }}</TableHead>
@@ -82,7 +85,7 @@ const { t } = useI18n({ useScope: "global" });
       </TableHeader>
       <TableBody>
         <TableRow v-if="loading">
-          <TableCell v-for="column in 7" :key="column"
+          <TableCell v-for="column in 8" :key="column"
             ><Skeleton class="h-8 w-full"
           /></TableCell>
         </TableRow>
@@ -113,6 +116,10 @@ const { t } = useI18n({ useScope: "global" });
           <TableCell class="tabular-nums">{{
             row.agent ? (row.agent.port ?? 8080) : "—"
           }}</TableCell>
+          <TableCell>
+            <AgentStatusIndicator v-if="row.health" :status="row.health" />
+            <span v-else class="text-muted-foreground">—</span>
+          </TableCell>
           <TableCell>
             <div v-if="row.groups.length" class="flex flex-wrap gap-1">
               <Badge
@@ -173,7 +180,7 @@ const { t } = useI18n({ useScope: "global" });
           </TableCell>
         </TableRow>
         <TableRow v-if="!loading && !rows.length">
-          <TableCell :colspan="7">
+          <TableCell :colspan="8">
             <Empty
               ><EmptyHeader
                 ><EmptyMedia variant="icon"><Network /></EmptyMedia

@@ -29,6 +29,21 @@ import type { RequestArgs } from "./base";
 // @ts-ignore
 import { BASE_PATH, BaseAPI, operationServerMap } from "./base";
 
+export interface AgentsHealthSnapshot {
+  refreshing?: boolean;
+  statuses?: { [key: string]: AgentsHealthStatus };
+}
+
+export const AgentsHealthStatus = {
+  HealthChecking: "checking",
+  HealthOnline: "online",
+  HealthOffline: "offline",
+  HealthUnavailable: "unavailable",
+} as const;
+
+export type AgentsHealthStatus =
+  (typeof AgentsHealthStatus)[keyof typeof AgentsHealthStatus];
+
 export interface AuthSession {
   created_at?: string;
   expire_at?: string;
@@ -2385,6 +2400,56 @@ export const OcservAgentsApiAxiosParamCreator = function (
         options: localVarRequestOptions,
       };
     },
+    /**
+     *
+     * @summary Get Ocserv agent statuses
+     * @param {string} authorization Bearer TOKEN
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    ocservAgentsStatusGet: async (
+      authorization: string,
+      options: RawAxiosRequestConfig = {},
+    ): Promise<RequestArgs> => {
+      // verify required parameter 'authorization' is not null or undefined
+      assertParamExists(
+        "ocservAgentsStatusGet",
+        "authorization",
+        authorization,
+      );
+      const localVarPath = `/ocserv/agents/status`;
+      // use dummy base URL string because the URL constructor only accepts absolute URLs.
+      const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+      let baseOptions;
+      if (configuration) {
+        baseOptions = configuration.baseOptions;
+      }
+
+      const localVarRequestOptions = {
+        method: "GET",
+        ...baseOptions,
+        ...options,
+      };
+      const localVarHeaderParameter = {} as any;
+      const localVarQueryParameter = {} as any;
+
+      if (authorization != null) {
+        localVarHeaderParameter["Authorization"] = String(authorization);
+      }
+      setSearchParams(localVarUrlObj, localVarQueryParameter);
+      let headersFromBaseOptions =
+        baseOptions && baseOptions.headers ? baseOptions.headers : {};
+      localVarRequestOptions.headers = {
+        ...localVarHeaderParameter,
+        ...headersFromBaseOptions,
+        ...options.headers,
+      };
+
+      return {
+        url: toPathString(localVarUrlObj),
+        options: localVarRequestOptions,
+      };
+    },
   };
 };
 
@@ -2576,6 +2641,40 @@ export const OcservAgentsApiFp = function (configuration?: Configuration) {
           configuration,
         )(axios, localVarOperationServerBasePath || basePath);
     },
+    /**
+     *
+     * @summary Get Ocserv agent statuses
+     * @param {string} authorization Bearer TOKEN
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    async ocservAgentsStatusGet(
+      authorization: string,
+      options?: RawAxiosRequestConfig,
+    ): Promise<
+      (
+        axios?: AxiosInstance,
+        basePath?: string,
+      ) => AxiosPromise<AgentsHealthSnapshot>
+    > {
+      const localVarAxiosArgs =
+        await localVarAxiosParamCreator.ocservAgentsStatusGet(
+          authorization,
+          options,
+        );
+      const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+      const localVarOperationServerBasePath =
+        operationServerMap["OcservAgentsApi.ocservAgentsStatusGet"]?.[
+          localVarOperationServerIndex
+        ]?.url;
+      return (axios, basePath) =>
+        createRequestFunction(
+          localVarAxiosArgs,
+          globalAxios,
+          BASE_PATH,
+          configuration,
+        )(axios, localVarOperationServerBasePath || basePath);
+    },
   };
 };
 
@@ -2681,6 +2780,21 @@ export const OcservAgentsApiFactory = function (
         )
         .then((request) => request(axios, basePath));
     },
+    /**
+     *
+     * @summary Get Ocserv agent statuses
+     * @param {OcservAgentsApiOcservAgentsStatusGetRequest} requestParameters Request parameters.
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     */
+    ocservAgentsStatusGet(
+      requestParameters: OcservAgentsApiOcservAgentsStatusGetRequest,
+      options?: RawAxiosRequestConfig,
+    ): AxiosPromise<AgentsHealthSnapshot> {
+      return localVarFp
+        .ocservAgentsStatusGet(requestParameters.authorization, options)
+        .then((request) => request(axios, basePath));
+    },
   };
 };
 
@@ -2747,6 +2861,18 @@ export interface OcservAgentsApiInterface {
     requestParameters: OcservAgentsApiOcservAgentsPostRequest,
     options?: RawAxiosRequestConfig,
   ): AxiosPromise<ModelsOcservAgent>;
+
+  /**
+   *
+   * @summary Get Ocserv agent statuses
+   * @param {OcservAgentsApiOcservAgentsStatusGetRequest} requestParameters Request parameters.
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  ocservAgentsStatusGet(
+    requestParameters: OcservAgentsApiOcservAgentsStatusGetRequest,
+    options?: RawAxiosRequestConfig,
+  ): AxiosPromise<AgentsHealthSnapshot>;
 }
 
 /**
@@ -2822,6 +2948,16 @@ export interface OcservAgentsApiOcservAgentsPostRequest {
    * Agent
    */
   readonly request: OcservAgentCreateInput;
+}
+
+/**
+ * Request parameters for ocservAgentsStatusGet operation in OcservAgentsApi.
+ */
+export interface OcservAgentsApiOcservAgentsStatusGetRequest {
+  /**
+   * Bearer TOKEN
+   */
+  readonly authorization: string;
 }
 
 /**
@@ -2925,6 +3061,22 @@ export class OcservAgentsApi
         requestParameters.request,
         options,
       )
+      .then((request) => request(this.axios, this.basePath));
+  }
+
+  /**
+   *
+   * @summary Get Ocserv agent statuses
+   * @param {OcservAgentsApiOcservAgentsStatusGetRequest} requestParameters Request parameters.
+   * @param {*} [options] Override http request option.
+   * @throws {RequiredError}
+   */
+  public ocservAgentsStatusGet(
+    requestParameters: OcservAgentsApiOcservAgentsStatusGetRequest,
+    options?: RawAxiosRequestConfig,
+  ) {
+    return OcservAgentsApiFp(this.configuration)
+      .ocservAgentsStatusGet(requestParameters.authorization, options)
       .then((request) => request(this.axios, this.basePath));
   }
 }

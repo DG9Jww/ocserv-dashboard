@@ -13,7 +13,7 @@ export default {
     switchToLightTheme: "切换到浅色主题",
     switchToDarkTheme: "切换到深色主题",
     mobileSidebarDescription: "显示移动端侧边栏。",
-    masterServer: "主服务器",
+    masterServer: "Master",
     serverSelector: "服务器选择器",
     serverErrors: {
       agentList: "无法加载代理服务器列表。",

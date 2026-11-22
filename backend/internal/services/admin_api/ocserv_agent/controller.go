@@ -36,6 +36,24 @@ func (ctl *Controller) List(c *echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
+// Health returns the cached management API status of the registered agents.
+// @Summary Get Ocserv agent statuses
+// @Tags Ocserv Agents
+// @Param Authorization header string true "Bearer TOKEN"
+// @Failure 400 {object} request.ErrorResponse
+// @Failure 401 {object} request.ErrorResponse
+// @Failure 403 {object} request.ErrorResponse
+// @Success 200 {object} agents.HealthSnapshot
+// @Router /ocserv/agents/status [get]
+func (ctl *Controller) Health(c *echo.Context) error {
+	result, err := ctl.proxy.Health(c.Request().Context())
+	if err != nil {
+		return ctl.request.BadRequest(c, err)
+	}
+	c.Response().Header().Set("Cache-Control", "no-store")
+	return c.JSON(http.StatusOK, result)
+}
+
 // Get returns one configured Ocserv agent.
 // @Summary Get Ocserv agent
 // @Tags Ocserv Agents

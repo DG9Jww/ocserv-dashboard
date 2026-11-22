@@ -73,7 +73,13 @@ function submit() {
       name: group.name.trim(),
       nodes: [...group.nodes],
     });
-  else emit("saveDefaults", { ...defaults, group: defaults.group.trim() });
+  else
+    emit("saveDefaults", {
+      ...defaults,
+      group: defaults.group.trim(),
+      traffic_size:
+        defaults.traffic_type === "Free" ? 0 : defaults.traffic_size,
+    });
 }
 </script>
 
@@ -142,14 +148,15 @@ function submit() {
               </option>
             </select>
           </label>
-          <label class="grid gap-1 text-sm"
+          <label
+            v-if="defaults.traffic_type !== 'Free'"
+            class="grid gap-1 text-sm"
             >{{ label("trafficBytes") }}
             <input
               v-model.number="defaults.traffic_size"
               type="number"
               min="0"
               :class="selectClass"
-              :disabled="defaults.traffic_type === 'Free'"
               required
             />
           </label>
