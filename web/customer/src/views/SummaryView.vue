@@ -5,10 +5,12 @@ import type { SummaryResponse } from "@/api/generated";
 import { normalizeApiError } from "@/api/http";
 import { getSummary } from "@/api/services/customers";
 import StatusMessage from "@/components/StatusMessage.vue";
+import { useAuthStore } from "@/stores/auth";
 import DownloadsView from "@/views/DownloadsView.vue";
 import PasswordView from "@/views/PasswordView.vue";
 
-const { t } = useI18n({ useScope: "global" });
+const { t, n } = useI18n({ useScope: "global" });
+const auth = useAuthStore();
 const data = shallowRef<SummaryResponse | null>(null);
 const loading = shallowRef(true);
 const error = shallowRef("");
@@ -41,7 +43,7 @@ async function load(): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    data.value = await getSummary();
+    data.value = auth.takeRestoredSummary() ?? (await getSummary());
   } catch (cause) {
     error.value = normalizeApiError(cause).message;
   } finally {
@@ -124,7 +126,7 @@ onMounted(load);
                 {{
                   account?.traffic_size === undefined
                     ? "—"
-                    : account.traffic_size + " GiB"
+                    : n(account.traffic_size, "traffic") + " GiB"
                 }}
               </dd>
             </div>
@@ -138,7 +140,7 @@ onMounted(load);
               {{ t("statistics.total") }}
             </p>
             <p class="mt-1 text-3xl font-semibold tracking-tight">
-              {{ usageChart?.total ?? 0 }}
+              {{ n(usageChart?.total ?? 0, "traffic") }}
               <span class="text-base font-medium text-muted-foreground"
                 >GiB</span
               >
@@ -165,7 +167,7 @@ onMounted(load);
               class="grid size-22 place-items-center rounded-full bg-card text-center"
             >
               <strong class="text-lg leading-none">{{
-                usageChart.total
+                n(usageChart.total, "traffic")
               }}</strong>
               <span class="text-[10px] text-muted-foreground">GiB</span>
             </div>
@@ -173,14 +175,14 @@ onMounted(load);
           <div class="grid gap-2 text-sm">
             <span class="inline-flex items-center gap-2">
               <i class="size-2.5 rounded-full bg-primary" aria-hidden="true" />
-              {{ t("summary.received") }} · {{ usageChart.rx }} GiB
+              {{ t("summary.received") }} · {{ n(usageChart.rx, "traffic") }} GiB
             </span>
             <span class="inline-flex items-center gap-2">
               <i
                 class="size-2.5 rounded-full bg-emerald-500"
                 aria-hidden="true"
               />
-              {{ t("summary.transmitted") }} · {{ usageChart.tx }} GiB
+              {{ t("summary.transmitted") }} · {{ n(usageChart.tx, "traffic") }} GiB
             </span>
           </div>
         </div>
@@ -193,7 +195,9 @@ onMounted(load);
       </article>
 
       <section class="lg:col-span-2 grid gap-6 border-t pt-6">
-        <DownloadsView />
+        <DownloadsView
+          :certificate-available="account?.certificate_available ?? false"
+        />
         <PasswordView />
       </section>
     </div>

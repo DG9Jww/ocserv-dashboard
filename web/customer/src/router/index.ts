@@ -46,7 +46,9 @@ export const router = createRouter({
 export function installRouterGuards(pinia: Pinia): void {
   router.beforeEach(async (to) => {
     const auth = useAuthStore(pinia);
-    if (getAccessToken() && !auth.isAuthenticated) await auth.restoreSession();
+    if (getAccessToken() && !auth.isAuthenticated) {
+      await auth.restoreSession(to.name === "home" || to.name === "login");
+    }
     if (!to.meta.public && !auth.isAuthenticated) return { name: "login" };
     if (to.name === "login" && auth.isAuthenticated) return { name: "home" };
     return true;

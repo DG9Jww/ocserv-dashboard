@@ -1,29 +1,26 @@
 <script setup lang="ts">
 import { onMounted, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
-import type { CiscoSetup, SummaryResponse } from "@/api/generated";
+import type { CiscoSetup } from "@/api/generated";
 import { normalizeApiError } from "@/api/http";
 import {
   downloadCertificate,
   downloadCiscoCertificate,
   getCiscoSetup,
-  getSummary,
 } from "@/api/services/customers";
 import StatusMessage from "@/components/StatusMessage.vue";
 
+defineProps<{ certificateAvailable: boolean }>();
+
 const { t } = useI18n({ useScope: "global" });
 const setup = shallowRef<CiscoSetup | null>(null);
-const summary = shallowRef<SummaryResponse | null>(null);
 const loading = shallowRef(true);
 const error = shallowRef("");
 async function load(): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    [setup.value, summary.value] = await Promise.all([
-      getCiscoSetup(),
-      getSummary(),
-    ]);
+    setup.value = await getCiscoSetup();
   } catch (cause) {
     error.value = normalizeApiError(cause).message;
   } finally {
@@ -58,13 +55,13 @@ onMounted(load);
         <h2 class="font-semibold">{{ t("downloads.certificate") }}</h2>
         <button
           class="button"
-          :disabled="!summary?.ocserv_user?.certificate_available"
+          :disabled="!certificateAvailable"
           @click="save(downloadCertificate, 'ocserv-certificate.p12')"
         >
           {{ t("common.download") }}
         </button>
         <p
-          v-if="!summary?.ocserv_user?.certificate_available"
+          v-if="!certificateAvailable"
           class="text-sm text-muted-foreground"
         >
           {{ t("downloads.unavailable") }}

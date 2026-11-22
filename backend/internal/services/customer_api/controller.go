@@ -1,7 +1,10 @@
 package customerapi
 
 import (
+	"mime"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/labstack/echo/v5"
@@ -91,8 +94,7 @@ func (ctl *CustomerController) DownloadCertificate(c *echo.Context) error {
 	if err != nil {
 		return ctl.request.BadRequest(c, err)
 	}
-	c.Response().Header().Set(echo.HeaderContentType, "application/x-pkcs12")
-	return c.Attachment(path, username+".p12")
+	return sendCertificate(c, path, username+".p12")
 }
 
 // @Summary Disconnect all customer sessions
@@ -260,11 +262,18 @@ func (ctl *CustomerController) DownloadCiscoSetupCertificate(c *echo.Context) er
 	if err != nil {
 		return ctl.request.BadRequest(c, err)
 	}
-	c.Response().Header().Set(echo.HeaderContentType, "application/x-pkcs12")
-	c.Response().Header().Set(echo.HeaderCacheControl, "no-store")
-	c.Response().Header().Set("Pragma", "no-cache")
-	c.Response().Header().Set("X-Content-Type-Options", "nosniff")
-	return c.Attachment(path, username+".p12")
+	return sendCertificate(c, path, username+".p12")
+}
+
+func sendCertificate(c *echo.Context, path, filename string) error {
+	headers := c.Response().Header()
+	headers.Set(echo.HeaderContentType, "application/x-pkcs12")
+	headers.Set(echo.HeaderContentDisposition, mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
+	headers.Set(echo.HeaderCacheControl, "no-store")
+	headers.Set("Pragma", "no-cache")
+	headers.Set("X-Content-Type-Options", "nosniff")
+	// Certificates are stored outside the default filesystem rooted at the app directory.
+	return c.FileFS(filepath.Base(path), os.DirFS(filepath.Dir(path)))
 }
 
 func customerUsername(c *echo.Context) (string, error) {

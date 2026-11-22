@@ -664,6 +664,12 @@ export const i18n = createI18n({
   locale: localStorage.getItem("ocserv-customer.locale") || "en",
   fallbackLocale: "en",
   messages: { en, ...translations },
+  numberFormats: Object.fromEntries(
+    localeOptions.map(([locale]) => [
+      locale,
+      { traffic: { maximumFractionDigits: 3 } },
+    ]),
+  ),
 });
 export function setLocale(locale: string): void {
   if (!localeOptions.some(([code]) => code === locale)) return;

@@ -28,7 +28,7 @@ async function logout(): Promise<void> {
             v-for="name in links"
             :key="name"
             class="rounded-md px-3 py-2 text-sm hover:bg-muted"
-            active-class="bg-muted font-medium"
+            exact-active-class="bg-muted font-medium"
             :to="{ name }"
           >
             {{ t("nav." + name) }}

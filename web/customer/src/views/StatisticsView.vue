@@ -6,7 +6,7 @@ import { normalizeApiError } from "@/api/http";
 import { getBandwidth, getStats } from "@/api/services/customers";
 import StatusMessage from "@/components/StatusMessage.vue";
 
-const { t } = useI18n({ useScope: "global" });
+const { t, n } = useI18n({ useScope: "global" });
 const query = reactive({ date_start: "", date_end: "" });
 const stats = shallowRef<DailyTraffic[]>([]);
 const total = shallowRef<Bandwidth | null>(null);
@@ -72,8 +72,8 @@ onMounted(load);
     <article v-if="total" class="card">
       <h2 class="font-semibold">{{ t("statistics.total") }}</h2>
       <p>
-        {{ t("statistics.rx") }}: {{ total.rx }} · {{ t("statistics.tx") }}:
-        {{ total.tx }}
+        {{ t("statistics.rx") }}: {{ n(total.rx ?? 0, "traffic") }} ·
+        {{ t("statistics.tx") }}: {{ n(total.tx ?? 0, "traffic") }}
       </p>
       <div
         v-if="chartItems.length"
@@ -103,11 +103,11 @@ onMounted(load);
               ': ' +
               t('statistics.rx') +
               ' ' +
-              item.rx +
+              n(item.rx, 'traffic') +
               ' · ' +
               t('statistics.tx') +
               ' ' +
-              item.tx
+              n(item.tx, 'traffic')
             "
           >
             <div
@@ -147,8 +147,8 @@ onMounted(load);
         <tbody>
           <tr v-for="item in stats" :key="item.date">
             <td>{{ item.date }}</td>
-            <td>{{ item.rx ?? 0 }}</td>
-            <td>{{ item.tx ?? 0 }}</td>
+            <td>{{ n(item.rx ?? 0, "traffic") }}</td>
+            <td>{{ n(item.tx ?? 0, "traffic") }}</td>
           </tr>
         </tbody>
       </table>

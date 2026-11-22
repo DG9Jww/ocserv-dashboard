@@ -6,7 +6,7 @@ import {
   getAccessToken,
   setAccessToken,
 } from "@/api/auth-token";
-import type { Customer, LoginData } from "@/api/generated";
+import type { Customer, LoginData, SummaryResponse } from "@/api/generated";
 import { normalizeApiError } from "@/api/http";
 import { getSummary, login } from "@/api/services/customers";
 
@@ -14,12 +14,16 @@ export const useAuthStore = defineStore("auth", () => {
   const user = shallowRef<Customer | null>(null);
   const loading = shallowRef(false);
   const error = shallowRef("");
+  let restoringSummary: Promise<SummaryResponse> | null = null;
+  let restoredSummary: SummaryResponse | null = null;
   const isAuthenticated = computed(() =>
     Boolean(user.value && getAccessToken()),
   );
   function clearSession(): void {
     clearAccessToken();
     user.value = null;
+    restoringSummary = null;
+    restoredSummary = null;
   }
   async function signIn(credentials: LoginData): Promise<boolean> {
     loading.value = true;
@@ -28,6 +32,7 @@ export const useAuthStore = defineStore("auth", () => {
       const response = await login(credentials);
       setAccessToken(response.token, response.expires_at);
       user.value = response.user;
+      restoredSummary = null;
       return true;
     } catch (cause) {
       clearSession();
@@ -37,15 +42,28 @@ export const useAuthStore = defineStore("auth", () => {
       loading.value = false;
     }
   }
-  async function restoreSession(): Promise<boolean> {
-    if (!getAccessToken()) return false;
+  async function restoreSession(reuseSummaryOnHome: boolean): Promise<boolean> {
+    const token = getAccessToken();
+    if (!token) return false;
+
+    const pending = (restoringSummary ??= getSummary());
     try {
-      user.value = (await getSummary()).ocserv_user ?? null;
+      const summary = await pending;
+      if (getAccessToken() !== token) return false;
+      user.value = summary.ocserv_user ?? null;
+      restoredSummary = reuseSummaryOnHome && user.value ? summary : null;
       return Boolean(user.value);
     } catch {
-      clearSession();
+      if (getAccessToken() === token) clearSession();
       return false;
+    } finally {
+      if (restoringSummary === pending) restoringSummary = null;
     }
+  }
+  function takeRestoredSummary(): SummaryResponse | null {
+    const summary = restoredSummary;
+    restoredSummary = null;
+    return summary;
   }
   function signOut(): void {
     clearSession();
@@ -58,6 +76,7 @@ export const useAuthStore = defineStore("auth", () => {
     restoreSession,
     signIn,
     signOut,
+    takeRestoredSummary,
     user,
   };
 });
