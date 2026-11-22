@@ -19,6 +19,7 @@ import (
 )
 
 var ErrUserNotFound = errors.New("ocserv user not found")
+var ErrManagedCustomerDelete = repository.ErrManagedCustomerDelete
 
 var ErrInvalidExpireInDays = errors.New("expire_in_days must be a positive integer")
 

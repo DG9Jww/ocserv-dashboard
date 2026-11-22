@@ -117,6 +117,12 @@ func (u *BulkUsecase) Delete(ctx context.Context, principal authz.Principal, inp
 			return err
 		}
 		byID := usersByID(users)
+		// Resolve every database deletion before touching any node account files.
+		for _, id := range input.IDs {
+			if _, err := tx.Delete(ctx, id); err != nil {
+				return err
+			}
+		}
 		for _, id := range input.IDs {
 			account := *byID[id]
 			certificate, err := u.accounts.CertificateBackup(account.Username)
@@ -128,15 +134,14 @@ func (u *BulkUsecase) Delete(ctx context.Context, principal authz.Principal, inp
 				return fmt.Errorf("delete ocserv user %d: %w", id, err)
 			}
 			undo = append(undo, func() { u.restoreDeletedAccount(account, certificate) })
-			if _, err := tx.Delete(ctx, id); err != nil {
-				return err
-			}
 			deleted = append(deleted, account)
 		}
 		return nil
 	})
 	if err != nil {
-		u.rollbackExternal(undo)
+		if !errors.Is(err, ErrManagedCustomerDelete) {
+			u.rollbackExternal(undo)
+		}
 		return nil, err
 	}
 	u.reload()

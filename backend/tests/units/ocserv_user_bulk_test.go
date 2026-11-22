@@ -17,13 +17,14 @@ import (
 type bulkUserRepository struct {
 	users        map[uint]models.OcservUser
 	failUpdateID uint
+	managedID    uint
 	commits      int
 	rollbacks    int
 }
 
 func (r *bulkUserRepository) WithTransaction(ctx context.Context, operation func(repository.OcservUserBulkTx) error) error {
 	working := cloneBulkUsers(r.users)
-	tx := &bulkUserTx{users: working, failUpdateID: r.failUpdateID}
+	tx := &bulkUserTx{users: working, failUpdateID: r.failUpdateID, managedID: r.managedID}
 	if err := operation(tx); err != nil {
 		r.rollbacks++
 		return err
@@ -36,6 +37,7 @@ func (r *bulkUserRepository) WithTransaction(ctx context.Context, operation func
 type bulkUserTx struct {
 	users        map[uint]models.OcservUser
 	failUpdateID uint
+	managedID    uint
 }
 
 func (tx *bulkUserTx) GetByIDsForUpdate(_ context.Context, ids []uint) ([]models.OcservUser, error) {
@@ -58,6 +60,9 @@ func (tx *bulkUserTx) Update(_ context.Context, user *models.OcservUser) (*model
 }
 
 func (tx *bulkUserTx) Delete(_ context.Context, id uint) (*models.OcservUser, error) {
+	if id == tx.managedID {
+		return nil, repository.ErrManagedCustomerDelete
+	}
 	user, ok := tx.users[id]
 	if !ok {
 		return nil, errors.New("not found")
@@ -87,6 +92,7 @@ type bulkAccountState struct {
 
 type bulkAccountStore struct {
 	accounts map[string]bulkAccountState
+	deleted  []string
 }
 
 func (s *bulkAccountStore) Create(group, username, _ string, _ *models.OcservUserConfig) error {
@@ -111,6 +117,7 @@ func (s *bulkAccountStore) UnLock(username string) (string, error) {
 }
 
 func (s *bulkAccountStore) Delete(username string) (string, error) {
+	s.deleted = append(s.deleted, username)
 	delete(s.accounts, username)
 	return "", nil
 }
@@ -194,6 +201,19 @@ func TestBulkRejectsInvalidIDsBeforeMutation(t *testing.T) {
 	_, err = usecase.Delete(context.Background(), principal, ocservuser.BulkIDsRequest{IDs: []uint{10, 10}})
 	require.ErrorContains(t, err, "duplicate user id")
 	require.Equal(t, 1, repo.rollbacks, "duplicate validation must happen before opening a transaction")
+}
+
+func TestBulkDeleteRejectsManagedCustomerBeforeTouchingAccountFiles(t *testing.T) {
+	repo, accounts, usecase := newBulkFixture()
+	repo.managedID = 20
+	principal := authz.Principal{UserID: 1, Username: "admin", Superadmin: true}
+
+	_, err := usecase.Delete(context.Background(), principal, ocservuser.BulkIDsRequest{IDs: []uint{10, 20}})
+	require.ErrorIs(t, err, ocservuser.ErrManagedCustomerDelete)
+	require.Equal(t, 1, repo.rollbacks)
+	require.Contains(t, repo.users, uint(10))
+	require.Contains(t, repo.users, uint(20))
+	require.Empty(t, accounts.deleted)
 }
 
 func TestBulkTransactionRollsBackEarlierUpdates(t *testing.T) {

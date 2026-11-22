@@ -13,6 +13,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+var ErrManagedCustomerDelete = errors.New("managed_customer_delete_blocked")
+
 type TopBandwidthUsers struct {
 	TopRX []models.OcservUser `json:"top_rx"`
 	TopTX []models.OcservUser `json:"top_tx"`
@@ -321,7 +323,7 @@ func (o *OcservUserRepository) Delete(ctx context.Context, id uint) (*models.Ocs
 			return err
 		}
 		if bindings != 0 {
-			return errors.New("managed customer accounts retain their node history")
+			return ErrManagedCustomerDelete
 		}
 		if err := tx.Delete(&ocservUser).Error; err != nil {
 			return err

@@ -36,6 +36,7 @@ const { t } = useI18n({ useScope: "global" });
       <p v-if="error" role="alert" class="text-sm text-destructive">
         {{ error }}
       </p>
+      <slot v-if="error" name="error-action" />
       <AlertDialogFooter>
         <AlertDialogCancel :disabled="pending">
           {{ t("ocservUsers.cancel") }}

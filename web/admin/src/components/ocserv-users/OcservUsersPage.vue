@@ -50,8 +50,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { useOcservUsers } from "@/composables/useOcservUsers";
+import { useAuthStore } from "@/stores/auth";
 
 const { t } = useI18n({ useScope: "global" });
+const auth = useAuthStore();
 const {
   activate,
   bulkDescription,
@@ -68,6 +70,7 @@ const {
   loadUser,
   loading,
   lock,
+  managedDeleteBlocked,
   meta,
   mutating,
   refresh,
@@ -96,6 +99,7 @@ const confirmationTitle = shallowRef("");
 const confirmationDescription = shallowRef("");
 const confirmationAction = shallowRef("");
 const confirmationDestructive = shallowRef(false);
+const confirmationFailed = shallowRef(false);
 const pendingConfirmation = shallowRef<(() => Promise<boolean>) | null>(null);
 const bulkGroupName = shallowRef("__none__");
 const bulkDescriptionText = shallowRef("");
@@ -112,7 +116,12 @@ const totalPages = computed(() =>
 const successMessage = computed(() =>
   success.value ? t(`ocservUsers.${success.value}Success`) : "",
 );
-const requestError = computed(() => error.value || pageError.value);
+const actionError = computed(() =>
+  error.value && managedDeleteBlocked.value
+    ? t("ocservUsers.managedDeleteBlocked")
+    : error.value,
+);
+const requestError = computed(() => actionError.value || pageError.value);
 
 function currentFilters(): OcservUsersListOptions {
   const expireInDays = Number(filters.expireInDays);
@@ -180,19 +189,21 @@ function confirmAction(
   );
   confirmationAction.value = t(`ocservUsers.confirmations.${key}Action`);
   confirmationDestructive.value = destructive;
+  confirmationFailed.value = false;
   pendingConfirmation.value = action;
   confirmationOpen.value = true;
 }
 
 async function runConfirmation(): Promise<void> {
   if (!pendingConfirmation.value) return;
+  confirmationFailed.value = false;
   if (await pendingConfirmation.value()) {
     confirmationOpen.value = false;
     pendingConfirmation.value = null;
     selectedIds.value = [];
     if (detailsOpen.value && detailsUser.value)
       detailsUser.value = await loadUser(detailsUser.value.id);
-  }
+  } else confirmationFailed.value = true;
 }
 
 function handleAction(action: OcservUserAction, user: OcservUser): void {
@@ -297,7 +308,7 @@ onMounted(async () => {
 
 <template>
   <div class="flex flex-col gap-6">
-    <Alert v-if="requestError" variant="error">
+    <Alert v-if="requestError && !confirmationOpen" variant="error">
       <AlertTitle>{{ t("ocservUsers.requestFailure") }}</AlertTitle>
       <AlertDescription>{{ requestError }}</AlertDescription>
     </Alert>
@@ -563,9 +574,22 @@ onMounted(async () => {
       :action="confirmationAction"
       :description="confirmationDescription"
       :destructive="confirmationDestructive"
+      :error="confirmationFailed ? (actionError ?? undefined) : undefined"
       :pending="mutating"
       :title="confirmationTitle"
       @confirm="runConfirmation"
-    />
+    >
+      <template #error-action>
+        <RouterLink
+          v-if="
+            confirmationFailed && managedDeleteBlocked && auth.user?.superadmin
+          "
+          :to="{ name: 'customer-management' }"
+          class="justify-self-start text-sm text-primary underline underline-offset-4"
+          @click="confirmationOpen = false"
+          >{{ t("customerManagement.title") }}</RouterLink
+        >
+      </template>
+    </OcservUserActionDialog>
   </div>
 </template>
