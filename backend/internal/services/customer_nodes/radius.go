@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
+	logger "github.com/mmtaee/ocserv-dashboard/backend/internal/platform/logging"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/repository"
 	federation "github.com/mmtaee/ocserv-dashboard/backend/internal/usecase/customer_federation"
 )
@@ -146,7 +147,8 @@ func RadiusHandler(master radiusBackend, secret string) http.Handler {
 			packet, err := attrs.accounting(time.Now().UTC())
 			if err != nil {
 				w.WriteHeader(http.StatusBadRequest)
-			} else if master.AccountRadius(ctx, packet) != nil {
+			} else if err := master.AccountRadius(ctx, packet); err != nil {
+				logger.Warn("RADIUS accounting failed for node %q, event %q: %v", packet.Node, packet.Event, err)
 				w.WriteHeader(http.StatusServiceUnavailable)
 			} else {
 				w.WriteHeader(http.StatusNoContent)

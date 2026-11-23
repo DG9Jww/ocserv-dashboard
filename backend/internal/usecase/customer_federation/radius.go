@@ -3,6 +3,7 @@ package federation
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
 	"time"
 
@@ -156,30 +157,33 @@ func (m *Master) AccountRadius(ctx context.Context, packet repository.RadiusAcco
 		// Certificate-authenticated sessions have no preceding RADIUS Access-Request.
 		customer, err := m.store.ByUsername(ctx, packet.Username)
 		if err != nil {
-			return err
+			return fmt.Errorf("find accounting customer: %w", err)
 		}
 		grant, _, err := m.radiusGrant(ctx, customer, packet.Node)
 		if err != nil {
-			return err
+			return fmt.Errorf("check accounting node grant: %w", err)
 		}
 		bound, err := m.store.BindCertificateAccounting(ctx, grant, packet)
 		if err != nil {
-			return err
+			return fmt.Errorf("bind accounting session: %w", err)
 		}
 		if !bound {
-			return ErrRadiusRejected
+			return fmt.Errorf("bind accounting session: %w", ErrRadiusRejected)
 		}
 	}
 	id, err := m.store.RecordRadius(ctx, packet)
-	if err != nil || id == "" || packet.Event == models.EventDisconnect {
-		return err
+	if err != nil {
+		return fmt.Errorf("record accounting event: %w", err)
+	}
+	if id == "" || packet.Event == models.EventDisconnect {
+		return nil
 	}
 	// Acknowledge accounting before asking Ocserv to terminate the session.
 	select {
 	case m.radiusTerminations <- radiusTermination{customerID: id, node: packet.Node}:
 		return nil
 	default:
-		return ErrUnavailable
+		return fmt.Errorf("queue accounting policy check: %w", ErrUnavailable)
 	}
 }
 

@@ -44,15 +44,18 @@ certificate_ocserv_config_ready() {
 }
 
 radius_ocserv_config_ready() {
-    awk -v method="$2" '
+    local config_paths config_path file
+    local mount_dir="${3:-}"
+
+    config_paths="$(awk -v method="$2" '
         function trim(value) {
             sub(/^[[:space:]]+/, "", value)
             sub(/[[:space:]]+$/, "", value)
             return value
         }
         function invalid(message, line) {
-            if (line) printf "%s:%d: %s\n", FILENAME, line, message
-            else printf "%s: %s\n", FILENAME, message
+            if (line) printf "%s:%d: %s\n", FILENAME, line, message > "/dev/stderr"
+            else printf "%s: %s\n", FILENAME, message > "/dev/stderr"
             failed = 1
         }
         function validate_radius(key, value,   options, option, option_count, i, configs, groupconfigs) {
@@ -67,6 +70,8 @@ radius_ocserv_config_ready() {
                     configs++
                     if (option !~ /^config=\/.+/)
                         invalid(key " requires an absolute path in config=", FNR)
+                    else
+                        paths[substr(option, 8)] = 1
                 }
                 if (key == "auth" && option ~ /^groupconfig=/) {
                     groupconfigs++
@@ -107,7 +112,23 @@ radius_ocserv_config_ready() {
             if (!count["acct"]) invalid("missing acct directive")
             if (method == "radius-certificate" && !count["enable-auth"])
                 invalid("missing enable-auth = certificate")
-            exit failed
+            if (failed) exit 1
+            for (file in paths) print file
         }
-    ' "$1" >&2
+    ' "$1")" || return 1
+
+    while IFS= read -r config_path; do
+        file="${config_path}"
+        if [[ -n "${mount_dir}" ]]; then
+            # Files elsewhere in the container are checked at container startup.
+            [[ "${config_path}" == /etc/ocserv/* ]] || continue
+            file="${mount_dir}/${config_path#/etc/ocserv/}"
+            [[ ! -L "${file}" ]] || continue
+        fi
+        if [[ ! -f "${file}" || ! -s "${file}" || ! -r "${file}" ]]; then
+            printf '%s: radcli config %s must be a readable, nonempty file at %s\n' \
+                "$1" "${config_path}" "${file}" >&2
+            return 1
+        fi
+    done <<< "${config_paths}"
 }
