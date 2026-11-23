@@ -75,6 +75,7 @@ const en = {
   },
   downloads: {
     title: "Certificates and Cisco setup",
+    ciscoSetup: "Cisco setup",
     ciscoCertificate: "Cisco setup certificate",
     connectionName: "Connection name",
     server: "Server",
@@ -167,6 +168,7 @@ const translations = {
     },
     downloads: {
       title: "Certificati e configurazione Cisco",
+      ciscoSetup: "Configurazione Cisco",
       ciscoCertificate: "Certificato configurazione Cisco",
       connectionName: "Nome connessione",
       server: "Server",
@@ -257,6 +259,7 @@ const translations = {
     },
     downloads: {
       title: "证书与 Cisco 设置",
+      ciscoSetup: "Cisco 设置",
       ciscoCertificate: "Cisco 设置证书",
       connectionName: "连接名称",
       server: "服务器",
@@ -347,6 +350,7 @@ const translations = {
     },
     downloads: {
       title: "憑證與 Cisco 設定",
+      ciscoSetup: "Cisco 設定",
       ciscoCertificate: "Cisco 設定憑證",
       connectionName: "連線名稱",
       server: "伺服器",
@@ -437,6 +441,7 @@ const translations = {
     },
     downloads: {
       title: "Сертификаты и настройка Cisco",
+      ciscoSetup: "Настройка Cisco",
       ciscoCertificate: "Сертификат настройки Cisco",
       connectionName: "Имя подключения",
       server: "Сервер",
@@ -527,6 +532,7 @@ const translations = {
     },
     downloads: {
       title: "گواهی‌ها و راه‌اندازی Cisco",
+      ciscoSetup: "راه‌اندازی Cisco",
       ciscoCertificate: "گواهی راه‌اندازی Cisco",
       connectionName: "نام اتصال",
       server: "سرور",
@@ -617,6 +623,7 @@ const translations = {
     },
     downloads: {
       title: "الشهادات وإعداد Cisco",
+      ciscoSetup: "إعداد Cisco",
       ciscoCertificate: "شهادة إعداد Cisco",
       connectionName: "اسم الاتصال",
       server: "الخادم",

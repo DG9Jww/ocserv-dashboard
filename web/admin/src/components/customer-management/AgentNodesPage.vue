@@ -377,6 +377,7 @@ onMounted(() => {
           :loading="agentsLoading"
           :busy="pending"
           :has-inventory="Boolean(data)"
+          :radius="Boolean(data?.radius)"
           @edit="openAgent"
           @remove="confirmRemoval"
           @defaults="openDefaults"

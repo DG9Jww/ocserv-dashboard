@@ -97,7 +97,7 @@ function submit() {
           )
         }}</SheetTitle>
         <SheetDescription>{{
-          label(mode === "defaults" ? "defaultsHelp" : "groupHelp")
+          label(mode === "defaults" ? (inventory.radius ? "radiusPolicyHelp" : "defaultsHelp") : "groupHelp")
         }}</SheetDescription>
       </SheetHeader>
       <form class="grid gap-4 px-4" novalidate @submit.prevent="submit">
@@ -127,7 +127,7 @@ function submit() {
             >{{ label("ocservGroup")
             }}<Input v-model="defaults.group" required maxlength="16"
           /></label>
-          <label class="grid gap-1 text-sm"
+          <label v-if="!inventory.radius" class="grid gap-1 text-sm"
             >{{ label("certificateGroup") }}
             <select v-model="defaults.certificate_group" :class="selectClass">
               <option value="">{{ label("independent") }}</option>

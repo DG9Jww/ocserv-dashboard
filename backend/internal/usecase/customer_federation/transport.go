@@ -87,6 +87,21 @@ func (m *Master) nodeCall(ctx context.Context, node, endpoint string, input any,
 }
 
 func (m *Master) query(ctx context.Context, a models.PortalAssignment, q Query) (NodeResult, error) {
+	if a.Node == radiusHistoryNode {
+		var out NodeResult
+		var err error
+		switch q.Operation {
+		case "bandwidth":
+			out.Bandwidth, err = m.store.RadiusBandwidth(ctx, a.CustomerID, "", q.From, q.Until)
+		case "daily":
+			out.Daily, err = m.store.RadiusDaily(ctx, a.CustomerID, q.From, q.Until)
+		case "activity":
+			out.Activities, out.Total, err = m.store.RadiusActivity(ctx, a.CustomerID, q.From, q.Until, q.Offset, q.Limit)
+		default:
+			err = ErrInvalid
+		}
+		return out, err
+	}
 	q.CustomerID, q.OcservID = a.CustomerID, a.OcservID
 	if a.Node == "master" {
 		return m.local.Execute(ctx, q)
@@ -105,6 +120,8 @@ func (m *Master) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-poll.C:
+		case pending := <-m.radiusTerminations:
+			m.terminateRadiusSession(ctx, pending)
 		}
 	}
 }
@@ -147,6 +164,17 @@ func (m *Master) applyJob(ctx context.Context, job models.PortalAssignment) (uin
 	}
 	if job.Desired && (customer.Locked || customer.DeletedAt != nil) {
 		return 0, ErrPending
+	}
+	if m.local.radius {
+		if job.Desired {
+			return 0, nil
+		}
+		if _, err := m.query(ctx, job, Query{Operation: "terminate", RadiusUsername: customer.Username}); err != nil {
+			return 0, err
+		}
+		if job.OcservID == 0 && !job.Remove {
+			return 0, nil
+		}
 	}
 	input := Apply{CustomerID: customer.ID, Username: customer.Username, Version: job.Version, Desired: job.Desired, Remove: job.Remove}
 	if job.Desired {

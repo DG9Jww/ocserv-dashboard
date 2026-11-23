@@ -1,8 +1,9 @@
 export const customerManagementMessages = {
   en: {
     manageGrants: "Manage access",
-    revokeGrantsHelp:
-      "Uncheck a direct node grant or node group, then save. A node stays authorized while another selected grant still covers it.",
+    grantSelection: "Access assignment",
+    changeGrantHelp: "Choose the node or node group for {username}. Lock the customer to suspend all access.",
+    legacyGrantHelp: "Choose a new assignment to replace this account’s previous grants.",
     pendingRemove: "Pending account removal",
     nodeLifecycleUpgrade:
       "The node needs a newer Agent version to apply this change.",
@@ -52,7 +53,6 @@ export const customerManagementMessages = {
     customer: "Customer",
     username: "Username",
     password: "Password",
-    direct: "Direct node grants",
     defaultConnection: "Default Connection",
     unassigned: "Unassigned",
     active: "Provisioned",
@@ -70,15 +70,14 @@ export const customerManagementMessages = {
     noCustomers: "No customers match this view.",
     previous: "Previous",
     next: "Next",
-    grantHelp:
-      "Grant nodes directly or through a group. The default connection is used in the customer portal.",
+    grantHelp: "Choose one node or one node group. The default connection is used in the customer portal.",
     passwordHint: "Leave blank to keep the current password.",
     missingDefaults:
       "Configure provisioning defaults in Node groups for the selected nodes.",
     invalidUsername:
       "Use 2–32 letters, digits, dots, underscores, or hyphens for the username.",
     invalidPassword: "Enter a valid password of 2–32 characters.",
-    grantRequired: "Select at least one node or a group that contains nodes.",
+    grantRequired: "Select one node or one node group.",
     lockDescription:
       "Lock {username}? Portal access ends immediately and the assigned nodes are scheduled for deactivation.",
     unlockDescription:
@@ -99,6 +98,7 @@ export const customerManagementMessages = {
     noGroups: "No node groups yet.",
     groupHelp:
       "Changes apply to all customers granted access through this group.",
+    radiusPolicyHelp: "These settings apply to RADIUS logins on this node.",
     defaultsHelp: "These defaults apply to new accounts created on this node.",
     actions: "Customer actions",
     lock: "Lock",
@@ -114,8 +114,9 @@ export const customerManagementMessages = {
   },
   it: {
     manageGrants: "Gestisci accesso",
-    revokeGrantsHelp:
-      "Deseleziona un nodo o un gruppo, poi salva. Un nodo resta autorizzato se è coperto da un’altra autorizzazione selezionata.",
+    grantSelection: "Assegnazione di accesso",
+    changeGrantHelp: "Scegli il nodo o il gruppo di nodi per {username}. Blocca il cliente per sospendere ogni accesso.",
+    legacyGrantHelp: "Scegli una nuova assegnazione per sostituire le autorizzazioni precedenti.",
     pendingRemove: "Rimozione account in attesa",
     nodeLifecycleUpgrade:
       "Aggiorna l’Agent del nodo per applicare questa modifica.",
@@ -165,7 +166,6 @@ export const customerManagementMessages = {
     customer: "Cliente",
     username: "Nome utente",
     password: "Password",
-    direct: "Autorizzazioni dirette ai nodi",
     defaultConnection: "Connessione predefinita",
     unassigned: "Non assegnata",
     active: "Attivato",
@@ -183,15 +183,14 @@ export const customerManagementMessages = {
     noCustomers: "Nessun cliente corrisponde ai filtri.",
     previous: "Indietro",
     next: "Avanti",
-    grantHelp:
-      "Assegna nodi direttamente o tramite un gruppo. La connessione predefinita viene usata nel portale.",
+    grantHelp: "Scegli un nodo o un gruppo di nodi. Il portale cliente usa la connessione predefinita.",
     passwordHint: "Lascia vuoto per mantenere la password attuale.",
     missingDefaults:
       "Configura in Gruppi di nodi i valori predefiniti per i nodi selezionati.",
     invalidUsername:
       "Utilizza da 2 a 32 lettere, cifre, punti, trattini o trattini bassi.",
     invalidPassword: "Inserisci una password valida da 2 a 32 caratteri.",
-    grantRequired: "Seleziona almeno un nodo o un gruppo che contenga nodi.",
+    grantRequired: "Seleziona un nodo o un gruppo di nodi.",
     lockDescription:
       "Bloccare {username}? L’accesso al portale termina subito e viene pianificata la disattivazione sui nodi.",
     unlockDescription:
@@ -214,6 +213,7 @@ export const customerManagementMessages = {
     noGroups: "Nessun gruppo di nodi.",
     groupHelp:
       "Le modifiche valgono per tutti i clienti autorizzati tramite questo gruppo.",
+    radiusPolicyHelp: "Queste impostazioni si applicano agli accessi RADIUS su questo nodo.",
     defaultsHelp:
       "Questi valori si applicano ai nuovi account creati su questo nodo.",
     actions: "Azioni cliente",
@@ -230,8 +230,9 @@ export const customerManagementMessages = {
   },
   "zh-cn": {
     manageGrants: "管理授权",
-    revokeGrantsHelp:
-      "取消勾选直授权节点或节点组，然后保存。只要该节点仍受其他已选授权覆盖，就会继续保有访问权限。",
+    grantSelection: "授权对象",
+    changeGrantHelp: "为 {username} 选择一个节点或节点组。需要暂停所有访问时，请锁定客户。",
+    legacyGrantHelp: "请选择新的授权对象，以替换此账号原有的授权。",
     pendingRemove: "待删除节点账号",
     nodeLifecycleUpgrade: "此节点需要升级 Agent 才能应用这项更改。",
     apiPort: "API 端口",
@@ -280,7 +281,6 @@ export const customerManagementMessages = {
     customer: "客户",
     username: "用户名",
     password: "密码",
-    direct: "直接授权节点",
     defaultConnection: "默认连接",
     unassigned: "未指定",
     active: "已开通",
@@ -298,12 +298,12 @@ export const customerManagementMessages = {
     noCustomers: "没有符合条件的客户。",
     previous: "上一页",
     next: "下一页",
-    grantHelp: "可直接或按组授权节点。默认连接用于客户门户。",
+    grantHelp: "请选择一个节点或一个节点组。默认连接用于客户门户。",
     passwordHint: "留空则沿用当前密码。",
     missingDefaults: "请先在「节点分组」为所选节点配置开户默认值。",
     invalidUsername: "用户名须为 2–32 位字母、数字、点、下划线或连字符。",
     invalidPassword: "请输入 2–32 位有效密码。",
-    grantRequired: "请选择至少一个节点，或选择包含节点的分组。",
+    grantRequired: "请选择一个节点或一个节点组。",
     lockDescription:
       "锁定 {username}？门户访问会立即停止，各节点账号将同步停用。",
     unlockDescription: "解锁 {username} 并恢复其已授权节点的访问？",
@@ -319,6 +319,7 @@ export const customerManagementMessages = {
     editGroup: "编辑节点分组",
     noGroups: "暂无节点分组。",
     groupHelp: "更改会应用到通过此组获得访问权限的客户。",
+    radiusPolicyHelp: "这些设置用于此节点的 RADIUS 登录。",
     defaultsHelp: "这些默认值用于在该节点首次创建的账号。",
     actions: "客户操作",
     lock: "锁定",
@@ -334,8 +335,9 @@ export const customerManagementMessages = {
   },
   "zh-tw": {
     manageGrants: "管理授權",
-    revokeGrantsHelp:
-      "取消勾選直接授權的節點或節點群組，再儲存。只要其他已選授權涵蓋該節點，就會保留存取權限。",
+    grantSelection: "授權對象",
+    changeGrantHelp: "為 {username} 選擇一個節點或節點群組。若要暫停所有存取，請鎖定客戶。",
+    legacyGrantHelp: "請選擇新的授權對象，以取代此帳號原有的授權。",
     pendingRemove: "等待刪除節點帳號",
     nodeLifecycleUpgrade: "請升級此節點的 Agent 以套用這項變更。",
     apiPort: "API 連接埠",
@@ -384,7 +386,6 @@ export const customerManagementMessages = {
     customer: "客戶",
     username: "使用者名稱",
     password: "密碼",
-    direct: "直接授權節點",
     defaultConnection: "預設連線",
     unassigned: "未指定",
     active: "已開通",
@@ -402,12 +403,12 @@ export const customerManagementMessages = {
     noCustomers: "沒有符合條件的客戶。",
     previous: "上一頁",
     next: "下一頁",
-    grantHelp: "可直接或按群組授權節點。預設連線用於客戶入口網站。",
+    grantHelp: "請選擇一個節點或一個節點群組。預設連線用於客戶入口網站。",
     passwordHint: "留空以保留目前密碼。",
     missingDefaults: "請先在「節點分組」為所選節點設定開通預設值。",
     invalidUsername: "使用者名稱須為 2–32 個字母、數字、句點、底線或連字號。",
     invalidPassword: "請輸入 2–32 個字元的有效密碼。",
-    grantRequired: "請選擇至少一個節點，或選擇包含節點的群組。",
+    grantRequired: "請選擇一個節點或一個節點群組。",
     lockDescription:
       "鎖定 {username}？入口網站存取會立即停止，各節點帳號將同步停用。",
     unlockDescription: "解除鎖定 {username} 並恢復其已授權節點的存取？",
@@ -423,6 +424,7 @@ export const customerManagementMessages = {
     editGroup: "編輯節點分組",
     noGroups: "目前沒有節點分組。",
     groupHelp: "變更會套用至透過此群組取得存取權的客戶。",
+    radiusPolicyHelp: "這些設定用於此節點的 RADIUS 登入。",
     defaultsHelp: "這些預設值用於在此節點首次建立的帳號。",
     actions: "客戶操作",
     lock: "鎖定",
@@ -438,8 +440,9 @@ export const customerManagementMessages = {
   },
   ru: {
     manageGrants: "Управление доступом",
-    revokeGrantsHelp:
-      "Снимите выбор с узла или группы и сохраните. Доступ к узлу сохраняется, пока его предоставляет другое выбранное разрешение.",
+    grantSelection: "Назначение доступа",
+    changeGrantHelp: "Выберите узел или группу узлов для {username}. Чтобы приостановить весь доступ, заблокируйте клиента.",
+    legacyGrantHelp: "Выберите новое назначение доступа взамен прежних разрешений.",
     pendingRemove: "Ожидается удаление учётной записи",
     nodeLifecycleUpgrade:
       "Обновите Agent на этом узле, чтобы применить изменение.",
@@ -490,7 +493,6 @@ export const customerManagementMessages = {
     customer: "Клиент",
     username: "Имя пользователя",
     password: "Пароль",
-    direct: "Прямой доступ к узлам",
     defaultConnection: "Подключение по умолчанию",
     unassigned: "Не назначено",
     active: "Подключён",
@@ -508,15 +510,14 @@ export const customerManagementMessages = {
     noCustomers: "Нет клиентов, соответствующих фильтру.",
     previous: "Назад",
     next: "Вперёд",
-    grantHelp:
-      "Предоставьте доступ напрямую или через группу. Подключение по умолчанию используется в портале.",
+    grantHelp: "Выберите один узел или одну группу узлов. Портал клиента использует подключение по умолчанию.",
     passwordHint: "Оставьте поле пустым, чтобы сохранить пароль.",
     missingDefaults:
       "Настройте параметры создания учётных записей для выбранных узлов в разделе групп узлов.",
     invalidUsername:
       "Имя пользователя должно содержать 2–32 буквы, цифры, точки, дефисы или подчёркивания.",
     invalidPassword: "Введите действительный пароль длиной 2–32 символа.",
-    grantRequired: "Выберите хотя бы один узел или группу с узлами.",
+    grantRequired: "Выберите один узел или одну группу узлов.",
     lockDescription:
       "Заблокировать {username}? Доступ к порталу прекратится сразу, отключение на узлах будет запланировано.",
     unlockDescription:
@@ -538,6 +539,7 @@ export const customerManagementMessages = {
     noGroups: "Групп узлов пока нет.",
     groupHelp:
       "Изменение применяется ко всем клиентам с доступом через эту группу.",
+    radiusPolicyHelp: "Эти настройки применяются при входе через RADIUS на этом узле.",
     defaultsHelp:
       "Эти параметры применяются к новым учётным записям на этом узле.",
     actions: "Действия с клиентом",
@@ -554,8 +556,9 @@ export const customerManagementMessages = {
   },
   fa: {
     manageGrants: "مدیریت دسترسی",
-    revokeGrantsHelp:
-      "انتخاب گره یا گروه را بردارید و ذخیره کنید. تا زمانی که مجوز دیگری گره را پوشش دهد، دسترسی آن برقرار می‌ماند.",
+    grantSelection: "تخصیص دسترسی",
+    changeGrantHelp: "برای {username} یک گره یا گروه گره انتخاب کنید. برای تعلیق همه دسترسی‌ها، مشتری را قفل کنید.",
+    legacyGrantHelp: "برای جایگزینی مجوزهای قبلی این حساب، تخصیص جدیدی انتخاب کنید.",
     pendingRemove: "در انتظار حذف حساب گره",
     nodeLifecycleUpgrade:
       "برای اعمال این تغییر، عامل این گره را به‌روزرسانی کنید.",
@@ -605,7 +608,6 @@ export const customerManagementMessages = {
     customer: "مشتری",
     username: "نام کاربری",
     password: "گذرواژه",
-    direct: "دسترسی مستقیم به گره‌ها",
     defaultConnection: "اتصال پیش‌فرض",
     unassigned: "تعیین نشده",
     active: "فعال شد",
@@ -623,15 +625,14 @@ export const customerManagementMessages = {
     noCustomers: "هیچ مشتری مطابق فیلتر نیست.",
     previous: "قبلی",
     next: "بعدی",
-    grantHelp:
-      "دسترسی گره را مستقیم یا از طریق گروه بدهید. پورتال از اتصال پیش‌فرض استفاده می‌کند.",
+    grantHelp: "یک گره یا یک گروه گره انتخاب کنید. درگاه مشتری از اتصال پیش‌فرض استفاده می‌کند.",
     passwordHint: "برای حفظ گذرواژه فعلی خالی بگذارید.",
     missingDefaults:
       "برای گره‌های انتخاب‌شده پیش‌فرض‌های ایجاد حساب را در گروه‌های گره تنظیم کنید.",
     invalidUsername:
       "نام کاربری باید ۲ تا ۳۲ حرف، رقم، نقطه، زیرخط یا خط تیره باشد.",
     invalidPassword: "گذرواژه معتبری با ۲ تا ۳۲ نویسه وارد کنید.",
-    grantRequired: "حداقل یک گره یا گروهی دارای گره انتخاب کنید.",
+    grantRequired: "یک گره یا یک گروه گره انتخاب کنید.",
     lockDescription:
       "{username} مسدود شود؟ دسترسی پورتال فوری قطع و غیرفعال‌سازی در گره‌ها زمان‌بندی می‌شود.",
     unlockDescription:
@@ -652,6 +653,7 @@ export const customerManagementMessages = {
     noGroups: "هنوز گروه گره‌ای وجود ندارد.",
     groupHelp:
       "تغییرها برای همه مشتریانی اعمال می‌شوند که از طریق این گروه دسترسی دارند.",
+    radiusPolicyHelp: "این تنظیمات برای ورود از طریق RADIUS در این گره اعمال می‌شوند.",
     defaultsHelp: "این پیش‌فرض‌ها برای حساب‌های جدید این گره اعمال می‌شوند.",
     actions: "عملیات مشتری",
     lock: "قفل کردن",
@@ -667,8 +669,9 @@ export const customerManagementMessages = {
   },
   ar: {
     manageGrants: "إدارة الوصول",
-    revokeGrantsHelp:
-      "أزل تحديد العقدة أو المجموعة ثم احفظ. يبقى الوصول إلى العقدة متاحًا ما دام إذن آخر محدد يغطيها.",
+    grantSelection: "تعيين الوصول",
+    changeGrantHelp: "اختر عقدة أو مجموعة عقد لـ {username}. اقفل حساب العميل لتعليق الوصول بالكامل.",
+    legacyGrantHelp: "اختر تعيينًا جديدًا ليحل محل أذونات هذا الحساب السابقة.",
     pendingRemove: "بانتظار حذف حساب العقدة",
     nodeLifecycleUpgrade: "حدّث الوكيل على هذه العقدة لتطبيق هذا التغيير.",
     apiPort: "منفذ API",
@@ -717,7 +720,6 @@ export const customerManagementMessages = {
     customer: "العميل",
     username: "اسم المستخدم",
     password: "كلمة المرور",
-    direct: "الصلاحيات المباشرة للعقد",
     defaultConnection: "الاتصال الافتراضي",
     unassigned: "غير محدد",
     active: "تم التفعيل",
@@ -735,15 +737,14 @@ export const customerManagementMessages = {
     noCustomers: "لا يوجد عملاء يطابقون عوامل التصفية.",
     previous: "السابق",
     next: "التالي",
-    grantHelp:
-      "امنح الوصول إلى العقد مباشرة أو عبر مجموعة. تستخدم البوابة الاتصال الافتراضي.",
+    grantHelp: "اختر عقدة واحدة أو مجموعة عقد واحدة. تستخدم بوابة العميل الاتصال الافتراضي.",
     passwordHint: "اتركه فارغًا للإبقاء على كلمة المرور الحالية.",
     missingDefaults:
       "اضبط الإعدادات الافتراضية لإنشاء الحسابات للعقد المحددة في مجموعات العقد.",
     invalidUsername:
       "استخدم من حرفين إلى 32 حرفًا أو رقمًا أو نقطة أو شرطة أو شرطة سفلية.",
     invalidPassword: "أدخل كلمة مرور صالحة من حرفين إلى 32 حرفًا.",
-    grantRequired: "اختر عقدة واحدة على الأقل أو مجموعة تحتوي على عقد.",
+    grantRequired: "اختر عقدة واحدة أو مجموعة عقد واحدة.",
     lockDescription:
       "هل تريد قفل {username}؟ يتوقف الوصول إلى البوابة فورًا وتُجدول عملية تعطيل الحسابات على العقد.",
     unlockDescription:
@@ -761,6 +762,7 @@ export const customerManagementMessages = {
     editGroup: "تعديل مجموعة العقد",
     noGroups: "لا توجد مجموعات عقد حتى الآن.",
     groupHelp: "تطبّق التغييرات على جميع العملاء المصرح لهم عبر هذه المجموعة.",
+    radiusPolicyHelp: "تنطبق هذه الإعدادات على تسجيل الدخول عبر RADIUS في هذه العقدة.",
     defaultsHelp:
       "تنطبق الإعدادات الافتراضية على الحسابات الجديدة في هذه العقدة.",
     actions: "إجراءات العميل",

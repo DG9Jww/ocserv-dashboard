@@ -41,12 +41,13 @@ var (
 )
 
 type Master struct {
-	store  *repository.PortalRepository
-	agents *repository.OcservAgentRepository
-	local  *Node
-	box    cipher.AEAD
-	secret []byte
-	client *http.Client
+	store              *repository.PortalRepository
+	agents             *repository.OcservAgentRepository
+	local              *Node
+	box                cipher.AEAD
+	secret             []byte
+	client             *http.Client
+	radiusTerminations chan radiusTermination
 }
 
 func NewMaster(store *repository.PortalRepository, agents *repository.OcservAgentRepository, local *Node, secret string) (*Master, error) {
@@ -59,7 +60,11 @@ func NewMaster(store *repository.PortalRepository, agents *repository.OcservAgen
 	if err != nil {
 		return nil, err
 	}
-	return &Master{store: store, agents: agents, local: local, box: box, secret: []byte(secret), client: newNodeClient()}, nil
+	master := &Master{store: store, agents: agents, local: local, box: box, secret: []byte(secret), client: newNodeClient()}
+	if local.radius {
+		master.radiusTerminations = make(chan radiusTermination, 128)
+	}
+	return master, nil
 }
 
 func (m *Master) encrypt(value []byte, scope string) []byte {
@@ -84,12 +89,20 @@ type CustomerInput struct {
 	DefaultNode string   `json:"default_node"`
 }
 
+func (input CustomerInput) ValidateGrant() error {
+	if len(input.Nodes)+len(input.Groups) != 1 || slices.Contains(input.Nodes, "") || slices.Contains(input.Groups, "") {
+		return ErrNoGrants
+	}
+	return nil
+}
+
 type InventoryNode struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
 
 type Inventory struct {
+	Radius      bool                       `json:"radius,omitempty"`
 	Nodes       []InventoryNode            `json:"nodes"`
 	Groups      []models.PortalNodeGroup   `json:"groups"`
 	Defaults    []models.PortalNodeDefault `json:"defaults"`
@@ -112,7 +125,7 @@ func (m *Master) nodes(ctx context.Context) ([]InventoryNode, error) {
 }
 
 func (m *Master) Inventory(ctx context.Context) (Inventory, error) {
-	var out Inventory
+	out := Inventory{Radius: m.local.radius}
 	var err error
 	if out.Nodes, err = m.nodes(ctx); err != nil {
 		return out, err
@@ -143,6 +156,7 @@ func effective(customer models.PortalCustomer, groups []models.PortalNodeGroup) 
 	if customer.Locked || customer.DeletedAt != nil {
 		return nodes
 	}
+	// Older accounts can have multiple grants. Keep them usable until an admin saves a single selection.
 	for _, node := range customer.Nodes {
 		nodes[node] = true
 	}
@@ -156,7 +170,7 @@ func effective(customer models.PortalCustomer, groups []models.PortalNodeGroup) 
 	return nodes
 }
 
-func synchronize(ctx context.Context, tx *repository.PortalRepository, customer models.PortalCustomer, groups []models.PortalNodeGroup, forceNode string) error {
+func (m *Master) synchronize(ctx context.Context, tx *repository.PortalRepository, customer models.PortalCustomer, groups []models.PortalNodeGroup, forceNode string) error {
 	desired := effective(customer, groups)
 	current, err := tx.Assignments(ctx, customer.ID)
 	if err != nil {
@@ -170,7 +184,10 @@ func synchronize(ctx context.Context, tx *repository.PortalRepository, customer 
 			continue
 		}
 		row.Desired, row.Remove, row.Version, row.Error, row.RetryAt = want, remove, row.Version+1, "", time.Now().UTC()
-		if remove {
+		if m.local.radius && want {
+			row.Applied = row.Version
+		}
+		if remove && (!m.local.radius || row.OcservID != 0) {
 			// Let every earlier provisioning request expire before dropping the node binding.
 			row.RetryAt = customer.DeletedAt.Add(2 * provisionLifetime)
 		}
@@ -180,6 +197,9 @@ func synchronize(ctx context.Context, tx *repository.PortalRepository, customer 
 	}
 	for node := range desired {
 		row := models.PortalAssignment{CustomerID: customer.ID, Node: node, Desired: true, Version: 1, RetryAt: time.Now().UTC()}
+		if m.local.radius {
+			row.Applied = row.Version
+		}
 		if err := tx.Save(ctx, &row); err != nil {
 			return err
 		}
@@ -201,6 +221,9 @@ func (m *Master) validateNodes(ctx context.Context, refs []string) error {
 }
 
 func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInput) error {
+	if err := input.ValidateGrant(); err != nil {
+		return err
+	}
 	if err := m.validateNodes(ctx, input.Nodes); err != nil {
 		return err
 	}
@@ -229,7 +252,6 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 		if customer.DeletedAt != nil {
 			return ErrConflict
 		}
-		oldDefault := customer.DefaultNode
 		previous := customer
 		previous.Locked = false
 		previousNodes := effective(previous, groups)
@@ -237,10 +259,7 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 		requested := customer
 		requested.Locked = false
 		targets := effective(requested, groups)
-		if id == "" && len(targets) == 0 {
-			return ErrNoGrants
-		}
-		if input.DefaultNode != "" && !targets[input.DefaultNode] && (id == "" || input.DefaultNode != oldDefault) {
+		if input.DefaultNode != "" && !targets[input.DefaultNode] {
 			return ErrInvalid
 		}
 		if err := ensureNodeDefaults(ctx, tx, targets, previousNodes); err != nil {
@@ -251,7 +270,9 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 			if err := m.setPassword(&customer, input.Password); err != nil {
 				return err
 			}
-			force = "*"
+			if !m.local.radius {
+				force = "*"
+			}
 		}
 		if id == "" {
 			err = tx.SaveNew(ctx, &customer)
@@ -261,7 +282,7 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 		if err != nil {
 			return err
 		}
-		return synchronize(ctx, tx, customer, groups, force)
+		return m.synchronize(ctx, tx, customer, groups, force)
 	})
 }
 
@@ -274,7 +295,11 @@ func (m *Master) setPassword(customer *models.PortalCustomer, password string) e
 		return err
 	}
 	customer.PasswordHash = hash
-	customer.PasswordBox = m.encrypt([]byte(password), "password:"+customer.Username)
+	if m.local.radius {
+		customer.PasswordBox = []byte{}
+	} else {
+		customer.PasswordBox = m.encrypt([]byte(password), "password:"+customer.Username)
+	}
 	return nil
 }
 
@@ -307,7 +332,7 @@ func (m *Master) SaveGroup(ctx context.Context, group models.PortalNodeGroup) er
 		}
 		for _, customer := range customers {
 			if slices.Contains(customer.Groups, group.ID) {
-				if err := synchronize(ctx, tx, customer, groups, ""); err != nil {
+				if err := m.synchronize(ctx, tx, customer, groups, ""); err != nil {
 					return err
 				}
 			}
@@ -331,7 +356,7 @@ func (m *Master) SaveDefaults(ctx context.Context, value models.PortalNodeDefaul
 		if err != nil {
 			return err
 		}
-		if value.CertificateGroup != "" && !slices.ContainsFunc(groups, func(g models.PortalNodeGroup) bool { return g.ID == value.CertificateGroup }) {
+		if !m.local.radius && value.CertificateGroup != "" && !slices.ContainsFunc(groups, func(g models.PortalNodeGroup) bool { return g.ID == value.CertificateGroup }) {
 			return ErrInvalid
 		}
 		previous, err := tx.Defaults(ctx)
@@ -339,6 +364,10 @@ func (m *Master) SaveDefaults(ctx context.Context, value models.PortalNodeDefaul
 			return err
 		}
 		old, _ := defaultsFor(previous, value.Node)
+		if m.local.radius {
+			value.CertificateGroup, value.TrustVersion = old.CertificateGroup, old.TrustVersion
+			return tx.Save(ctx, &value)
+		}
 		changed := old.TrustVersion == 0 || old.CertificateGroup != value.CertificateGroup
 		value.TrustVersion = old.TrustVersion
 		if changed {
@@ -356,7 +385,7 @@ func (m *Master) SaveDefaults(ctx context.Context, value models.PortalNodeDefaul
 		}
 		for _, customer := range customers {
 			if effective(customer, groups)[value.Node] {
-				if err := synchronize(ctx, tx, customer, groups, value.Node); err != nil {
+				if err := m.synchronize(ctx, tx, customer, groups, value.Node); err != nil {
 					return err
 				}
 			}
@@ -432,6 +461,6 @@ func (m *Master) SetCustomerStatus(ctx context.Context, id string, locked, remov
 		if err := tx.Save(ctx, &customer); err != nil {
 			return err
 		}
-		return synchronize(ctx, tx, customer, groups, "")
+		return m.synchronize(ctx, tx, customer, groups, "")
 	})
 }

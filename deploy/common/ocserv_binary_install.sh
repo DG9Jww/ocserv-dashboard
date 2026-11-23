@@ -41,8 +41,8 @@ echo "Adding ocserv user..."
 id -u ocserv &>/dev/null || useradd -r -s /usr/sbin/nologin ocserv
 
 echo "Copying default config..."
-if [ -f /usr/share/doc/ocserv/examples/sample.config ] || [ -f doc/sample.config ]; then
-    cp doc/sample.config /etc/ocserv/ocserv.conf 2>/dev/null || true
+if [[ ! -e /etc/ocserv/ocserv.conf && ! -L /etc/ocserv/ocserv.conf && -f doc/sample.config ]]; then
+    cp doc/sample.config /etc/ocserv/ocserv.conf
 fi
 
 # -------------------------

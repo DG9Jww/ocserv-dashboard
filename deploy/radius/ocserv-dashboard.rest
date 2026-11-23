@@ -1,0 +1,27 @@
+rest ocserv_dashboard {
+    callback_uri = "http://127.0.0.1:18120"
+
+    authorize {
+        uri = "${..callback_uri}/authorize"
+        method = "post"
+        body = "json"
+        auth = "basic"
+        username = "ocserv-dashboard"
+        password = "REPLACE_WITH_MASTER_CUSTOMER_RADIUS_REST_SECRET"
+        require_auth = yes
+        do_xlat = no
+        timeout = 10.0
+    }
+
+    accounting {
+        uri = "${..callback_uri}/accounting"
+        method = "post"
+        body = "json"
+        auth = "basic"
+        username = "ocserv-dashboard"
+        password = "REPLACE_WITH_MASTER_CUSTOMER_RADIUS_REST_SECRET"
+        require_auth = yes
+        do_xlat = no
+        timeout = 10.0
+    }
+}

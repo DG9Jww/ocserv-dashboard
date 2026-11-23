@@ -66,12 +66,18 @@ export const mockCustomerManagement = {
   saveCustomer(input: PortalCustomerInput) {
     const { password, ...account } = input;
     const previous = customers.find((item) => item.id === account.id);
-    const targets = new Set([
-      ...account.nodes,
-      ...groups
-        .filter((group) => account.groups.includes(group.id))
-        .flatMap((group) => group.nodes),
-    ]);
+    if (
+      account.nodes.length + account.groups.length !== 1 ||
+      account.nodes.includes("") ||
+      account.groups.includes("")
+    )
+      throw new ApiError("customer_grant_required", { status: 400 });
+    const group = groups.find((item) => item.id === account.groups[0]);
+    if (account.groups.length && !group)
+      throw new ApiError("invalid_customer_configuration", { status: 400 });
+    const targets = new Set(group?.nodes ?? account.nodes);
+    if (account.default_node && !targets.has(account.default_node))
+      throw new ApiError("invalid_customer_configuration", { status: 400 });
     if (
       !previous &&
       (!/^[A-Za-z0-9._-]{2,32}$/.test(account.username) ||
@@ -83,8 +89,6 @@ export const mockCustomerManagement = {
       (password.length < 2 || password.length > 32)
     )
       throw new ApiError("customer_invalid_password", { status: 400 });
-    if (!previous && !targets.size)
-      throw new ApiError("customer_grant_required", { status: 400 });
     if (
       [...targets].some((node) => !defaults.some((item) => item.node === node))
     )

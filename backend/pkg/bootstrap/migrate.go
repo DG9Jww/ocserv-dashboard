@@ -36,7 +36,7 @@ func MigrationsFor(agentNode bool) []*gormigrate.Migration {
 	}
 	selected = append(selected, migrations.Migration015)
 	if !agentNode {
-		selected = append(selected, migrations.Migration016, migrations.Migration017)
+		selected = append(selected, migrations.Migration016, migrations.Migration017, migrations.Migration018)
 	}
 	return selected
 }

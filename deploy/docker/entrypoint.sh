@@ -282,6 +282,13 @@ EOF
 }
 
 configure_customer_portal_auth() {
+    if [[ "${CUSTOMER_AUTH_MODE:-local}" == radius ]]; then
+        # shellcheck source=../common/radius-config.sh
+        source /usr/local/lib/ocserv-dashboard/radius-config.sh
+        radius_ocserv_config_ready "${OCSERV_CONF}" || die "RADIUS mode requires radius auth and accounting, groupconfig=true, and no fallback auth or managed connection hook"
+        return
+    fi
+
     local hook=/usr/local/lib/ocserv-dashboard/portal-connect-check
     local ca="${OCSERV_CA_CERT}"
     local crl="${OCSERV_CRL}"
@@ -381,6 +388,15 @@ ensure_ocserv_layout() {
     mkdir -p /etc/ocserv/defaults /etc/ocserv/groups /etc/ocserv/users
     touch /etc/ocserv/defaults/group.conf /etc/ocserv/ocpasswd
     chmod 600 /etc/ocserv/ocpasswd
+
+    if [[ "${CUSTOMER_AUTH_MODE:-local}" == radius ]]; then
+        if [[ ! -s "${OCSERV_CONF}" ]] || is_true "${OCSERV_REGENERATE_CONFIG:-false}"; then
+            die "RADIUS mode requires an existing ocserv.conf and OCSERV_REGENERATE_CONFIG=false"
+        fi
+        configure_customer_portal_auth
+        log "preserving existing RADIUS configuration in ${OCSERV_CONF}"
+        return
+    fi
 
     ensure_client_pki
     if [[ ! -e "${OCSERV_CONF}" && ! -L "${OCSERV_CONF}" ]] || \

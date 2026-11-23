@@ -38,14 +38,15 @@ type Node struct {
 	accounts       *account.OcservUser
 	runtime        *runtime.Client
 	operator       string
+	radius         bool
 	mu             sync.RWMutex
 	loadedCA       []byte
 	loadedCRL      []byte
 	loadedRevision uint64
 }
 
-func NewNode(store *repository.PortalRepository, users *repository.OcservUserRepository, systems *repository.SystemRepository, admins *repository.UserRepository, accounts *account.OcservUser, runtime *runtime.Client, operator string) *Node {
-	return &Node{store: store, users: users, systems: systems, admins: admins, accounts: accounts, runtime: runtime, operator: operator}
+func NewNode(store *repository.PortalRepository, users *repository.OcservUserRepository, systems *repository.SystemRepository, admins *repository.UserRepository, accounts *account.OcservUser, runtime *runtime.Client, operator string, radius bool) *Node {
+	return &Node{store: store, users: users, systems: systems, admins: admins, accounts: accounts, runtime: runtime, operator: operator, radius: radius}
 }
 
 type Trust struct {
@@ -201,7 +202,7 @@ func (n *Node) Apply(ctx context.Context, input Apply) (uint, error) {
 	if !ValidID(input.CustomerID) || !ValidUsername(input.Username) || input.Version == 0 || (input.Desired && input.Remove) {
 		return 0, ErrInvalid
 	}
-	if input.Desired && !portalConfigReady() {
+	if input.Desired && (n.radius || !portalConfigReady()) {
 		return 0, ErrNodeSetup
 	}
 	if input.Desired && (input.TrustVersion == 0 || !validPassword(input.Password) || !groupPattern.MatchString(input.Default.Group) ||
@@ -400,13 +401,14 @@ func setOcpasswdState(username, flag string) error {
 }
 
 type Query struct {
-	CustomerID string     `json:"customer_id"`
-	OcservID   uint       `json:"ocserv_id"`
-	Operation  string     `json:"operation"`
-	From       *time.Time `json:"from,omitempty"`
-	Until      *time.Time `json:"until,omitempty"`
-	Offset     int        `json:"offset,omitempty"`
-	Limit      int        `json:"limit,omitempty"`
+	RadiusUsername string     `json:"radius_username,omitempty"`
+	CustomerID     string     `json:"customer_id"`
+	OcservID       uint       `json:"ocserv_id"`
+	Operation      string     `json:"operation"`
+	From           *time.Time `json:"from,omitempty"`
+	Until          *time.Time `json:"until,omitempty"`
+	Offset         int        `json:"offset,omitempty"`
+	Limit          int        `json:"limit,omitempty"`
 }
 
 type NodeResult struct {
@@ -430,6 +432,28 @@ type NodeProfile struct {
 
 func (n *Node) Execute(ctx context.Context, q Query) (NodeResult, error) {
 	var out NodeResult
+	if q.RadiusUsername != "" {
+		if !n.radius {
+			return out, ErrNodeSetup
+		}
+		if !ValidUsername(q.RadiusUsername) {
+			return out, ErrInvalid
+		}
+		switch q.Operation {
+		case "terminate":
+			// Invoke occtl even when the session is waiting for a reconnect.
+			reply, err := n.runtime.Terminate(q.RadiusUsername)
+			if strings.TrimSpace(reply) == fmt.Sprintf("could not terminate user '%s'", q.RadiusUsername) {
+				err = nil
+			}
+			return out, err
+		case "profile", "sessions", "disconnect":
+			err := n.live(ctx, &out, &models.OcservUser{Username: q.RadiusUsername}, q.Operation)
+			return out, err
+		default:
+			return out, ErrInvalid
+		}
+	}
 	if !ValidID(q.CustomerID) || q.OcservID == 0 {
 		return out, ErrInvalid
 	}

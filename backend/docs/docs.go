@@ -4512,6 +4512,9 @@ const docTemplate = `{
                 "connection_name": {
                     "type": "string"
                 },
+                "radius": {
+                    "type": "boolean"
+                },
                 "server_address": {
                     "type": "string"
                 },

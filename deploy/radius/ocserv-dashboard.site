@@ -1,0 +1,56 @@
+clients ocserv_dashboard_nodes {
+    client ocserv_master {
+        ipaddr = REPLACE_WITH_MASTER_OCSERV_SOURCE_IP
+        shortname = master
+        secret = REPLACE_WITH_MASTER_RADIUS_CLIENT_SECRET
+    }
+
+    # Add one client block per Agent. Set shortname to agent-<Dashboard Agent ID>.
+}
+
+server ocserv_dashboard {
+    listen {
+        type = auth
+        ipaddr = REPLACE_WITH_RADIUS_PRIVATE_IP
+        port = 18122
+        clients = ocserv_dashboard_nodes
+    }
+
+    listen {
+        type = acct
+        ipaddr = REPLACE_WITH_RADIUS_PRIVATE_IP
+        port = 18123
+        clients = ocserv_dashboard_nodes
+    }
+
+    authorize {
+        if (!&User-Name || !&User-Password || !&Acct-Session-Id) {
+            reject
+        }
+        update request {
+            &NAS-Identifier := "%{client:shortname}"
+            # FreeRADIUS already verified the packet. Do not serialize this binary attribute.
+            &Message-Authenticator !* ANY
+        }
+        ocserv_dashboard {
+            ok = 2
+            updated = 2
+        }
+        if (ok || updated) {
+            update control {
+                &Auth-Type := Accept
+            }
+        }
+        else {
+            reject
+        }
+    }
+
+    accounting {
+        update request {
+            &NAS-Identifier := "%{client:shortname}"
+            &Message-Authenticator !* ANY
+        }
+        ocserv_dashboard
+    }
+}

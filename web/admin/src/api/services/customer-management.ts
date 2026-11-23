@@ -44,6 +44,7 @@ export interface Assignment {
   error: string;
 }
 export interface Inventory {
+  radius?: boolean;
   nodes: { id: string; name: string }[];
   groups: NodeGroup[] | null;
   customers: PortalCustomer[] | null;

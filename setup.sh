@@ -726,6 +726,23 @@ install_docker() {
         )
     fi
 
+    local customer_auth_mode
+    customer_auth_mode="$(env_value CUSTOMER_AUTH_MODE local)"
+    [[ "${customer_auth_mode}" == local || "${customer_auth_mode}" == radius ]] || die "CUSTOMER_AUTH_MODE must be local or radius"
+    if [[ "${customer_auth_mode}" == radius ]]; then
+        [[ "$(normalized_bool "$(env_value CUSTOMER_MULTI_NODE_ENABLED false)")" == true ]] || die "RADIUS requires CUSTOMER_MULTI_NODE_ENABLED=true"
+        [[ "$(normalized_bool "$(env_value OCSERV_REGENERATE_CONFIG false)")" == false ]] || die "RADIUS requires OCSERV_REGENERATE_CONFIG=false"
+        # shellcheck source=deploy/common/radius-config.sh
+        source "${PROJECT_ROOT}/deploy/common/radius-config.sh"
+        radius_ocserv_config_ready "${data_root}/ocserv/ocserv.conf" || die "configure RADIUS auth and accounting in ${data_root}/ocserv/ocserv.conf before updating"
+        if [[ "${agent_node}" == false ]]; then
+            local radius_secret
+            radius_secret="$(env_value CUSTOMER_RADIUS_REST_SECRET '')"
+            [[ "${#radius_secret}" -ge 32 ]] || die "set a Master CUSTOMER_RADIUS_REST_SECRET of at least 32 characters"
+            service_publish_args+=(--publish 127.0.0.1:18120:18120/tcp)
+        fi
+    fi
+
     check_docker
     [[ -f "${dockerfile}" ]] || die "Dockerfile not found: ${dockerfile}"
     create_docker_volumes "${data_root}"

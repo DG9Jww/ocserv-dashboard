@@ -78,7 +78,7 @@ func serve() error {
 	if cfg.CustomerMultiNodeEnabled {
 		store := repository.NewPortalRepository()
 		node := federation.NewNode(store, repository.NewtOcservUserRepository(), repository.NewSystemRepository(),
-			repository.NewUserRepository(), ocservaccount.NewOcservUser(), vpnruntime.NewClient(), strings.TrimSpace(os.Getenv("SUPERADMIN_USERNAME")))
+			repository.NewUserRepository(), ocservaccount.NewOcservUser(), vpnruntime.NewClient(), strings.TrimSpace(os.Getenv("SUPERADMIN_USERNAME")), cfg.CustomerAuthMode == "radius")
 		if cfg.AgentNode {
 			registrars = append(registrars, customernodes.Agent{Node: node, Tokens: repository.NewAgentTokenRepository()})
 		} else {
@@ -97,13 +97,20 @@ func serve() error {
 		registrars = append(registrars, customerapi.New(cfg))
 	}
 	apiServer := httpserver.New(cfg, registrars...)
-	backgroundWorker := workerservice.New(dockerMode)
 
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error { return apiServer.Run(groupCtx) })
-	group.Go(func() error { return backgroundWorker.Run(groupCtx) })
+	if cfg.CustomerAuthMode != "radius" {
+		backgroundWorker := workerservice.New(dockerMode)
+		group.Go(func() error { return backgroundWorker.Run(groupCtx) })
+	}
 	if master != nil {
 		group.Go(func() error { return master.Run(groupCtx) })
+		if cfg.CustomerAuthMode == "radius" {
+			group.Go(func() error {
+				return customernodes.RunRadius(groupCtx, master, cfg.CustomerRadiusRESTSecret, dockerMode)
+			})
+		}
 	}
 	if cfg.TelegramEnabled {
 		receiptsDir := strings.TrimSpace(os.Getenv("TELEGRAM_RECEIPTS_DIR"))

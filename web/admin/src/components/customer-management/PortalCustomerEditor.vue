@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from "vue";
+import { computed, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import type {
   Inventory,
@@ -30,37 +30,59 @@ const props = defineProps<{
 const open = defineModel<boolean>("open", { default: false });
 const emit = defineEmits<{ save: [input: PortalCustomerInput] }>();
 const { t } = useI18n({ useScope: "global" });
-const label = (key: string) => t("customerManagement." + key);
-const form = reactive<PortalCustomerInput>({
+const label = (key: string, params: Record<string, string> = {}) =>
+  t("customerManagement." + key, params);
+const form = reactive<Omit<PortalCustomerInput, "nodes" | "groups">>({
   id: "",
   username: "",
   password: "",
-  nodes: [],
-  groups: [],
   default_node: "",
 });
 const selectClass = "h-9 w-full rounded-md border bg-background px-2 text-sm";
+const selection = ref("");
+const legacyGrant = computed(() => {
+  const customer = props.customer;
+  if (!customer) return false;
+  return (customer.nodes?.length ?? 0) + (customer.groups?.length ?? 0) !== 1;
+});
+const selectedNode = computed(() =>
+  selection.value.startsWith("node:")
+    ? props.inventory.nodes.find((node) => "node:" + node.id === selection.value)
+    : undefined,
+);
+const selectedGroup = computed(() =>
+  selection.value.startsWith("group:")
+    ? props.inventory.groups?.find(
+        (group) => "group:" + group.id === selection.value,
+      )
+    : undefined,
+);
+const targets = computed(() =>
+  new Set(
+    selectedNode.value ? [selectedNode.value.id] : selectedGroup.value?.nodes,
+  ),
+);
 watch(open, (value) => {
   if (!value) return;
   const customer = props.customer;
+  const node = customer?.nodes?.[0];
+  const group = customer?.groups?.[0];
+  const defaultNode = customer?.default_node ?? "";
+  selection.value = "";
+  if (!legacyGrant.value) {
+    if (node) selection.value = "node:" + node;
+    else if (group) selection.value = "group:" + group;
+  }
   Object.assign(form, {
     id: customer?.id ?? "",
     username: customer?.username ?? "",
     password: "",
-    nodes: [...(customer?.nodes ?? [])],
-    groups: [...(customer?.groups ?? [])],
-    default_node: customer?.default_node ?? "",
+    default_node: targets.value.has(defaultNode) ? defaultNode : "",
   });
 });
-const targets = computed(
-  () =>
-    new Set([
-      ...form.nodes,
-      ...(props.inventory.groups ?? [])
-        .filter((group) => form.groups.includes(group.id))
-        .flatMap((group) => group.nodes),
-    ]),
-);
+watch(targets, (nodes) => {
+  if (!nodes.has(form.default_node)) form.default_node = "";
+});
 const missing = computed(() =>
   props.inventory.nodes.filter(
     (node) =>
@@ -72,11 +94,13 @@ function name(node: Inventory["nodes"][number]) {
   return node.id === "master" ? label("master") : node.name;
 }
 function submit() {
+  if (!selectedNode.value && !selectedGroup.value) return;
   emit("save", {
     ...form,
     username: form.username.trim(),
-    nodes: [...form.nodes],
-    groups: [...form.groups],
+    nodes: selectedNode.value ? [selectedNode.value.id] : [],
+    groups: selectedGroup.value ? [selectedGroup.value.id] : [],
+    default_node: targets.value.has(form.default_node) ? form.default_node : "",
   });
 }
 </script>
@@ -94,9 +118,13 @@ function submit() {
                 : "newCustomer",
           )
         }}</SheetTitle>
-        <SheetDescription>{{
-          grantsOnly ? form.username : label("grantHelp")
-        }}</SheetDescription>
+        <SheetDescription>
+          {{
+            grantsOnly
+              ? label("changeGrantHelp", { username: form.username })
+              : label("grantHelp")
+          }}
+        </SheetDescription>
       </SheetHeader>
       <form class="grid gap-4 px-4" novalidate @submit.prevent="submit">
         <Alert v-if="error" variant="error" role="alert"
@@ -126,37 +154,33 @@ function submit() {
             label("passwordHint")
           }}</span>
         </label>
-        <p v-if="grantsOnly" class="text-sm text-muted-foreground">
-          {{ label("revokeGrantsHelp") }}
+        <p v-if="legacyGrant && !selection" class="text-sm text-muted-foreground">
+          {{ label("legacyGrantHelp") }}
         </p>
-        <div class="grid gap-3 sm:grid-cols-2">
-          <fieldset class="grid content-start gap-1 text-sm">
-            <legend class="mb-1 font-medium">{{ label("direct") }}</legend>
-            <label
-              v-for="node in inventory.nodes"
-              :key="node.id"
-              class="flex items-center gap-2"
-            >
-              <input v-model="form.nodes" type="checkbox" :value="node.id" />{{
-                name(node)
-              }}
-            </label>
-          </fieldset>
-          <fieldset class="grid content-start gap-1 text-sm">
-            <legend class="mb-1 font-medium">{{ label("groups") }}</legend>
-            <label
-              v-for="group in inventory.groups"
-              :key="group.id"
-              class="flex items-center gap-2"
-            >
-              <input
-                v-model="form.groups"
-                type="checkbox"
-                :value="group.id"
-              />{{ group.name }}
-            </label>
-          </fieldset>
-        </div>
+        <label class="grid gap-1 text-sm">
+          {{ label("grantSelection") }}
+          <select v-model="selection" :class="selectClass" required>
+            <option value="" disabled>{{ label("grantRequired") }}</option>
+            <optgroup :label="label('nodes')">
+              <option
+                v-for="node in inventory.nodes"
+                :key="node.id"
+                :value="'node:' + node.id"
+              >
+                {{ name(node) }}
+              </option>
+            </optgroup>
+            <optgroup v-if="inventory.groups?.length" :label="label('groups')">
+              <option
+                v-for="group in inventory.groups"
+                :key="group.id"
+                :value="'group:' + group.id"
+              >
+                {{ group.name }}
+              </option>
+            </optgroup>
+          </select>
+        </label>
         <Alert v-if="missing.length" role="status">
           <AlertDescription
             >{{ label("missingDefaults") }}
@@ -169,7 +193,7 @@ function submit() {
             <option value="">{{ label("unassigned") }}</option>
             <option
               v-for="node in inventory.nodes.filter(
-                (node) => targets.has(node.id) || node.id === form.default_node,
+                (node) => targets.has(node.id),
               )"
               :key="node.id"
               :value="node.id"
@@ -184,7 +208,7 @@ function submit() {
               t("ocservUsers.cancel")
             }}</Button></SheetClose
           >
-          <Button :disabled="pending"
+          <Button :disabled="pending || (!selectedNode && !selectedGroup)"
             ><Spinner v-if="pending" data-icon="inline-start" />{{
               label("save")
             }}</Button

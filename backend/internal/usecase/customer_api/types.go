@@ -89,6 +89,7 @@ type Activities struct {
 }
 
 type CiscoSetup struct {
+	Radius               bool   `json:"radius,omitempty"`
 	CertificateImportURI string `json:"certificate_import_uri"`
 	ConnectionCreateURI  string `json:"connection_create_uri"`
 	CertificatePassword  string `json:"certificate_password"`

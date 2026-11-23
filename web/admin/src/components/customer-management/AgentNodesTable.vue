@@ -55,6 +55,7 @@ defineProps<{
   loading: boolean;
   busy: boolean;
   hasInventory: boolean;
+  radius: boolean;
 }>();
 const emit = defineEmits<{
   edit: [agent: OcservAgent];
@@ -75,7 +76,7 @@ const { t } = useI18n({ useScope: "global" });
           <TableHead>{{ t("customerManagement.status") }}</TableHead>
           <TableHead>{{ t("customerManagement.groups") }}</TableHead>
           <TableHead>{{ t("customerManagement.ocservGroup") }}</TableHead>
-          <TableHead>{{ t("customerManagement.certificateGroup") }}</TableHead>
+          <TableHead v-if="!radius">{{ t("customerManagement.certificateGroup") }}</TableHead>
           <TableHead class="w-12"
             ><span class="sr-only">{{
               t("systemSettings.actions")
@@ -85,7 +86,7 @@ const { t } = useI18n({ useScope: "global" });
       </TableHeader>
       <TableBody>
         <TableRow v-if="loading">
-          <TableCell v-for="column in 8" :key="column"
+          <TableCell v-for="column in (radius ? 7 : 8)" :key="column"
             ><Skeleton class="h-8 w-full"
           /></TableCell>
         </TableRow>
@@ -132,11 +133,9 @@ const { t } = useI18n({ useScope: "global" });
             <span v-else class="text-muted-foreground">—</span>
           </TableCell>
           <TableCell>{{ row.defaults?.group ?? "—" }}</TableCell>
-          <TableCell>{{
-            row.defaults
-              ? (row.certificateGroup ?? t("customerManagement.independent"))
-              : "—"
-          }}</TableCell>
+          <TableCell v-if="!radius">
+            {{ row.defaults ? (row.certificateGroup ?? t("customerManagement.independent")) : "—" }}
+          </TableCell>
           <TableCell>
             <DropdownMenu v-if="hasInventory || row.agent?.id != null">
               <DropdownMenuTrigger as-child>
@@ -180,7 +179,7 @@ const { t } = useI18n({ useScope: "global" });
           </TableCell>
         </TableRow>
         <TableRow v-if="!loading && !rows.length">
-          <TableCell :colspan="8">
+          <TableCell :colspan="radius ? 7 : 8">
             <Empty
               ><EmptyHeader
                 ><EmptyMedia variant="icon"><Network /></EmptyMedia

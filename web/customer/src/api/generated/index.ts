@@ -85,6 +85,7 @@ export interface OnlineUserSession {
   vhost: string;
 }
 export interface CiscoSetup {
+  radius?: boolean;
   certificate_import_uri?: string;
   certificate_password?: string;
   connection_create_uri?: string;

@@ -118,12 +118,15 @@ func (m *Master) ChangePassword(ctx context.Context, name, password string) erro
 		if err := tx.Save(ctx, &user); err != nil {
 			return err
 		}
+		if m.local.radius {
+			return nil
+		}
 		groups, err := tx.Groups(ctx)
 		if err != nil {
 			return err
 		}
 		availability(ctx).Pending = len(effective(user, groups)) > 0
-		return synchronize(ctx, tx, user, groups, "*")
+		return m.synchronize(ctx, tx, user, groups, "*")
 	})
 }
 
@@ -165,8 +168,8 @@ func (m *Master) gather(ctx context.Context, rows []models.PortalAssignment, q Q
 		if live && !row.Desired {
 			continue
 		}
-		if row.OcservID == 0 {
-			if row.Desired {
+		if row.Node != radiusHistoryNode && row.OcservID == 0 && q.RadiusUsername == "" {
+			if row.Desired && !m.local.radius {
 				skipped++
 			}
 			continue
@@ -215,7 +218,27 @@ func (m *Master) Summary(ctx context.Context, name string) (*customerapi.Summary
 		if row.Desired && row.Applied != row.Version {
 			availability(ctx).Pending = true
 		}
-		if row.Node != user.DefaultNode || !row.Desired || row.OcservID == 0 || row.Applied != row.Version {
+		if row.Node != user.DefaultNode || !row.Desired {
+			continue
+		}
+		if m.local.radius {
+			defaults, err := m.store.Defaults(ctx)
+			if err != nil {
+				return nil, err
+			}
+			d, err := defaultsFor(defaults, row.Node)
+			if err != nil {
+				availability(ctx).Partial = true
+				continue
+			}
+			out.OcservUser.TrafficType, out.OcservUser.TrafficSize = d.TrafficType, d.TrafficSize
+			out.OcservUser.ExpiryMode = models.ExpiryModeUnlimited
+			if expires := radiusExpiry(user, d); expires != nil {
+				out.OcservUser.ExpiryMode, out.OcservUser.ExpireAt = models.ExpiryModeFixed, expires
+			}
+			continue
+		}
+		if row.OcservID == 0 || row.Applied != row.Version {
 			continue
 		}
 		result, err := m.query(ctx, row, Query{Operation: "account"})
@@ -228,7 +251,7 @@ func (m *Master) Summary(ctx context.Context, name string) (*customerapi.Summary
 			ExpireDaysAfterFirstConnection: a.ExpireDaysAfterFirstConnection, FirstConnectedAt: a.FirstConnectedAt, DeactivatedAt: a.DeactivatedAt,
 			TrafficType: a.TrafficType, TrafficSize: a.TrafficSize, RunningRx: a.RunningRx, RunningTx: a.RunningTx}
 	}
-	replies, err := m.gather(ctx, rows, Query{Operation: "bandwidth", From: &from, Until: &now}, false)
+	replies, err := m.gatherHistory(ctx, user.ID, rows, Query{Operation: "bandwidth", From: &from, Until: &now})
 	if errors.Is(err, ErrUnavailable) {
 		availability(ctx).Unavailable = true
 	} else if err != nil {
@@ -252,11 +275,11 @@ func (m *Master) Bandwidth(ctx context.Context, name string, input customerapi.D
 	if err != nil {
 		return repository.TotalBandwidths{}, err
 	}
-	_, rows, err := m.read(ctx, name)
+	user, rows, err := m.read(ctx, name)
 	if err != nil {
 		return repository.TotalBandwidths{}, err
 	}
-	replies, err := m.gather(ctx, rows, Query{Operation: "bandwidth", From: from, Until: until}, false)
+	replies, err := m.gatherHistory(ctx, user.ID, rows, Query{Operation: "bandwidth", From: from, Until: until})
 	return sumBandwidth(replies), err
 }
 
@@ -265,11 +288,11 @@ func (m *Master) Statistics(ctx context.Context, name string, input customerapi.
 	if err != nil {
 		return nil, err
 	}
-	_, rows, err := m.read(ctx, name)
+	user, rows, err := m.read(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	replies, err := m.gather(ctx, rows, Query{Operation: "daily", From: from, Until: until}, false)
+	replies, err := m.gatherHistory(ctx, user.ID, rows, Query{Operation: "daily", From: from, Until: until})
 	if err != nil {
 		return nil, err
 	}
@@ -289,12 +312,29 @@ func (m *Master) Statistics(ctx context.Context, name string, input customerapi.
 	return out, nil
 }
 
+const radiusHistoryNode = "radius"
+
+func (m *Master) gatherHistory(ctx context.Context, id string, rows []models.PortalAssignment, q Query) ([]nodeReply, error) {
+	if m.local.radius {
+		rows = append(rows, models.PortalAssignment{CustomerID: id, Node: radiusHistoryNode})
+	}
+	return m.gather(ctx, rows, q, false)
+}
+
+func (m *Master) liveQuery(name, operation string) Query {
+	q := Query{Operation: operation}
+	if m.local.radius {
+		q.RadiusUsername = name
+	}
+	return q
+}
+
 func (m *Master) Sessions(ctx context.Context, name string) ([]models.OnlineUserSession, error) {
 	_, rows, err := m.read(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	replies, err := m.gather(ctx, rows, Query{Operation: "sessions"}, true)
+	replies, err := m.gather(ctx, rows, m.liveQuery(name, "sessions"), true)
 	out := make([]models.OnlineUserSession, 0)
 	for _, reply := range replies {
 		for _, session := range reply.result.Sessions {
@@ -310,7 +350,7 @@ func (m *Master) action(ctx context.Context, name, operation string) error {
 	if err != nil {
 		return err
 	}
-	_, err = m.gather(ctx, rows, Query{Operation: operation}, true)
+	_, err = m.gather(ctx, rows, m.liveQuery(name, operation), true)
 	return err
 }
 
@@ -326,12 +366,12 @@ func (m *Master) Activities(ctx context.Context, name string, page *request.Pagi
 	if err != nil || page.Page < 1 || page.PageSize < 1 || page.PageSize > 100 || (page.Page-1) > int(^uint(0)>>1)/page.PageSize {
 		return nil, ErrInvalid
 	}
-	_, rows, err := m.read(ctx, name)
+	user, rows, err := m.read(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 	query := Query{Operation: "activity", From: from, Until: until, Limit: page.PageSize}
-	replies, err := m.gather(ctx, rows, query, false)
+	replies, err := m.gatherHistory(ctx, user.ID, rows, query)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +445,7 @@ func (m *Master) defaultConnection(ctx context.Context, name string) (models.Por
 		if row.Node != user.DefaultNode || !row.Desired {
 			continue
 		}
-		if row.Applied != row.Version || row.OcservID == 0 {
+		if !m.local.radius && (row.Applied != row.Version || row.OcservID == 0) {
 			return user, models.PortalNodeDefault{}, nil, ErrPending
 		}
 		defaults, err := m.store.Defaults(ctx)
@@ -416,7 +456,7 @@ func (m *Master) defaultConnection(ctx context.Context, name string) (models.Por
 		if err != nil {
 			return user, d, nil, ErrDefault
 		}
-		profile, err := m.query(ctx, row, Query{Operation: "profile"})
+		profile, err := m.query(ctx, row, m.liveQuery(name, "profile"))
 		if err != nil || profile.Profile == nil {
 			return user, d, nil, ErrDefault
 		}
@@ -430,18 +470,24 @@ func (m *Master) CiscoSetup(ctx context.Context, name, _ string) (*customerapi.C
 	if err != nil {
 		return nil, err
 	}
-	password, err := m.decrypt(user.PasswordBox, "password:"+name)
-	if err != nil {
-		return nil, err
+	var password []byte
+	if !m.local.radius {
+		password, err = m.decrypt(user.PasswordBox, "password:"+name)
+		if err != nil {
+			return nil, err
+		}
 	}
 	uri, err := account.BuildAnyConnectCreateURI(profile.Name, profile.Address, profile.Port, name)
 	if err != nil {
 		return nil, err
 	}
-	return &customerapi.CiscoSetup{ConnectionCreateURI: uri, CertificatePassword: string(password), ConnectionName: profile.Name, ServerAddress: profile.Address, ServerPort: profile.Port}, nil
+	return &customerapi.CiscoSetup{ConnectionCreateURI: uri, CertificatePassword: string(password), Radius: m.local.radius, ConnectionName: profile.Name, ServerAddress: profile.Address, ServerPort: profile.Port}, nil
 }
 
 func (m *Master) Download(ctx context.Context, name string) ([]byte, error) {
+	if m.local.radius {
+		return nil, ErrDefault
+	}
 	user, d, _, err := m.defaultConnection(ctx, name)
 	if err != nil {
 		return nil, err

@@ -59,21 +59,23 @@ watch(() => props.syncPending, (pending) => { if (!pending) void load(); });
 
 <template>
   <section class="flex flex-col gap-4">
-    <h2 class="text-xl font-semibold">{{ t("downloads.title") }}</h2>
+    <h2 class="text-xl font-semibold">{{ t(setup?.radius ? "downloads.ciscoSetup" : "downloads.title") }}</h2>
     <StatusMessage :error="error" />
     <p v-if="loading">{{ t("common.loading") }}</p>
     <article v-else class="card flex flex-col gap-3">
-      <h2 class="font-semibold">{{ t("downloads.ciscoCertificate") }}</h2>
+      <h2 v-if="!setup?.radius" class="font-semibold">{{ t("downloads.ciscoCertificate") }}</h2>
       <dl v-if="setup" class="grid grid-cols-2 gap-2 text-sm">
         <dt>{{ t("downloads.connectionName") }}</dt>
         <dd>{{ setup.connection_name }}</dd>
         <dt>{{ t("downloads.server") }}</dt>
         <dd>{{ setup.server_address }}:{{ setup.server_port }}</dd>
-        <dt>{{ t("downloads.certificatePassword") }}</dt>
-        <dd>{{ setup.certificate_password }}</dd>
+        <template v-if="!setup.radius">
+          <dt>{{ t("downloads.certificatePassword") }}</dt>
+          <dd>{{ setup.certificate_password }}</dd>
+        </template>
       </dl>
       <div class="flex flex-wrap gap-2">
-        <button class="button" @click="saveCertificate" :disabled="unavailable || downloading">
+        <button v-if="setup && !setup.radius" class="button" @click="saveCertificate" :disabled="unavailable || downloading">
           {{ t(downloading ? "common.loading" : "common.download") }}
         </button>
         <a
