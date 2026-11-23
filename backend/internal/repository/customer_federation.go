@@ -93,8 +93,52 @@ func (r *PortalRepository) NodeAccount(ctx context.Context, id uint) (*models.Oc
 	return &row, err
 }
 
-func (r *PortalRepository) ArchiveNodeAccount(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&models.OcservUser{}, id).Error
+func (r *PortalRepository) PurgeNodeAccount(ctx context.Context, local models.PortalLocalAccount, account *models.OcservUser) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if account != nil {
+			// Lock and remove the account before logs so the log worker cannot append after cleanup.
+			if err := tx.Unscoped().Delete(account).Error; err != nil {
+				return err
+			}
+		}
+		if local.OcservID != 0 {
+			logs := tx.Where("portal_account_id = ?", local.OcservID)
+			if account != nil {
+				logs = logs.Or("portal_account_id IS NULL AND username = ? AND created_at >= ?", account.Username, account.CreatedAt)
+			}
+			if err := logs.Delete(&models.OcservUserSessionLog{}).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Delete(&local).Error
+	})
+}
+
+func (r *PortalRepository) CompletedCustomerDeletions(ctx context.Context) ([]models.PortalCustomer, error) {
+	var customers []models.PortalCustomer
+	err := r.db.WithContext(ctx).Where(`deleted_at IS NOT NULL AND NOT EXISTS (
+		SELECT 1 FROM portal_assignments AS a WHERE a.customer_id = portal_customers.id
+		AND (NOT a.remove OR a.version <> a.applied)
+	)`).Order("deleted_at").Limit(32).Find(&customers).Error
+	return customers, err
+}
+
+func (r *PortalRepository) CustomerCertificates(ctx context.Context, id string) ([]models.PortalClientCertificate, error) {
+	var certificates []models.PortalClientCertificate
+	err := r.db.WithContext(ctx).Where("customer_id = ?", id).Find(&certificates).Error
+	return certificates, err
+}
+
+// PurgeCustomer is called inside the transaction that records certificate revocations.
+func (r *PortalRepository) PurgeCustomer(ctx context.Context, id string) error {
+	db := r.db.WithContext(ctx)
+	if err := db.Delete(&models.PortalClientCertificate{}, "customer_id = ?", id).Error; err != nil {
+		return err
+	}
+	if err := db.Delete(&models.PortalAssignment{}, "customer_id = ?", id).Error; err != nil {
+		return err
+	}
+	return db.Delete(&models.PortalCustomer{}, "id = ? AND deleted_at IS NOT NULL", id).Error
 }
 
 // Keep the node's independently applied lock when customer access is restored.

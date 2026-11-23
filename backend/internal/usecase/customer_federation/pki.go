@@ -129,6 +129,13 @@ func (m *Master) PKCS12(ctx context.Context, customer models.PortalCustomer, sco
 func (m *Master) issue(ctx context.Context, customer models.PortalCustomer, scope string) (models.PortalClientCertificate, error) {
 	var row models.PortalClientCertificate
 	err := m.store.Transaction(ctx, func(tx *repository.PortalRepository) error {
+		current, err := tx.Customer(ctx, customer.ID)
+		if err != nil {
+			return err
+		}
+		if current.DeletedAt != nil || current.Locked {
+			return ErrDefault
+		}
 		now := time.Now().UTC()
 		existing, err := tx.Certificate(ctx, customer.ID, scope)
 		if err == nil {
@@ -177,4 +184,53 @@ func (m *Master) issue(ctx context.Context, customer models.PortalCustomer, scop
 		return tx.Save(ctx, &row)
 	})
 	return row, err
+}
+
+func (m *Master) revokeCustomerCertificates(ctx context.Context, tx *repository.PortalRepository, id string) error {
+	certificates, err := tx.CustomerCertificates(ctx, id)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	for _, saved := range certificates {
+		cert, err := x509.ParseCertificate(saved.Cert)
+		if err != nil {
+			return err
+		}
+		if !now.Before(cert.NotAfter) {
+			continue
+		}
+		ca, err := tx.CA(ctx, saved.Scope)
+		if err != nil {
+			return err
+		}
+		issuer, err := x509.ParseCertificate(ca.Cert)
+		if err != nil {
+			return err
+		}
+		list, err := x509.ParseRevocationList(ca.CRL)
+		if err != nil {
+			return err
+		}
+		keyBytes, err := m.decrypt(ca.Key, "ca:"+saved.Scope)
+		if err != nil {
+			return err
+		}
+		key, err := x509.ParseECPrivateKey(keyBytes)
+		if err != nil {
+			return err
+		}
+		ca.CRL, err = x509.CreateRevocationList(rand.Reader, &x509.RevocationList{
+			Number:     new(big.Int).Add(list.Number, big.NewInt(1)),
+			ThisUpdate: now, NextUpdate: issuer.NotAfter,
+			RevokedCertificateEntries: append(list.RevokedCertificateEntries, x509.RevocationListEntry{SerialNumber: cert.SerialNumber, RevocationTime: now}),
+		}, issuer, key)
+		if err != nil {
+			return err
+		}
+		if err := tx.Save(ctx, &ca); err != nil {
+			return err
+		}
+	}
+	return nil
 }

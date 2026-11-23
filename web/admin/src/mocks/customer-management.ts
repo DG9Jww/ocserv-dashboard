@@ -18,7 +18,7 @@ let assignments: Assignment[] = [];
 function reconcile() {
   for (const customer of customers) {
     const desired = new Set(
-      customer.locked || customer.deleted_at
+      customer.locked
         ? []
         : [
             ...customer.nodes,
@@ -32,7 +32,6 @@ function reconcile() {
     );
     for (const item of history) {
       item.desired = desired.delete(item.node);
-      item.remove = Boolean(customer.deleted_at);
     }
     assignments = [
       ...assignments,
@@ -123,13 +122,12 @@ export const mockCustomerManagement = {
     const customer = customers.find((item) => item.id === id);
     if (!customer)
       throw new ApiError("customer_default_unavailable", { status: 404 });
-    customer.locked = locked;
     if (remove) {
-      customer.deleted_at = new Date().toISOString();
-      customer.nodes = [];
-      customer.groups = [];
-      customer.default_node = "";
+      customers.splice(customers.indexOf(customer), 1);
+      assignments = assignments.filter((item) => item.customer_id !== id);
+      return;
     }
+    customer.locked = locked;
     reconcile();
   },
 };

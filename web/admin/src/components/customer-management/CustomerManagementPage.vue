@@ -79,10 +79,9 @@ const filtered = computed(() => {
   const query = search.value.trim().toLowerCase();
   return (data.value?.customers ?? []).filter((customer) => {
     if (!customer.username.toLowerCase().includes(query)) return false;
-    if (filter.value === "deleted") return Boolean(customer.deleted_at);
-    if (customer.deleted_at) return false;
+    if (filter.value === "all") return true;
     return (
-      filter.value === "all" ||
+      !customer.deleted_at &&
       Boolean(customer.locked) === (filter.value === "locked")
     );
   });
@@ -178,12 +177,13 @@ async function submitAction() {
         : setPortalCustomerLocked(customer.id, action.value === "lock"),
     () => {
       actionOpen.value = false;
+      if (action.value === "delete") filter.value = "all";
     },
   );
 }
 function status(row: Assignment) {
   if (row.remove)
-    return label(row.version === row.applied ? "archived" : "pendingRemove");
+    return label(row.version === row.applied ? "removed" : "pendingRemove");
   if (row.version === row.applied)
     return label(row.desired ? "active" : "inactive");
   return label(row.desired ? "pending" : "pendingDisable");
@@ -241,7 +241,6 @@ const description = computed(() =>
             <option value="all">{{ label("all") }}</option>
             <option value="enabled">{{ label("enabled") }}</option>
             <option value="locked">{{ label("locked") }}</option>
-            <option value="deleted">{{ label("archived") }}</option>
           </select>
         </div>
         <div class="rounded-md border">
@@ -271,7 +270,7 @@ const description = computed(() =>
                   <Badge :variant="customer.locked ? 'secondary' : 'outline'">
                     {{
                       customer.deleted_at
-                        ? label("archived")
+                        ? label("pendingRemove")
                         : customer.locked
                           ? label("locked")
                           : label("enabled")

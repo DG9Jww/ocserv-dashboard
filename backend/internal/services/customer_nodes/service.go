@@ -33,7 +33,7 @@ func (a Agent) Register(api *echo.Group) {
 		if err != nil {
 			return failure(c, err)
 		}
-		return c.JSON(http.StatusOK, federation.NodeResult{OcservID: id, LifecycleApplied: true})
+		return c.JSON(http.StatusOK, federation.NodeResult{OcservID: id, LifecycleApplied: true, PurgeApplied: input.Remove})
 	})
 	group.POST("/query", func(c *echo.Context) error {
 		var input federation.Query

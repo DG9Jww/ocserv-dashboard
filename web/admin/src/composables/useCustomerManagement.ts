@@ -73,7 +73,10 @@ export function useCustomerManagement(poll = false) {
     void refresh();
     if (poll)
       timer = setInterval(() => {
-        if (data.value?.assignments?.some((row) => row.version !== row.applied))
+        if (
+          data.value?.assignments?.some((row) => row.version !== row.applied) ||
+          data.value?.customers?.some((customer) => customer.deleted_at)
+        )
           void refresh(true);
       }, 3000);
   });

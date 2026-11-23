@@ -61,6 +61,7 @@ type Apply struct {
 	TrustVersion uint64                   `json:"trust_version"`
 	Desired      bool                     `json:"desired"`
 	Remove       bool                     `json:"remove,omitempty"`
+	ExpiresAt    time.Time                `json:"expires_at"`
 	Default      models.PortalNodeDefault `json:"default"`
 	Trust        Trust                    `json:"trust"`
 }
@@ -209,8 +210,17 @@ func (n *Node) Apply(ctx context.Context, input Apply) (uint, error) {
 	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	if input.Desired && !time.Now().Before(input.ExpiresAt) {
+		return 0, ErrPending
+	}
 	local, err := n.store.Local(ctx, input.CustomerID)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
+		if input.Remove {
+			return 0, nil
+		}
 		if !input.Desired {
 			// Preserve the newer version to fence any delayed provisioning request.
 			local = models.PortalLocalAccount{CustomerID: input.CustomerID, Version: input.Version}
@@ -225,6 +235,9 @@ func (n *Node) Apply(ctx context.Context, input Apply) (uint, error) {
 		return local.OcservID, nil
 	}
 	if local.OcservID == 0 {
+		if input.Remove {
+			return 0, n.store.PurgeNodeAccount(ctx, local, nil)
+		}
 		if !input.Desired {
 			local.Version = input.Version
 			return 0, n.store.Save(ctx, &local)
@@ -273,6 +286,9 @@ func (n *Node) createAndApply(ctx context.Context, input Apply, previous models.
 
 func (n *Node) applyExisting(ctx context.Context, input Apply, local models.PortalLocalAccount) (uint, error) {
 	row, err := n.store.NodeAccount(ctx, local.OcservID)
+	if input.Remove && errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, n.store.PurgeNodeAccount(ctx, local, nil)
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -280,6 +296,9 @@ func (n *Node) applyExisting(ctx context.Context, input Apply, local models.Port
 		return 0, ErrConflict
 	}
 	if row.DeletedAt.Valid {
+		if input.Remove {
+			return 0, n.store.PurgeNodeAccount(ctx, local, row)
+		}
 		if !input.Desired {
 			return row.ID, nil
 		}
@@ -314,7 +333,7 @@ func (n *Node) applyExisting(ctx context.Context, input Apply, local models.Port
 			if err := n.accounts.DeleteConfig(row.Username); err != nil {
 				return row.ID, err
 			}
-			return row.ID, n.store.ArchiveNodeAccount(ctx, row.ID)
+			return 0, n.store.PurgeNodeAccount(ctx, local, row)
 		}
 		return row.ID, nil
 	}
@@ -392,6 +411,7 @@ type Query struct {
 
 type NodeResult struct {
 	LifecycleApplied bool                          `json:"lifecycle_applied,omitempty"`
+	PurgeApplied     bool                          `json:"purge_applied,omitempty"`
 	OcservID         uint                          `json:"ocserv_id,omitempty"`
 	Account          *models.OcservUser            `json:"account,omitempty"`
 	Sessions         []models.OnlineUserSession    `json:"sessions,omitempty"`

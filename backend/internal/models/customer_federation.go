@@ -5,16 +5,17 @@ import "time"
 const PortalManagedPassword = "!ocserv-managed-by-unified-customer-portal!"
 
 type PortalCustomer struct {
-	ID           string     `json:"id" gorm:"type:uuid;primaryKey;default:uuidv7()"`
-	Username     string     `json:"username" gorm:"not null;uniqueIndex"`
-	PasswordHash []byte     `json:"-" gorm:"not null"`
-	PasswordBox  []byte     `json:"-" gorm:"not null"`
-	Nodes        []string   `json:"nodes" gorm:"serializer:json;type:jsonb"`
-	Groups       []string   `json:"groups" gorm:"serializer:json;type:jsonb"`
-	DefaultNode  string     `json:"default_node"`
-	Locked       bool       `json:"locked"`
-	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
-	CreatedAt    time.Time
+	ID           string   `json:"id" gorm:"type:uuid;primaryKey;default:uuidv7()"`
+	Username     string   `json:"username" gorm:"not null;uniqueIndex"`
+	PasswordHash []byte   `json:"-" gorm:"not null"`
+	PasswordBox  []byte   `json:"-" gorm:"not null"`
+	Nodes        []string `json:"nodes" gorm:"serializer:json;type:jsonb"`
+	Groups       []string `json:"groups" gorm:"serializer:json;type:jsonb"`
+	DefaultNode  string   `json:"default_node"`
+	Locked       bool     `json:"locked"`
+	// DeletedAt is set while permanent deletion is waiting for node confirmation.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+	CreatedAt time.Time
 }
 
 type PortalNodeGroup struct {

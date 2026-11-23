@@ -17,6 +17,7 @@ import (
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/repository"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 var (
@@ -169,6 +170,10 @@ func synchronize(ctx context.Context, tx *repository.PortalRepository, customer 
 			continue
 		}
 		row.Desired, row.Remove, row.Version, row.Error, row.RetryAt = want, remove, row.Version+1, "", time.Now().UTC()
+		if remove {
+			// Let every earlier provisioning request expire before dropping the node binding.
+			row.RetryAt = customer.DeletedAt.Add(2 * provisionLifetime)
+		}
 		if err := tx.Save(ctx, &row); err != nil {
 			return err
 		}
@@ -397,6 +402,9 @@ func (m *Master) SetCustomerStatus(ctx context.Context, id string, locked, remov
 	}
 	return m.store.Transaction(ctx, func(tx *repository.PortalRepository) error {
 		customer, err := tx.Customer(ctx, id)
+		if remove && errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
 		if err != nil {
 			return err
 		}
@@ -415,6 +423,7 @@ func (m *Master) SetCustomerStatus(ctx context.Context, id string, locked, remov
 		if remove {
 			now := time.Now().UTC()
 			customer.DeletedAt = &now
+			customer.PasswordHash, customer.PasswordBox = []byte{}, []byte{}
 			customer.Nodes, customer.Groups, customer.DefaultNode = []string{}, []string{}, ""
 		}
 		if err := ensureNodeDefaults(ctx, tx, effective(customer, groups), previous); err != nil {

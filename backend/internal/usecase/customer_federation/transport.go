@@ -17,7 +17,10 @@ import (
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/authz"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
 	logger "github.com/mmtaee/ocserv-dashboard/backend/internal/platform/logging"
+	"github.com/mmtaee/ocserv-dashboard/backend/internal/repository"
 )
+
+const provisionLifetime = 10 * time.Second
 
 func newNodeClient() *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -133,9 +136,11 @@ func (m *Master) processJobs(ctx context.Context) {
 			logger.Warn("unable to record customer sync completion: %v", err)
 		}
 	}
+	m.purgeCompletedCustomers(ctx)
 }
 
 func (m *Master) applyJob(ctx context.Context, job models.PortalAssignment) (uint, error) {
+	expiresAt := time.Now().Add(provisionLifetime)
 	customer, err := m.store.Customer(ctx, job.CustomerID)
 	if err != nil {
 		return 0, err
@@ -145,6 +150,7 @@ func (m *Master) applyJob(ctx context.Context, job models.PortalAssignment) (uin
 	}
 	input := Apply{CustomerID: customer.ID, Username: customer.Username, Version: job.Version, Desired: job.Desired, Remove: job.Remove}
 	if job.Desired {
+		input.ExpiresAt = expiresAt
 		defaults, err := m.store.Defaults(ctx)
 		if err != nil {
 			return 0, err
@@ -173,10 +179,29 @@ func (m *Master) applyJob(ctx context.Context, job models.PortalAssignment) (uin
 	}
 	var result NodeResult
 	err = m.nodeCall(ctx, job.Node, "apply", input, &result)
-	if err == nil && !job.Desired && !result.LifecycleApplied {
+	if err == nil && ((!job.Desired && !result.LifecycleApplied) || (job.Remove && !result.PurgeApplied)) {
 		return 0, ErrNodeLifecycle
 	}
 	return result.OcservID, err
+}
+
+func (m *Master) purgeCompletedCustomers(ctx context.Context) {
+	customers, err := m.store.CompletedCustomerDeletions(ctx)
+	if err != nil {
+		logger.Warn("failed to find completed customer deletions: %v", err)
+		return
+	}
+	for _, customer := range customers {
+		err := m.store.Transaction(ctx, func(tx *repository.PortalRepository) error {
+			if err := m.revokeCustomerCertificates(ctx, tx, customer.ID); err != nil {
+				return err
+			}
+			return tx.PurgeCustomer(ctx, customer.ID)
+		})
+		if err != nil {
+			logger.Warn("failed to finalize customer deletion: %v", err)
+		}
+	}
 }
 
 func provisioningError(err error) string {

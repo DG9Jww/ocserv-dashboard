@@ -122,6 +122,7 @@ func (s *StatService) CalculateUserStats() error {
 			if sessionLog == nil {
 				continue
 			}
+			sessionLog.CreatedAt = connectedAt
 
 			if err := s.saveSessionLog(s.ctx, sessionLog); err != nil {
 				logger.Error("Error saving session msg (%v): %v", sessionLog.Username, err)

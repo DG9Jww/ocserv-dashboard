@@ -64,7 +64,7 @@ export const customerManagementMessages = {
     syncStatus: "Node Synchronization",
     all: "All customers",
     enabled: "Enabled",
-    archived: "Deleted",
+    removed: "Removed",
     newCustomer: "New Customer",
     editCustomer: "Edit Customer",
     noCustomers: "No customers match this view.",
@@ -84,7 +84,7 @@ export const customerManagementMessages = {
     unlockDescription:
       "Unlock {username} and restore access to their assigned nodes?",
     deleteDescription:
-      "Delete {username}? Its Ocserv accounts will be removed from all nodes. Customer and usage history will be kept.",
+      "Permanently delete {username} and remove their node accounts, certificates, traffic and activity? This cannot be undone.",
     nodeSetup:
       "Upgrade the node and enable unified customer mode and its Ocserv connection check.",
     localGroupMissing:
@@ -177,7 +177,7 @@ export const customerManagementMessages = {
     syncStatus: "Sincronizzazione dei nodi",
     all: "Tutti i clienti",
     enabled: "Attivo",
-    archived: "Eliminato",
+    removed: "Rimosso",
     newCustomer: "Nuovo cliente",
     editCustomer: "Modifica cliente",
     noCustomers: "Nessun cliente corrisponde ai filtri.",
@@ -197,7 +197,7 @@ export const customerManagementMessages = {
     unlockDescription:
       "Sbloccare {username} e ripristinare l’accesso ai nodi assegnati?",
     deleteDescription:
-      "Eliminare {username}? Gli account Ocserv verranno rimossi da tutti i nodi. La cronologia del cliente e del traffico sarà conservata.",
+      "Eliminare definitivamente {username}, gli account sui nodi, i certificati, il traffico e le attività? L’operazione è irreversibile.",
     nodeSetup:
       "Aggiorna il nodo e attiva la modalità unificata con il controllo di connessione Ocserv.",
     localGroupMissing:
@@ -292,7 +292,7 @@ export const customerManagementMessages = {
     syncStatus: "节点同步",
     all: "全部客户",
     enabled: "已启用",
-    archived: "已删除",
+    removed: "已移除",
     newCustomer: "新建客户",
     editCustomer: "编辑客户",
     noCustomers: "没有符合条件的客户。",
@@ -308,7 +308,7 @@ export const customerManagementMessages = {
       "锁定 {username}？门户访问会立即停止，各节点账号将同步停用。",
     unlockDescription: "解锁 {username} 并恢复其已授权节点的访问？",
     deleteDescription:
-      "删除 {username}？各节点的 Ocserv 账号都会被删除，客户和流量历史会保留。",
+      "永久删除 {username} 及其节点账号、证书、流量和活动记录？此操作无法撤销。",
     nodeSetup: "请升级该节点，启用统一客户模式和 Ocserv 连接检查。",
     localGroupMissing: "节点上不存在配置的 Ocserv 用户组。",
     nodeAuth: "Agent 拒绝了已登记的认证令牌。",
@@ -396,7 +396,7 @@ export const customerManagementMessages = {
     syncStatus: "節點同步",
     all: "所有客戶",
     enabled: "已啟用",
-    archived: "已刪除",
+    removed: "已移除",
     newCustomer: "新增客戶",
     editCustomer: "編輯客戶",
     noCustomers: "沒有符合條件的客戶。",
@@ -412,7 +412,7 @@ export const customerManagementMessages = {
       "鎖定 {username}？入口網站存取會立即停止，各節點帳號將同步停用。",
     unlockDescription: "解除鎖定 {username} 並恢復其已授權節點的存取？",
     deleteDescription:
-      "刪除 {username}？各節點的 Ocserv 帳號都會被刪除，客戶和流量歷史會保留。",
+      "永久刪除 {username} 及其節點帳號、憑證、流量和活動記錄？此操作無法復原。",
     nodeSetup: "請升級該節點，啟用統一客戶模式和 Ocserv 連線檢查。",
     localGroupMissing: "節點上沒有設定的 Ocserv 使用者群組。",
     nodeAuth: "Agent 拒絕了已登記的驗證權杖。",
@@ -502,7 +502,7 @@ export const customerManagementMessages = {
     syncStatus: "Синхронизация узлов",
     all: "Все клиенты",
     enabled: "Активен",
-    archived: "Удалён",
+    removed: "Удалено",
     newCustomer: "Новый клиент",
     editCustomer: "Изменить клиента",
     noCustomers: "Нет клиентов, соответствующих фильтру.",
@@ -522,7 +522,7 @@ export const customerManagementMessages = {
     unlockDescription:
       "Разблокировать {username} и восстановить доступ к назначенным узлам?",
     deleteDescription:
-      "Удалить {username}? Учётные записи Ocserv будут удалены со всех узлов. История клиента и трафика сохранится.",
+      "Окончательно удалить {username}, учётные записи на узлах, сертификаты, трафик и журнал активности? Это действие нельзя отменить.",
     nodeSetup:
       "Обновите узел и включите единый режим клиентов и проверку подключения Ocserv.",
     localGroupMissing:
@@ -617,7 +617,7 @@ export const customerManagementMessages = {
     syncStatus: "همگام‌سازی گره‌ها",
     all: "همه مشتریان",
     enabled: "فعال",
-    archived: "حذف‌شده",
+    removed: "حذف شد",
     newCustomer: "مشتری جدید",
     editCustomer: "ویرایش مشتری",
     noCustomers: "هیچ مشتری مطابق فیلتر نیست.",
@@ -637,7 +637,7 @@ export const customerManagementMessages = {
     unlockDescription:
       "قفل {username} باز و دسترسی به گره‌های تخصیص‌یافته بازیابی شود؟",
     deleteDescription:
-      "{username} حذف شود؟ حساب‌های Ocserv از همه گره‌ها حذف می‌شوند و سابقه مشتری و ترافیک باقی می‌ماند.",
+      "آیا {username} و حساب‌ها، گواهی‌ها، ترافیک و فعالیت او برای همیشه حذف شوند؟ این کار قابل بازگشت نیست.",
     nodeSetup:
       "گره را ارتقا دهید و حالت یکپارچه مشتریان و بررسی اتصال Ocserv را فعال کنید.",
     localGroupMissing: "گروه کاربری Ocserv تنظیم‌شده در گره وجود ندارد.",
@@ -729,7 +729,7 @@ export const customerManagementMessages = {
     syncStatus: "مزامنة العقد",
     all: "جميع العملاء",
     enabled: "مفعّل",
-    archived: "محذوف",
+    removed: "أزيل",
     newCustomer: "عميل جديد",
     editCustomer: "تعديل العميل",
     noCustomers: "لا يوجد عملاء يطابقون عوامل التصفية.",
@@ -749,7 +749,7 @@ export const customerManagementMessages = {
     unlockDescription:
       "هل تريد إلغاء قفل {username} واستعادة الوصول إلى العقد المعيّنة؟",
     deleteDescription:
-      "هل تريد حذف {username}؟ ستُحذف حسابات Ocserv من جميع العقد، وسيُحتفظ بسجل العميل وحركة البيانات.",
+      "هل تريد حذف {username} وحساباته وشهاداته وسجلات حركة البيانات والنشاط نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.",
     nodeSetup: "حدّث العقدة وفعّل وضع العملاء الموحّد وفحص اتصال Ocserv.",
     localGroupMissing: "مجموعة مستخدمي Ocserv المحددة غير موجودة على العقدة.",
     nodeAuth: "رفض الوكيل رمز المصادقة المسجل.",

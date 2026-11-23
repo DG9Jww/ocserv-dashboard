@@ -3,11 +3,12 @@ package repository
 import (
 	"context"
 	"errors"
-	"github.com/mmtaee/ocserv-dashboard/backend/config"
 	"time"
 
+	"github.com/mmtaee/ocserv-dashboard/backend/config"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type WorkerStatsRepository struct {
@@ -87,9 +88,21 @@ func (r *WorkerStatsRepository) UpdateAccessState(ctx context.Context, userID ui
 
 func (r *WorkerStatsRepository) SaveSessionLog(ctx context.Context, log *models.OcservUserSessionLog) error {
 	if cfg := config.Get(); cfg != nil && cfg.CustomerMultiNodeEnabled {
-		if err := (&PortalRepository{db: r.db}).MarkLogAccount(ctx, log); err != nil {
-			return err
-		}
+		return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			var account models.OcservUser
+			err := tx.Select("id").Clauses(clause.Locking{Strength: "KEY SHARE"}).
+				Where("username = ? AND created_at <= ?", log.Username, log.CreatedAt).First(&account).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if err := (&PortalRepository{db: tx}).MarkLogAccount(ctx, log); err != nil {
+				return err
+			}
+			return tx.Save(log).Error
+		})
 	}
 	return r.db.WithContext(ctx).Save(log).Error
 }
