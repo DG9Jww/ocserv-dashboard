@@ -45,31 +45,66 @@ certificate_ocserv_config_ready() {
 
 radius_ocserv_config_ready() {
     awk -v method="$2" '
-        /^[[:space:]]*(#|$)/ { next }
-        /^[[:space:]]*\[vhost[[:space:]]*:/ { bad = 1 }
-        {
-            key = $0
-            sub(/=.*/, "", key)
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-            value = $0
-            sub(/^[^=]*=[[:space:]]*/, "", value)
-            sub(/[[:space:]]+#.*$/, "", value)
+        function trim(value) {
+            sub(/^[[:space:]]+/, "", value)
             sub(/[[:space:]]+$/, "", value)
+            return value
+        }
+        function invalid(message, line) {
+            if (line) printf "%s:%d: %s\n", FILENAME, line, message
+            else printf "%s: %s\n", FILENAME, message
+            failed = 1
+        }
+        function validate_radius(key, value,   options, option, option_count, i, configs, groupconfigs) {
+            if (value !~ /^radius\[.+\]$/ || value ~ /"/) {
+                invalid(key " must use radius[config=/absolute/path,...]", FNR)
+                return
+            }
+            option_count = split(substr(value, 8, length(value) - 8), options, ",")
+            for (i = 1; i <= option_count; i++) {
+                option = trim(options[i])
+                if (option ~ /^config=/) {
+                    configs++
+                    if (option !~ /^config=\/.+/)
+                        invalid(key " requires an absolute path in config=", FNR)
+                }
+                if (key == "auth" && option ~ /^groupconfig=/) {
+                    groupconfigs++
+                    if (option != "groupconfig=true")
+                        invalid("auth requires groupconfig=true", FNR)
+                }
+            }
+            if (configs != 1) invalid(key " requires exactly one config= option", FNR)
+            if (key == "auth" && groupconfigs != 1)
+                invalid("auth requires exactly one groupconfig=true option", FNR)
+        }
+        /^[[:space:]]*(#|$)/ { next }
+        /^[[:space:]]*\[vhost[[:space:]]*:/ {
+            invalid("RADIUS requires the default Ocserv virtual host", FNR)
+            next
+        }
+        /=/ {
+            key = trim(substr($0, 1, index($0, "=") - 1))
+            value = substr($0, index($0, "=") + 1)
+            sub(/[[:space:]]+#.*$/, "", value)
+            value = trim(value)
+            if (value ~ /^".*"$/) value = substr(value, 2, length(value) - 2)
             if (key == "auth" || key == "acct") {
-                count[key]++
-                if (value !~ /^"radius\[config=\/[^"]+\]"$/) bad = 1
-                if (key == "auth" && value !~ /,groupconfig=true[,\]]/) bad = 1
+                if (++count[key] > 1) invalid("duplicate " key " directive", FNR)
+                validate_radius(key, value)
+            } else if (key == "enable-auth") {
+                if (++count[key] > 1 || method != "radius-certificate" || value != "certificate")
+                    invalid("the only supported alternative is enable-auth = certificate", FNR)
+            } else if (key == "connect-script" && method == "radius" && value ~ /portal-connect-check/) {
+                invalid("the managed certificate connection hook requires enable-auth = certificate", FNR)
             }
-            if (key == "enable-auth") {
-                count[key]++
-                if (method != "radius-certificate" || value !~ /^("certificate"|certificate)$/) bad = 1
-            }
-            if (method == "radius" && key == "connect-script" && value ~ /portal-connect-check/)
-                bad = 1
         }
         END {
-            exit (bad || count["auth"] != 1 || count["acct"] != 1 ||
-                (method == "radius-certificate" && count["enable-auth"] != 1))
+            if (!count["auth"]) invalid("missing auth directive")
+            if (!count["acct"]) invalid("missing acct directive")
+            if (method == "radius-certificate" && !count["enable-auth"])
+                invalid("missing enable-auth = certificate")
+            exit failed
         }
-    ' "$1"
+    ' "$1" >&2
 }
