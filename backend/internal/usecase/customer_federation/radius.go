@@ -23,7 +23,7 @@ type RadiusPolicy struct {
 
 func (m *Master) AuthorizeRadius(ctx context.Context, node, name, password, sessionID string) (RadiusPolicy, error) {
 	policy := RadiusPolicy{}
-	if !m.local.radius || !ValidUsername(name) || !validPassword(password) || sessionID == "" || len(sessionID) > 128 {
+	if !ValidUsername(name) || !validPassword(password) || sessionID == "" || len(sessionID) > 128 {
 		return policy, ErrRadiusRejected
 	}
 	customer, err := m.store.ByUsername(ctx, name)
@@ -72,7 +72,7 @@ func (m *Master) radiusGrant(ctx context.Context, customer models.PortalCustomer
 			break
 		}
 	}
-	if !assignment.Desired || (m.local.certificate && (assignment.OcservID == 0 || assignment.Version != assignment.Applied)) {
+	if !assignment.Desired {
 		return assignment, policy, ErrRadiusRejected
 	}
 	defaults, err := m.store.Defaults(ctx)
@@ -126,14 +126,6 @@ func (m *Master) radiusQuotaExceeded(ctx context.Context, row models.PortalAssig
 	if err != nil {
 		return false, err
 	}
-	if row.OcservID != 0 {
-		legacy, err := m.query(ctx, row, Query{Operation: "bandwidth", From: from})
-		if err != nil {
-			return false, err
-		}
-		total.RX += legacy.Bandwidth.RX
-		total.TX += legacy.Bandwidth.TX
-	}
 	var used float64
 	switch d.TrafficType {
 	case models.MonthlyTransmit, models.TotallyTransmit:
@@ -153,8 +145,7 @@ type radiusTermination struct {
 }
 
 func (m *Master) AccountRadius(ctx context.Context, packet repository.RadiusAccounting) error {
-	if m.local.certificate && packet.Event == models.EventHandshake {
-		// Certificate-authenticated sessions have no preceding RADIUS Access-Request.
+	if packet.Event == models.EventHandshake {
 		customer, err := m.store.ByUsername(ctx, packet.Username)
 		if err != nil {
 			return fmt.Errorf("find accounting customer: %w", err)
@@ -163,12 +154,12 @@ func (m *Master) AccountRadius(ctx context.Context, packet repository.RadiusAcco
 		if err != nil {
 			return fmt.Errorf("check accounting node grant: %w", err)
 		}
-		bound, err := m.store.BindCertificateAccounting(ctx, grant, packet)
+		bound, err := m.store.HasAuthorizedRadiusSession(ctx, grant, packet)
 		if err != nil {
-			return fmt.Errorf("bind accounting session: %w", err)
+			return fmt.Errorf("check authorized accounting session: %w", err)
 		}
 		if !bound {
-			return fmt.Errorf("bind accounting session: %w", ErrRadiusRejected)
+			return fmt.Errorf("check authorized accounting session: %w", ErrRadiusRejected)
 		}
 	}
 	id, err := m.store.RecordRadius(ctx, packet)
@@ -230,7 +221,7 @@ func (m *Master) checkRadiusSession(ctx context.Context, pending radiusTerminati
 			}
 		}
 		if terminate {
-			_, err := m.query(ctx, row, m.liveQuery(customer.Username, "terminate"))
+			_, err := m.query(ctx, row.Node, Query{Operation: "terminate", RadiusUsername: customer.Username})
 			return err
 		}
 	}

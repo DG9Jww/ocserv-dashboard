@@ -4,9 +4,7 @@ export const customerManagementMessages = {
     grantSelection: "Access assignment",
     changeGrantHelp: "Choose the node or node group for {username}. Lock the customer to suspend all access.",
     legacyGrantHelp: "Choose a new assignment to replace this account’s previous grants.",
-    pendingRemove: "Pending account removal",
-    nodeLifecycleUpgrade:
-      "The node needs a newer Agent version to apply this change.",
+    pendingRemove: "Pending deletion",
     apiPort: "API Port",
     agentHealth: {
       online: "Online",
@@ -44,8 +42,6 @@ export const customerManagementMessages = {
     node: "Node",
     select: "Select a node",
     ocservGroup: "Local Ocserv User Group",
-    certificateGroup: "Certificate Group",
-    independent: "Separate certificate",
     trafficPolicy: "Traffic policy",
     trafficBytes: "Quota (bytes)",
     expiryDays: "Validity (days, 0 for unlimited)",
@@ -55,7 +51,7 @@ export const customerManagementMessages = {
     password: "Password",
     defaultConnection: "Default Connection",
     unassigned: "Unassigned",
-    active: "Provisioned",
+    active: "Authorized",
     inactive: "Disabled",
     pending: "Pending synchronization",
     pendingDisable: "Pending deactivation",
@@ -82,12 +78,7 @@ export const customerManagementMessages = {
       "Lock {username}? Portal access ends immediately and the assigned nodes are scheduled for deactivation.",
     unlockDescription:
       "Unlock {username} and restore access to their assigned nodes?",
-    deleteDescription:
-      "Permanently delete {username} and remove their node accounts, certificates, traffic and activity? This cannot be undone.",
-    nodeSetup:
-      "Upgrade the node and enable unified customer mode and its Ocserv connection check.",
-    localGroupMissing:
-      "The configured Ocserv user group does not exist on the node.",
+    deleteDescription: "Permanently delete {username} and their traffic and activity history? This cannot be undone.",
     nodeAuth: "The Agent rejected its registered authentication token.",
     nodeTLS: "The Master could not verify the Agent HTTPS certificate.",
     nodeUnavailable:
@@ -99,7 +90,6 @@ export const customerManagementMessages = {
     groupHelp:
       "Changes apply to all customers granted access through this group.",
     radiusPolicyHelp: "These settings apply to RADIUS logins on this node.",
-    defaultsHelp: "These defaults apply to new accounts created on this node.",
     actions: "Customer actions",
     lock: "Lock",
     unlock: "Unlock",
@@ -117,9 +107,7 @@ export const customerManagementMessages = {
     grantSelection: "Assegnazione di accesso",
     changeGrantHelp: "Scegli il nodo o il gruppo di nodi per {username}. Blocca il cliente per sospendere ogni accesso.",
     legacyGrantHelp: "Scegli una nuova assegnazione per sostituire le autorizzazioni precedenti.",
-    pendingRemove: "Rimozione account in attesa",
-    nodeLifecycleUpgrade:
-      "Aggiorna l’Agent del nodo per applicare questa modifica.",
+    pendingRemove: "Eliminazione in attesa",
     apiPort: "Porta API",
     agentHealth: {
       online: "Online",
@@ -157,8 +145,6 @@ export const customerManagementMessages = {
     node: "Nodo",
     select: "Seleziona un nodo",
     ocservGroup: "Gruppo utenti Ocserv locale",
-    certificateGroup: "Gruppo di certificati",
-    independent: "Certificato separato",
     trafficPolicy: "Criterio del traffico",
     trafficBytes: "Quota (byte)",
     expiryDays: "Validità (giorni, 0 senza limiti)",
@@ -168,7 +154,7 @@ export const customerManagementMessages = {
     password: "Password",
     defaultConnection: "Connessione predefinita",
     unassigned: "Non assegnata",
-    active: "Attivato",
+    active: "Autorizzato",
     inactive: "Disattivato",
     pending: "Sincronizzazione in attesa",
     pendingDisable: "Disattivazione in attesa",
@@ -195,12 +181,7 @@ export const customerManagementMessages = {
       "Bloccare {username}? L’accesso al portale termina subito e viene pianificata la disattivazione sui nodi.",
     unlockDescription:
       "Sbloccare {username} e ripristinare l’accesso ai nodi assegnati?",
-    deleteDescription:
-      "Eliminare definitivamente {username}, gli account sui nodi, i certificati, il traffico e le attività? L’operazione è irreversibile.",
-    nodeSetup:
-      "Aggiorna il nodo e attiva la modalità unificata con il controllo di connessione Ocserv.",
-    localGroupMissing:
-      "Il gruppo utenti Ocserv configurato non esiste sul nodo.",
+    deleteDescription: "Eliminare definitivamente {username} e la cronologia del traffico e delle attività? L’operazione è irreversibile.",
     nodeAuth: "L’Agent ha rifiutato il token registrato.",
     nodeTLS:
       "Il Master non ha potuto verificare il certificato HTTPS dell’Agent.",
@@ -214,8 +195,6 @@ export const customerManagementMessages = {
     groupHelp:
       "Le modifiche valgono per tutti i clienti autorizzati tramite questo gruppo.",
     radiusPolicyHelp: "Queste impostazioni si applicano agli accessi RADIUS su questo nodo.",
-    defaultsHelp:
-      "Questi valori si applicano ai nuovi account creati su questo nodo.",
     actions: "Azioni cliente",
     lock: "Blocca",
     unlock: "Sblocca",
@@ -233,8 +212,7 @@ export const customerManagementMessages = {
     grantSelection: "授权对象",
     changeGrantHelp: "为 {username} 选择一个节点或节点组。需要暂停所有访问时，请锁定客户。",
     legacyGrantHelp: "请选择新的授权对象，以替换此账号原有的授权。",
-    pendingRemove: "待删除节点账号",
-    nodeLifecycleUpgrade: "此节点需要升级 Agent 才能应用这项更改。",
+    pendingRemove: "待删除",
     apiPort: "API 端口",
     agentHealth: {
       online: "在线",
@@ -272,8 +250,6 @@ export const customerManagementMessages = {
     node: "节点",
     select: "选择节点",
     ocservGroup: "本地 Ocserv 用户组",
-    certificateGroup: "证书组",
-    independent: "独立证书",
     trafficPolicy: "流量策略",
     trafficBytes: "额度（字节）",
     expiryDays: "有效期（天，0 为不限）",
@@ -283,7 +259,7 @@ export const customerManagementMessages = {
     password: "密码",
     defaultConnection: "默认连接",
     unassigned: "未指定",
-    active: "已开通",
+    active: "已授权",
     inactive: "已停用",
     pending: "待同步",
     pendingDisable: "待停用",
@@ -307,10 +283,7 @@ export const customerManagementMessages = {
     lockDescription:
       "锁定 {username}？门户访问会立即停止，各节点账号将同步停用。",
     unlockDescription: "解锁 {username} 并恢复其已授权节点的访问？",
-    deleteDescription:
-      "永久删除 {username} 及其节点账号、证书、流量和活动记录？此操作无法撤销。",
-    nodeSetup: "请升级该节点，启用统一客户模式和 Ocserv 连接检查。",
-    localGroupMissing: "节点上不存在配置的 Ocserv 用户组。",
+    deleteDescription: "永久删除 {username} 及其流量和活动记录？此操作无法撤销。",
     nodeAuth: "Agent 拒绝了已登记的认证令牌。",
     nodeTLS: "Master 无法验证 Agent 的 HTTPS 证书。",
     nodeUnavailable: "节点无法访问或未应用更改，稍后会自动重试。",
@@ -320,7 +293,6 @@ export const customerManagementMessages = {
     noGroups: "暂无节点分组。",
     groupHelp: "更改会应用到通过此组获得访问权限的客户。",
     radiusPolicyHelp: "这些设置用于此节点的 RADIUS 登录。",
-    defaultsHelp: "这些默认值用于在该节点首次创建的账号。",
     actions: "客户操作",
     lock: "锁定",
     unlock: "解锁",
@@ -338,8 +310,7 @@ export const customerManagementMessages = {
     grantSelection: "授權對象",
     changeGrantHelp: "為 {username} 選擇一個節點或節點群組。若要暫停所有存取，請鎖定客戶。",
     legacyGrantHelp: "請選擇新的授權對象，以取代此帳號原有的授權。",
-    pendingRemove: "等待刪除節點帳號",
-    nodeLifecycleUpgrade: "請升級此節點的 Agent 以套用這項變更。",
+    pendingRemove: "等待刪除",
     apiPort: "API 連接埠",
     agentHealth: {
       online: "在線",
@@ -377,8 +348,6 @@ export const customerManagementMessages = {
     node: "節點",
     select: "選擇節點",
     ocservGroup: "本機 Ocserv 使用者群組",
-    certificateGroup: "憑證群組",
-    independent: "獨立憑證",
     trafficPolicy: "流量原則",
     trafficBytes: "配額（位元組）",
     expiryDays: "有效期（天，0 為不限）",
@@ -388,7 +357,7 @@ export const customerManagementMessages = {
     password: "密碼",
     defaultConnection: "預設連線",
     unassigned: "未指定",
-    active: "已開通",
+    active: "已授權",
     inactive: "已停用",
     pending: "等待同步",
     pendingDisable: "等待停用",
@@ -412,10 +381,7 @@ export const customerManagementMessages = {
     lockDescription:
       "鎖定 {username}？入口網站存取會立即停止，各節點帳號將同步停用。",
     unlockDescription: "解除鎖定 {username} 並恢復其已授權節點的存取？",
-    deleteDescription:
-      "永久刪除 {username} 及其節點帳號、憑證、流量和活動記錄？此操作無法復原。",
-    nodeSetup: "請升級該節點，啟用統一客戶模式和 Ocserv 連線檢查。",
-    localGroupMissing: "節點上沒有設定的 Ocserv 使用者群組。",
+    deleteDescription: "永久刪除 {username} 及其流量與活動記錄？此操作無法復原。",
     nodeAuth: "Agent 拒絕了已登記的驗證權杖。",
     nodeTLS: "Master 無法驗證 Agent 的 HTTPS 憑證。",
     nodeUnavailable: "節點無法存取或未套用變更，稍後會自動重試。",
@@ -425,7 +391,6 @@ export const customerManagementMessages = {
     noGroups: "目前沒有節點分組。",
     groupHelp: "變更會套用至透過此群組取得存取權的客戶。",
     radiusPolicyHelp: "這些設定用於此節點的 RADIUS 登入。",
-    defaultsHelp: "這些預設值用於在此節點首次建立的帳號。",
     actions: "客戶操作",
     lock: "鎖定",
     unlock: "解除鎖定",
@@ -443,9 +408,7 @@ export const customerManagementMessages = {
     grantSelection: "Назначение доступа",
     changeGrantHelp: "Выберите узел или группу узлов для {username}. Чтобы приостановить весь доступ, заблокируйте клиента.",
     legacyGrantHelp: "Выберите новое назначение доступа взамен прежних разрешений.",
-    pendingRemove: "Ожидается удаление учётной записи",
-    nodeLifecycleUpgrade:
-      "Обновите Agent на этом узле, чтобы применить изменение.",
+    pendingRemove: "Ожидает удаления",
     apiPort: "Порт API",
     agentHealth: {
       online: "В сети",
@@ -484,8 +447,6 @@ export const customerManagementMessages = {
     node: "Узел",
     select: "Выберите узел",
     ocservGroup: "Локальная группа пользователей Ocserv",
-    certificateGroup: "Группа сертификатов",
-    independent: "Отдельный сертификат",
     trafficPolicy: "Политика трафика",
     trafficBytes: "Квота (байты)",
     expiryDays: "Срок действия (дни, 0 — бессрочно)",
@@ -495,7 +456,7 @@ export const customerManagementMessages = {
     password: "Пароль",
     defaultConnection: "Подключение по умолчанию",
     unassigned: "Не назначено",
-    active: "Подключён",
+    active: "Доступ разрешён",
     inactive: "Отключён",
     pending: "Ожидает синхронизации",
     pendingDisable: "Ожидает отключения",
@@ -522,12 +483,7 @@ export const customerManagementMessages = {
       "Заблокировать {username}? Доступ к порталу прекратится сразу, отключение на узлах будет запланировано.",
     unlockDescription:
       "Разблокировать {username} и восстановить доступ к назначенным узлам?",
-    deleteDescription:
-      "Окончательно удалить {username}, учётные записи на узлах, сертификаты, трафик и журнал активности? Это действие нельзя отменить.",
-    nodeSetup:
-      "Обновите узел и включите единый режим клиентов и проверку подключения Ocserv.",
-    localGroupMissing:
-      "Настроенная группа пользователей Ocserv отсутствует на узле.",
+    deleteDescription: "Удалить {username}, историю трафика и активности навсегда? Это действие нельзя отменить.",
     nodeAuth: "Агент отклонил зарегистрированный токен.",
     nodeTLS: "Главный узел не смог проверить HTTPS-сертификат агента.",
     nodeUnavailable:
@@ -540,8 +496,6 @@ export const customerManagementMessages = {
     groupHelp:
       "Изменение применяется ко всем клиентам с доступом через эту группу.",
     radiusPolicyHelp: "Эти настройки применяются при входе через RADIUS на этом узле.",
-    defaultsHelp:
-      "Эти параметры применяются к новым учётным записям на этом узле.",
     actions: "Действия с клиентом",
     lock: "Заблокировать",
     unlock: "Разблокировать",
@@ -559,9 +513,7 @@ export const customerManagementMessages = {
     grantSelection: "تخصیص دسترسی",
     changeGrantHelp: "برای {username} یک گره یا گروه گره انتخاب کنید. برای تعلیق همه دسترسی‌ها، مشتری را قفل کنید.",
     legacyGrantHelp: "برای جایگزینی مجوزهای قبلی این حساب، تخصیص جدیدی انتخاب کنید.",
-    pendingRemove: "در انتظار حذف حساب گره",
-    nodeLifecycleUpgrade:
-      "برای اعمال این تغییر، عامل این گره را به‌روزرسانی کنید.",
+    pendingRemove: "در انتظار حذف",
     apiPort: "درگاه API",
     agentHealth: {
       online: "آنلاین",
@@ -599,8 +551,6 @@ export const customerManagementMessages = {
     node: "گره",
     select: "یک گره انتخاب کنید",
     ocservGroup: "گروه کاربری محلی Ocserv",
-    certificateGroup: "گروه گواهی",
-    independent: "گواهی مستقل",
     trafficPolicy: "سیاست ترافیک",
     trafficBytes: "سهمیه (بایت)",
     expiryDays: "اعتبار (روز، ۰ یعنی نامحدود)",
@@ -610,7 +560,7 @@ export const customerManagementMessages = {
     password: "گذرواژه",
     defaultConnection: "اتصال پیش‌فرض",
     unassigned: "تعیین نشده",
-    active: "فعال شد",
+    active: "مجاز",
     inactive: "غیرفعال",
     pending: "در انتظار همگام‌سازی",
     pendingDisable: "در انتظار غیرفعال‌سازی",
@@ -637,11 +587,7 @@ export const customerManagementMessages = {
       "{username} مسدود شود؟ دسترسی پورتال فوری قطع و غیرفعال‌سازی در گره‌ها زمان‌بندی می‌شود.",
     unlockDescription:
       "قفل {username} باز و دسترسی به گره‌های تخصیص‌یافته بازیابی شود؟",
-    deleteDescription:
-      "آیا {username} و حساب‌ها، گواهی‌ها، ترافیک و فعالیت او برای همیشه حذف شوند؟ این کار قابل بازگشت نیست.",
-    nodeSetup:
-      "گره را ارتقا دهید و حالت یکپارچه مشتریان و بررسی اتصال Ocserv را فعال کنید.",
-    localGroupMissing: "گروه کاربری Ocserv تنظیم‌شده در گره وجود ندارد.",
+    deleteDescription: "آیا {username} و سابقهٔ ترافیک و فعالیت برای همیشه حذف شوند؟ این کار قابل بازگشت نیست.",
     nodeAuth: "عامل توکن ثبت‌شده را رد کرد.",
     nodeTLS: "گره اصلی نتوانست گواهی HTTPS عامل را تأیید کند.",
     nodeUnavailable:
@@ -654,7 +600,6 @@ export const customerManagementMessages = {
     groupHelp:
       "تغییرها برای همه مشتریانی اعمال می‌شوند که از طریق این گروه دسترسی دارند.",
     radiusPolicyHelp: "این تنظیمات برای ورود از طریق RADIUS در این گره اعمال می‌شوند.",
-    defaultsHelp: "این پیش‌فرض‌ها برای حساب‌های جدید این گره اعمال می‌شوند.",
     actions: "عملیات مشتری",
     lock: "قفل کردن",
     unlock: "باز کردن قفل",
@@ -672,8 +617,7 @@ export const customerManagementMessages = {
     grantSelection: "تعيين الوصول",
     changeGrantHelp: "اختر عقدة أو مجموعة عقد لـ {username}. اقفل حساب العميل لتعليق الوصول بالكامل.",
     legacyGrantHelp: "اختر تعيينًا جديدًا ليحل محل أذونات هذا الحساب السابقة.",
-    pendingRemove: "بانتظار حذف حساب العقدة",
-    nodeLifecycleUpgrade: "حدّث الوكيل على هذه العقدة لتطبيق هذا التغيير.",
+    pendingRemove: "بانتظار الحذف",
     apiPort: "منفذ API",
     agentHealth: {
       online: "متصل",
@@ -711,8 +655,6 @@ export const customerManagementMessages = {
     node: "العقدة",
     select: "اختر عقدة",
     ocservGroup: "مجموعة مستخدمي Ocserv المحلية",
-    certificateGroup: "مجموعة الشهادات",
-    independent: "شهادة مستقلة",
     trafficPolicy: "سياسة حركة البيانات",
     trafficBytes: "الحصة (بايت)",
     expiryDays: "الصلاحية (أيام، ٠ تعني بلا حد)",
@@ -722,7 +664,7 @@ export const customerManagementMessages = {
     password: "كلمة المرور",
     defaultConnection: "الاتصال الافتراضي",
     unassigned: "غير محدد",
-    active: "تم التفعيل",
+    active: "مصرّح به",
     inactive: "معطّل",
     pending: "في انتظار المزامنة",
     pendingDisable: "في انتظار التعطيل",
@@ -749,10 +691,7 @@ export const customerManagementMessages = {
       "هل تريد قفل {username}؟ يتوقف الوصول إلى البوابة فورًا وتُجدول عملية تعطيل الحسابات على العقد.",
     unlockDescription:
       "هل تريد إلغاء قفل {username} واستعادة الوصول إلى العقد المعيّنة؟",
-    deleteDescription:
-      "هل تريد حذف {username} وحساباته وشهاداته وسجلات حركة البيانات والنشاط نهائيًا؟ لا يمكن التراجع عن هذا الإجراء.",
-    nodeSetup: "حدّث العقدة وفعّل وضع العملاء الموحّد وفحص اتصال Ocserv.",
-    localGroupMissing: "مجموعة مستخدمي Ocserv المحددة غير موجودة على العقدة.",
+    deleteDescription: "هل تريد حذف {username} وسجل حركة المرور والنشاط نهائيًا؟ لا يمكن التراجع عن ذلك.",
     nodeAuth: "رفض الوكيل رمز المصادقة المسجل.",
     nodeTLS: "تعذّر على العقدة الرئيسية التحقق من شهادة HTTPS الخاصة بالوكيل.",
     nodeUnavailable:
@@ -763,8 +702,6 @@ export const customerManagementMessages = {
     noGroups: "لا توجد مجموعات عقد حتى الآن.",
     groupHelp: "تطبّق التغييرات على جميع العملاء المصرح لهم عبر هذه المجموعة.",
     radiusPolicyHelp: "تنطبق هذه الإعدادات على تسجيل الدخول عبر RADIUS في هذه العقدة.",
-    defaultsHelp:
-      "تنطبق الإعدادات الافتراضية على الحسابات الجديدة في هذه العقدة.",
     actions: "إجراءات العميل",
     lock: "قفل",
     unlock: "إلغاء القفل",

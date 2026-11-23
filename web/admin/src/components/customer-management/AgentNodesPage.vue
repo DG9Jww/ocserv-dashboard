@@ -88,9 +88,6 @@ const rows = computed<AgentNodeRow[]>(() => {
     (data.value?.defaults ?? []).map((item) => [item.node, item]),
   );
   const groupsByNode = new Map<string, NodeGroup[]>();
-  const groupNames = new Map(
-    groups.value.map((group) => [group.id, group.name]),
-  );
   for (const group of groups.value) {
     for (const id of group.nodes) {
       const memberships = groupsByNode.get(id) ?? [];
@@ -114,9 +111,6 @@ const rows = computed<AgentNodeRow[]>(() => {
       health: node.agent ? serverStore.agentStatus(node.agent) : undefined,
       defaults: settings,
       groups: groupsByNode.get(node.id) ?? [],
-      certificateGroup: settings?.certificate_group
-        ? groupNames.get(settings.certificate_group)
-        : undefined,
     };
   });
 });
@@ -377,7 +371,6 @@ onMounted(() => {
           :loading="agentsLoading"
           :busy="pending"
           :has-inventory="Boolean(data)"
-          :radius="Boolean(data?.radius)"
           @edit="openAgent"
           @remove="confirmRemoval"
           @defaults="openDefaults"

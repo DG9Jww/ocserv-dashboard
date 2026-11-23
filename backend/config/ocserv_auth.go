@@ -14,25 +14,18 @@ func (c *Config) LoadOcservAuth(path string) error {
 	}
 	defer file.Close()
 
-	var method, alternative string
+	var method string
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "#") {
-			continue
-		}
+		line, _, _ := strings.Cut(scanner.Text(), "#")
 		key, value, found := strings.Cut(line, "=")
 		if !found {
 			continue
 		}
-		value, _, _ = strings.Cut(value, "#")
 		value = strings.Trim(strings.TrimSpace(value), "\"")
 		switch strings.TrimSpace(key) {
 		case "enable-auth":
-			if alternative != "" || value != "certificate" {
-				return fmt.Errorf("%s: only enable-auth = certificate is supported alongside RADIUS", path)
-			}
-			alternative = value
+			return fmt.Errorf("%s: remove enable-auth and configure a single authentication method", path)
 		case "auth":
 			if method != "" {
 				return fmt.Errorf("%s: configure a single auth directive", path)
@@ -53,11 +46,6 @@ func (c *Config) LoadOcservAuth(path string) error {
 	if method == "" {
 		return fmt.Errorf("%s: missing auth directive", path)
 	}
-	if alternative != "" && method != "radius" {
-		return fmt.Errorf("%s: certificate as an alternative requires primary RADIUS auth", path)
-	}
 	c.RadiusAuth = method == "radius"
-	c.CertificateAuth = method == "certificate" || alternative == "certificate"
-	c.CustomerMultiNodeEnabled = c.RadiusAuth || getBoolEnv("CUSTOMER_MULTI_NODE_ENABLED", false)
 	return nil
 }

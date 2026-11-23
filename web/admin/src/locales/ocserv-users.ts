@@ -77,8 +77,6 @@ const en = {
   deactivated: "Deactivated",
   delete: "Delete",
   deleteSelected: "Delete selected",
-  managedDeleteBlocked:
-    "Use Customer Management to revoke access to this node or permanently delete the customer and their node records.",
   deleteSuccess: "The Ocserv user was deleted.",
   description:
     "Create, inspect, update, and operate Ocserv VPN users and sessions.",
@@ -182,8 +180,6 @@ export const ocservUsersMessages = {
   en,
   it: {
     ...en,
-    managedDeleteBlocked:
-      "Usa Gestione clienti per revocare l’accesso a questo nodo o eliminare definitivamente il cliente e i suoi dati.",
     cancel: "Annulla",
     create: "Crea utente",
     delete: "Elimina",
@@ -197,8 +193,6 @@ export const ocservUsersMessages = {
   },
   "zh-cn": {
     ...en,
-    managedDeleteBlocked:
-      "请在「客户管理」撤销此节点的授权，或永久删除该客户及其节点记录。",
     cancel: "取消",
     create: "创建用户",
     delete: "删除",
@@ -212,8 +206,6 @@ export const ocservUsersMessages = {
   },
   "zh-tw": {
     ...en,
-    managedDeleteBlocked:
-      "請在「客戶管理」撤銷此節點的授權，或永久刪除該客戶及其節點記錄。",
     cancel: "取消",
     create: "建立使用者",
     delete: "刪除",
@@ -227,8 +219,6 @@ export const ocservUsersMessages = {
   },
   ru: {
     ...en,
-    managedDeleteBlocked:
-      "Отзовите доступ к этому узлу или окончательно удалите клиента и его данные в разделе «Управление клиентами».",
     cancel: "Отмена",
     create: "Создать пользователя",
     delete: "Удалить",
@@ -242,8 +232,6 @@ export const ocservUsersMessages = {
   },
   fa: {
     ...en,
-    managedDeleteBlocked:
-      "برای لغو دسترسی به این گره یا حذف دائمی مشتری و سوابق او، از مدیریت مشتریان استفاده کنید.",
     cancel: "لغو",
     create: "ایجاد کاربر",
     delete: "حذف",
@@ -257,8 +245,6 @@ export const ocservUsersMessages = {
   },
   ar: {
     ...en,
-    managedDeleteBlocked:
-      "استخدم إدارة العملاء لإلغاء الوصول إلى هذه العقدة أو حذف العميل وسجلاته نهائيًا.",
     cancel: "إلغاء",
     create: "إنشاء مستخدم",
     delete: "حذف",

@@ -5,12 +5,6 @@ import "github.com/swaggo/swag"
 
 const docTemplate = `{
     "schemes": {{ marshal .Schemes }},
-    "consumes": [
-        "application/json"
-    ],
-    "produces": [
-        "application/json"
-    ],
     "swagger": "2.0",
     "info": {
         "description": "{{escape .Description}}",
@@ -444,37 +438,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/customers/certificate": {
-            "get": {
-                "tags": [
-                    "Customers"
-                ],
-                "summary": "Download customer certificate",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bearer TOKEN",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "file"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/request.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/customers/disconnect_sessions": {
             "post": {
                 "tags": [
@@ -517,7 +480,7 @@ const docTemplate = `{
                 "summary": "Customer login",
                 "parameters": [
                     {
-                        "description": "Ocserv credentials",
+                        "description": "Customer credentials",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -639,37 +602,6 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/customer.CiscoSetup"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/request.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/customers/setup/cisco/certificate": {
-            "get": {
-                "tags": [
-                    "Customers"
-                ],
-                "summary": "Download Cisco setup certificate",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bearer TOKEN",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "file"
                         }
                     },
                     "401": {
@@ -4500,12 +4432,6 @@ const docTemplate = `{
         "customer.CiscoSetup": {
             "type": "object",
             "properties": {
-                "certificate_import_uri": {
-                    "type": "string"
-                },
-                "certificate_password": {
-                    "type": "string"
-                },
                 "connection_create_uri": {
                     "type": "string"
                 },
@@ -4526,12 +4452,6 @@ const docTemplate = `{
         "customer.Customer": {
             "type": "object",
             "properties": {
-                "certificate_available": {
-                    "type": "boolean"
-                },
-                "certificate_enabled": {
-                    "type": "boolean"
-                },
                 "deactivated_at": {
                     "type": "string"
                 },
@@ -4764,7 +4684,7 @@ const docTemplate = `{
             "properties": {
                 "password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 4
                 }
             }
@@ -4778,12 +4698,12 @@ const docTemplate = `{
             "properties": {
                 "new_password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 4
                 },
                 "old_password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 4
                 }
             }
@@ -4797,7 +4717,7 @@ const docTemplate = `{
             "properties": {
                 "password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 4
                 },
                 "username": {
@@ -4872,7 +4792,7 @@ const docTemplate = `{
             "properties": {
                 "password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 2,
                     "example": "doe123456"
                 },
@@ -4934,7 +4854,7 @@ const docTemplate = `{
             "properties": {
                 "new_password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 4
                 },
                 "secret_key": {
@@ -6057,6 +5977,9 @@ const docTemplate = `{
                 "message": {
                     "type": "string"
                 },
+                "portal_key": {
+                    "type": "string"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -6097,6 +6020,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "_Last connected at": {
+                    "type": "string"
+                },
+                "portal_key": {
                     "type": "string"
                 },
                 "vhost": {
@@ -7033,6 +6959,9 @@ const docTemplate = `{
                 "ban_reset_time": {
                     "type": "integer"
                 },
+                "ban_time": {
+                    "type": "integer"
+                },
                 "banner": {
                     "type": "string"
                 },
@@ -7073,9 +7002,6 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "max_same_clients": {
-                    "type": "integer"
-                },
-                "min_reauth_time": {
                     "type": "integer"
                 },
                 "mobile_dpd": {
@@ -7142,6 +7068,9 @@ const docTemplate = `{
                 "ban_reset_time": {
                     "type": "integer"
                 },
+                "ban_time": {
+                    "type": "integer"
+                },
                 "banner": {
                     "type": "string"
                 },
@@ -7182,9 +7111,6 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "max_same_clients": {
-                    "type": "integer"
-                },
-                "ban_time": {
                     "type": "integer"
                 },
                 "mobile_dpd": {
@@ -7328,12 +7254,12 @@ const docTemplate = `{
 
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
-	Version:          "1.0",
+	Version:          "",
 	Host:             "",
-	BasePath:         "/api",
+	BasePath:         "",
 	Schemes:          []string{},
-	Title:            "Ocserv Dashboard Admin API",
-	Description:      "Administrative API for managing Ocserv Dashboard users, groups, reports, runtime, backups, system settings, Telegram integrations, and agent nodes.",
+	Title:            "",
+	Description:      "",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

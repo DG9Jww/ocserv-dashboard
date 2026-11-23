@@ -29,7 +29,7 @@ normalize_container_environment() {
 
     local -a variables=(
         AGENT_NODE ALLOW_ORIGINS API_PORT BACKEND_HOST BACKEND_PORT CURRENT_RELEASE DEBUG HOST
-        CUSTOMER_API_ENABLED CUSTOMER_MULTI_NODE_ENABLED ETH HTTP_PORT NGINX_ENABLED OCSERV_BANNER OCSERV_DEBUG
+        CUSTOMER_API_ENABLED ETH HTTP_PORT NGINX_ENABLED OCSERV_BANNER OCSERV_DEBUG
         OCSERV_PRE_LOGIN_BANNER OCSERV_REGENERATE_CONFIG RUN_MIGRATIONS SECRET_KEY
         SUPERADMIN_PASSWORD SUPERADMIN_USERNAME SYSTEMD TELEGRAM_BOT_ENABLED WEB_PORT
         TELEGRAM_RECEIPTS_DIR TLS_CERT_FILE TLS_KEY_FILE
@@ -280,98 +280,6 @@ banner = "${banner}"
 EOF
 }
 
-configure_customer_portal_auth() {
-    local auth_method="$1"
-    local hook=/usr/local/lib/ocserv-dashboard/portal-connect-check
-    local ca="${OCSERV_CA_CERT}"
-    local crl="${OCSERV_CRL}"
-    local mode=off
-    local hook_state
-
-    hook_state="$(awk -v hook="${hook}" '
-        /^[[:space:]]*connect-script[[:space:]]*=/ {
-            sub(/^[^=]*=[[:space:]]*/, "")
-            sub(/[[:space:]]+[#].*$/, "")
-            sub(/[[:space:]]+$/, "")
-            if ($0 == hook) managed = 1
-            else custom = 1
-        }
-        END { print custom ? "custom" : (managed ? "managed" : "absent") }
-    ' "${OCSERV_CONF}")"
-
-    if [[ "${auth_method}" == radius-certificate ]] || is_true "${CUSTOMER_MULTI_NODE_ENABLED:-false}"; then
-        mode=on
-        ca="${OCSERV_SSL_DIR}/portal-trust/ca.pem"
-        crl="${OCSERV_SSL_DIR}/portal-trust/crl.pem"
-        [[ -x "${hook}" ]] || die "customer connection check is missing"
-        if grep -Eq '^[[:space:]]*\[vhost:' "${OCSERV_CONF}"; then
-            die "unified customer mode requires the default Ocserv virtual host"
-        fi
-        if [[ "${hook_state}" == custom ]]; then
-            die "unified customer mode requires its Ocserv connection check"
-        fi
-        install -d -m 700 /etc/ocserv/managed-customers
-        if [[ ! -L "${OCSERV_SSL_DIR}/portal-trust" ]]; then
-            install -d -m 700 "${OCSERV_SSL_DIR}/portal-trust-bootstrap"
-            install -m 600 "${OCSERV_CA_CERT}" "${OCSERV_SSL_DIR}/portal-trust-bootstrap/ca.pem"
-            install -m 600 "${OCSERV_CRL}" "${OCSERV_SSL_DIR}/portal-trust-bootstrap/crl.pem"
-            ln -s portal-trust-bootstrap "${OCSERV_SSL_DIR}/portal-trust"
-        fi
-        [[ -f "${ca}" && -f "${crl}" ]] || die "customer CA and CRL are missing"
-    elif [[ "${hook_state}" != managed ]]; then
-        return
-    fi
-
-    if [[ "${mode}" == on ]] && awk -v hook="${hook}" -v ca="${ca}" -v crl="${crl}" '
-        BEGIN {
-            expected["cert-user-oid"] = "2.5.4.3"
-            expected["ca-cert"] = ca
-            expected["crl"] = crl
-            expected["connect-script"] = hook
-        }
-        /^[[:space:]]*[^#[:space:]][^=]*=/ {
-            key = $0
-            sub(/=.*/, "", key)
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-            if (!(key in expected)) next
-            value = $0
-            sub(/^[^=]*=[[:space:]]*/, "", value)
-            sub(/[[:space:]]+$/, "", value)
-            sub(/[[:space:]]+#.*$/, "", value)
-            if (value == expected[key]) matched[key]++
-            seen[key]++
-        }
-        END {
-            for (key in expected)
-                if (matched[key] != 1 || seen[key] != 1) exit 1
-        }
-    ' "${OCSERV_CONF}"; then
-        return
-    fi
-
-    if [[ "${mode}" == on ]] && \
-       { [[ "${hook_state}" == managed ]] || \
-         grep -Eq '^[[:space:]]*(ca-cert|crl)[[:space:]]*=[[:space:]]*/etc/ocserv/ssl/portal-trust/' "${OCSERV_CONF}"; }; then
-        die "${OCSERV_CONF} was kept unchanged: unified certificate authentication requires its managed CA, CRL, and connect-script."
-    fi
-
-    local config_tmp
-    config_tmp="$(mktemp "${OCSERV_CONF}.XXXXXX")"
-    awk -v hook="${hook}" -v mode="${mode}" -v ca="${ca}" -v crl="${crl}" '
-        /^[[:space:]]*(ca-cert|crl|cert-user-oid)[[:space:]]*=/ { next }
-        /^[[:space:]]*connect-script[[:space:]]*=/ { next }
-        { print }
-        END {
-            print "cert-user-oid = 2.5.4.3"
-            print "ca-cert = " ca
-            print "crl = " crl
-            if (mode == "on") print "connect-script = " hook
-        }
-    ' "${OCSERV_CONF}" >"${config_tmp}"
-    chmod --reference="${OCSERV_CONF}" "${config_tmp}"
-    mv -f "${config_tmp}" "${OCSERV_CONF}"
-}
-
 ensure_ocserv_layout() {
     local auth_method=certificate
     # shellcheck source=../common/radius-config.sh
@@ -382,7 +290,7 @@ ensure_ocserv_layout() {
             die "configure certificate or RADIUS auth in ${OCSERV_CONF}"
         if [[ "${auth_method}" == radius* ]]; then
             is_true "${OCSERV_REGENERATE_CONFIG:-false}" && die "RADIUS requires OCSERV_REGENERATE_CONFIG=false"
-            radius_ocserv_config_ready "${OCSERV_CONF}" "${auth_method}" || die "RADIUS configuration preflight failed"
+            radius_ocserv_config_ready "${OCSERV_CONF}" || die "RADIUS configuration preflight failed"
         else
             certificate_ocserv_config_ready "${OCSERV_CONF}" || die "remove enable-auth from ${OCSERV_CONF}"
         fi
@@ -412,7 +320,6 @@ ensure_ocserv_layout() {
     else
         log "preserving existing ${OCSERV_CONF}"
     fi
-    configure_customer_portal_auth "${auth_method}"
 }
 
 ensure_networking() {

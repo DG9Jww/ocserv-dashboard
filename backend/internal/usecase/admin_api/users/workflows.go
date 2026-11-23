@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mmtaee/ocserv-dashboard/backend/config"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/authz"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/ocserv/user"
@@ -19,7 +20,6 @@ import (
 )
 
 var ErrUserNotFound = errors.New("ocserv user not found")
-var ErrManagedCustomerDelete = repository.ErrManagedCustomerDelete
 
 var ErrInvalidExpireInDays = errors.New("expire_in_days must be a positive integer")
 
@@ -35,7 +35,11 @@ func (u *Usecase) List(ctx context.Context, options ListOptions) (*ListResult, e
 	if err != nil {
 		return nil, err
 	}
-	sessions, sessionErr := u.occtl.OnlineSessions()
+	var sessions []models.OnlineUserSession
+	var sessionErr error
+	if standaloneSessions() {
+		sessions, sessionErr = u.occtl.OnlineSessions()
+	}
 	byUsername := make(map[string][]models.OnlineUserSession)
 	usernames := make([]string, 0)
 	seen := make(map[string]struct{})
@@ -219,7 +223,9 @@ func (u *Usecase) DeleteUser(ctx context.Context, principal authz.Principal, id 
 		return err
 	}
 	u.reload()
-	_, _ = u.occtl.Terminate(account.Username)
+	if standaloneSessions() {
+		_, _ = u.occtl.Terminate(account.Username)
+	}
 	return nil
 }
 
@@ -238,8 +244,10 @@ func (u *Usecase) LockUser(ctx context.Context, principal authz.Principal, id ui
 		_ = u.Repository.UnLock(ctx, id)
 		return err
 	}
-	if _, err := u.occtl.Disconnect(account.Username); err != nil {
-		logger.Error("failed to disconnect ocserv user error: %v", err)
+	if standaloneSessions() {
+		if _, err := u.occtl.Disconnect(account.Username); err != nil {
+			logger.Error("failed to disconnect ocserv user error: %v", err)
+		}
 	}
 	return nil
 }
@@ -392,11 +400,13 @@ func (u *Usecase) Activate(ctx context.Context, principal authz.Principal, id ui
 	if err := applyExpiryUpdate(account, update); err != nil {
 		return err
 	}
-	output, err := u.occtl.Terminate(account.Username)
-	if err != nil && !isNoActiveOcctlUserError(output, err) {
-		return fmt.Errorf("failed to terminate ocserv user %q: %s: %w", account.Username, strings.TrimSpace(output), err)
+	if standaloneSessions() {
+		output, err := u.occtl.Terminate(account.Username)
+		if err != nil && !isNoActiveOcctlUserError(output, err) {
+			return fmt.Errorf("failed to terminate ocserv user %q: %s: %w", account.Username, strings.TrimSpace(output), err)
+		}
 	}
-	output, err = u.accounts.UnLock(account.Username)
+	output, err := u.accounts.UnLock(account.Username)
 	if err != nil && !isAlreadyUnlockedOcpasswdError(output, err) {
 		return fmt.Errorf("failed to unlock ocserv user %q: %s: %w", account.Username, strings.TrimSpace(output), err)
 	}
@@ -492,11 +502,19 @@ func (u *Usecase) authorizedUser(ctx context.Context, principal authz.Principal,
 }
 
 func (u *Usecase) authorizeUsername(ctx context.Context, principal authz.Principal, username string) error {
+	if !standaloneSessions() {
+		return authz.ErrForbidden
+	}
 	account, err := u.GetByUsername(ctx, username)
 	if err != nil {
 		return err
 	}
 	return principal.RequireOwner(account.OwnerID)
+}
+
+func standaloneSessions() bool {
+	cfg := config.Get()
+	return cfg == nil || !cfg.RadiusAuth
 }
 
 func (u *Usecase) authorizeSession(ctx context.Context, principal authz.Principal, id string) error {

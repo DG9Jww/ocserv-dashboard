@@ -10,19 +10,8 @@ ocserv_auth_method() {
             if ($0 ~ /^"certificate"$/ || $0 == "certificate") method = "certificate"
             else if ($0 ~ /^"radius\[.*\]"$/ || $0 ~ /^radius\[.*\]$/) method = "radius"
         }
-        /^[[:space:]]*enable-auth[[:space:]]*=/ {
-            alternatives++
-            sub(/^[^=]*=[[:space:]]*/, "")
-            sub(/#.*/, "")
-            sub(/[[:space:]]+$/, "")
-            if ($0 ~ /^"certificate"$/ || $0 == "certificate") certificate++
-        }
         END {
             if (count != 1 || method == "") exit 1
-            if (method == "radius" && alternatives) {
-                if (alternatives != 1 || certificate != 1) exit 1
-                method = "radius-certificate"
-            }
             print method
         }
     ' "$1"
@@ -45,9 +34,9 @@ certificate_ocserv_config_ready() {
 
 radius_ocserv_config_ready() {
     local config_paths config_path file
-    local mount_dir="${3:-}"
+    local mount_dir="${2:-}"
 
-    config_paths="$(awk -v method="$2" '
+    config_paths="$(awk '
         function trim(value) {
             sub(/^[[:space:]]+/, "", value)
             sub(/[[:space:]]+$/, "", value)
@@ -83,7 +72,7 @@ radius_ocserv_config_ready() {
             if (key == "auth" && groupconfigs != 1)
                 invalid("auth requires exactly one groupconfig=" required_groupconfig " option", FNR)
         }
-        BEGIN { required_groupconfig = (method == "radius-certificate") ? "false" : "true" }
+        BEGIN { required_groupconfig = "true" }
         /^[[:space:]]*(#|$)/ { next }
         /^[[:space:]]*\[vhost[[:space:]]*:/ {
             invalid("RADIUS requires the default Ocserv virtual host", FNR)
@@ -98,20 +87,17 @@ radius_ocserv_config_ready() {
             if (key == "auth" || key == "acct") {
                 if (++count[key] > 1) invalid("duplicate " key " directive", FNR)
                 validate_radius(key, value)
-            } else if (method == "radius" && (key == "config-per-user" || key == "config-per-group") && value != "") {
+            } else if ((key == "config-per-user" || key == "config-per-group") && value != "") {
                 invalid(key " conflicts with groupconfig=true in RADIUS-only mode", FNR)
             } else if (key == "enable-auth") {
-                if (++count[key] > 1 || method != "radius-certificate" || value != "certificate")
-                    invalid("the only supported alternative is enable-auth = certificate", FNR)
-            } else if (key == "connect-script" && method == "radius" && value ~ /portal-connect-check/) {
-                invalid("the managed certificate connection hook requires enable-auth = certificate", FNR)
+                invalid("remove enable-auth for RADIUS customer authentication", FNR)
+            } else if (key == "connect-script" && value ~ /portal-connect-check/) {
+                invalid("remove the obsolete customer certificate connect-script", FNR)
             }
         }
         END {
             if (!count["auth"]) invalid("missing auth directive")
             if (!count["acct"]) invalid("missing acct directive")
-            if (method == "radius-certificate" && !count["enable-auth"])
-                invalid("missing enable-auth = certificate")
             if (failed) exit 1
             for (file in paths) print file
         }

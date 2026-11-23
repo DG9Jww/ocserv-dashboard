@@ -45,7 +45,7 @@ func New(cfg *config.Config, registrars ...RouteRegistrar) *Server {
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins:  origins,
 		AllowHeaders:  []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization},
-		ExposeHeaders: []string{"X-Ocserv-Managed", "X-Ocserv-Partial", "X-Ocserv-Unavailable", "X-Ocserv-Sync-Pending"},
+		ExposeHeaders: []string{"X-Ocserv-Partial", "X-Ocserv-Unavailable"},
 		AllowMethods:  []string{http.MethodGet, http.MethodHead, http.MethodPatch, http.MethodPost, http.MethodDelete, http.MethodOptions},
 	}))
 	e.Use(middleware.GzipWithConfig(middleware.GzipConfig{Skipper: func(c *echo.Context) bool {

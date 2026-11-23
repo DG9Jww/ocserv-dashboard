@@ -3,11 +3,7 @@ package customerapi
 import (
 	"context"
 	"errors"
-	"mime"
 	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/labstack/echo/v5"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
@@ -28,29 +24,23 @@ type customerBackend interface {
 	Statistics(context.Context, string, DateRange) ([]models.DailyTraffic, error)
 	Activities(context.Context, string, *request.Pagination, DateRange) (*customerusecase.Activities, error)
 	Bandwidth(context.Context, string, DateRange) (repository.TotalBandwidths, error)
-	CiscoSetup(context.Context, string, string) (*CiscoSetupResponse, error)
+	CiscoSetup(context.Context, string) (*CiscoSetupResponse, error)
 }
-type localCertificates interface {
-	CertificatePath(context.Context, string) (string, string, error)
-	CiscoCertificatePath(context.Context, string) (string, string, error)
-}
-
 type CustomerController struct {
-	request  request.CustomRequestInterface
-	download func(context.Context, string) ([]byte, error)
-	usecase  customerBackend
+	request request.CustomRequestInterface
+	usecase customerBackend
 }
 
 func newCustomerController(usecase customerBackend) *CustomerController {
 	return &CustomerController{request: request.NewCustomRequest(), usecase: usecase}
 }
 
-// Login authenticates an Ocserv user and returns a seven-hour JWT.
+// Login authenticates a customer and returns a seven-hour JWT.
 // @Summary Customer login
 // @Tags Customers
 // @Accept json
 // @Produce json
-// @Param request body LoginData true "Ocserv credentials"
+// @Param request body LoginData true "Customer credentials"
 // @Failure 400 {object} request.ErrorResponse
 // @Success 200 {object} LoginResponse
 // @Router /customers/login [post]
@@ -100,27 +90,6 @@ func (ctl *CustomerController) Sessions(c *echo.Context) error {
 		return ctl.respondError(c, err)
 	}
 	return c.JSON(http.StatusOK, result)
-}
-
-// @Summary Download customer certificate
-// @Tags Customers
-// @Param Authorization header string true "Bearer TOKEN"
-// @Failure 401 {object} request.ErrorResponse
-// @Success 200 {file} binary
-// @Router /customers/certificate [get]
-func (ctl *CustomerController) DownloadCertificate(c *echo.Context) error {
-	username, err := customerUsername(c)
-	if err != nil {
-		return err
-	}
-	if ctl.download != nil {
-		return ctl.downloadFromMaster(c, username)
-	}
-	path, username, err := ctl.usecase.(localCertificates).CertificatePath(c.Request().Context(), username)
-	if err != nil {
-		return ctl.respondError(c, err)
-	}
-	return sendCertificate(c, path, username+".p12")
 }
 
 // @Summary Disconnect all customer sessions
@@ -266,92 +235,27 @@ func (ctl *CustomerController) CiscoSetup(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	result, err := ctl.usecase.CiscoSetup(c.Request().Context(), username, publicAPIBaseURL(c))
+	result, err := ctl.usecase.CiscoSetup(c.Request().Context(), username)
 	if err != nil {
 		return ctl.respondError(c, err)
 	}
 	return c.JSON(http.StatusOK, result)
 }
 
-// @Summary Download Cisco setup certificate
-// @Tags Customers
-// @Param Authorization header string true "Bearer TOKEN"
-// @Failure 401 {object} request.ErrorResponse
-// @Success 200 {file} binary
-// @Router /customers/setup/cisco/certificate [get]
-func (ctl *CustomerController) DownloadCiscoSetupCertificate(c *echo.Context) error {
-	username, err := customerUsername(c)
-	if err != nil {
-		return err
-	}
-	if ctl.download != nil {
-		return ctl.downloadFromMaster(c, username)
-	}
-	path, username, err := ctl.usecase.(localCertificates).CiscoCertificatePath(c.Request().Context(), username)
-	if err != nil {
-		return ctl.respondError(c, err)
-	}
-	return sendCertificate(c, path, username+".p12")
-}
-
-func certificateHeaders(c *echo.Context, filename string) {
-	headers := c.Response().Header()
-	headers.Set(echo.HeaderContentType, "application/x-pkcs12")
-	headers.Set(echo.HeaderContentDisposition, mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
-	headers.Set(echo.HeaderCacheControl, "no-store")
-	headers.Set("Pragma", "no-cache")
-	headers.Set("X-Content-Type-Options", "nosniff")
-}
-func sendCertificate(c *echo.Context, path, filename string) error {
-	certificateHeaders(c, filename)
-	// Certificates are stored outside the default filesystem rooted at the app directory.
-	return c.FileFS(filepath.Base(path), os.DirFS(filepath.Dir(path)))
-}
-
 func (ctl *CustomerController) respondError(c *echo.Context, err error) error {
 	switch {
 	case errors.Is(err, federation.ErrUnavailable):
 		return c.JSON(http.StatusServiceUnavailable, map[string]any{"message": []string{err.Error()}})
-	case errors.Is(err, federation.ErrPending), errors.Is(err, federation.ErrDefault):
+	case errors.Is(err, federation.ErrDefault):
 		return c.JSON(http.StatusConflict, map[string]any{"message": []string{err.Error()}})
 	default:
 		return ctl.request.BadRequest(c, err)
 	}
 }
 
-func (ctl *CustomerController) downloadFromMaster(c *echo.Context, name string) error {
-	data, err := ctl.download(c.Request().Context(), name)
-	if err != nil {
-		return ctl.respondError(c, err)
-	}
-	certificateHeaders(c, name+".p12")
-	return c.Blob(http.StatusOK, "application/x-pkcs12", data)
-}
-
 func customerUsername(c *echo.Context) (string, error) {
 	if name, ok := c.Get("unified-customer-name").(string); ok && name != "" {
 		return name, nil
 	}
-	principal, err := middlewares.Principal(c)
-	if err != nil {
-		return "", middlewares.UnauthorizedError(c, "invalid token")
-	}
-	return principal.Username, nil
-}
-
-func publicAPIBaseURL(c *echo.Context) string {
-	req := c.Request()
-	scheme := strings.TrimSpace(req.Header.Get("X-Forwarded-Proto"))
-	if scheme == "" {
-		if req.TLS != nil {
-			scheme = "https"
-		} else {
-			scheme = "http"
-		}
-	}
-	host := strings.TrimSpace(req.Header.Get("X-Forwarded-Host"))
-	if host == "" {
-		host = strings.TrimSpace(req.Host)
-	}
-	return scheme + "://" + host
+	return "", middlewares.UnauthorizedError(c, "invalid token")
 }

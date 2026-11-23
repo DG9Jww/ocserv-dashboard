@@ -39,21 +39,20 @@ func (r *PortalRepository) BindRadiusSession(ctx context.Context, customer model
 	return result.RowsAffected == 1, result.Error
 }
 
-// BindCertificateAccounting admits a session announced by a trusted node's Accounting-Start.
-func (r *PortalRepository) BindCertificateAccounting(ctx context.Context, assignment models.PortalAssignment, packet RadiusAccounting) (bool, error) {
-	result := r.db.WithContext(ctx).Exec(`
-		INSERT INTO portal_radius_sessions (node, session_id, customer_id)
-		SELECT a.node, ?, c.id
-		FROM portal_customers AS c
-		JOIN portal_assignments AS a ON a.customer_id = c.id
-		WHERE c.id = ? AND c.username = ? AND c.created_at <= ?
-		  AND NOT c.locked AND c.deleted_at IS NULL
-		  AND a.node = ? AND a.version = ? AND a.version = a.applied
-		  AND a.desired AND a.ocserv_id > 0
-		ON CONFLICT (node, session_id) DO UPDATE SET customer_id = EXCLUDED.customer_id
-		WHERE portal_radius_sessions.customer_id = EXCLUDED.customer_id AND NOT portal_radius_sessions.stopped
-	`, packet.SessionID, assignment.CustomerID, packet.Username, packet.At, assignment.Node, assignment.Version)
-	return result.RowsAffected == 1, result.Error
+// HasAuthorizedRadiusSession requires a password-authenticated session from the same node.
+func (r *PortalRepository) HasAuthorizedRadiusSession(ctx context.Context, assignment models.PortalAssignment, packet RadiusAccounting) (bool, error) {
+	var bound bool
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT EXISTS (
+			SELECT 1 FROM portal_radius_sessions AS s
+			JOIN portal_customers AS c ON c.id = s.customer_id
+			JOIN portal_assignments AS a ON a.customer_id = c.id AND a.node = s.node
+			WHERE s.node = ? AND s.session_id = ? AND NOT s.stopped
+			  AND c.id = ? AND c.username = ? AND NOT c.locked AND c.deleted_at IS NULL
+			  AND a.version = ? AND a.desired
+		)
+	`, packet.Node, packet.SessionID, assignment.CustomerID, packet.Username, assignment.Version).Scan(&bound).Error
+	return bound, err
 }
 
 // RecordRadius credits increases in cumulative counters to the authenticated customer ID.

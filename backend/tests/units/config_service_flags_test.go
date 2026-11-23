@@ -60,12 +60,12 @@ func TestTelegramRoutesFollowServiceFlag(t *testing.T) {
 func TestOcservAuthConfiguration(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "ocserv.conf")
 	for _, tc := range []struct {
-		name, file                   string
-		radius, certificate, invalid bool
+		name, file      string
+		radius, invalid bool
 	}{
-		{name: "certificate", file: "auth = \"certificate\"", certificate: true},
+		{name: "certificate", file: "auth = \"certificate\""},
 		{name: "radius", file: "# auth = certificate\nauth = \"radius[config=/etc/radcli/radiusclient.conf,groupconfig=true]\" # managed", radius: true},
-		{name: "radius and certificate", file: "auth = \"radius[config=/etc/radcli/radiusclient.conf,groupconfig=true]\"\nenable-auth = \"certificate\"", radius: true, certificate: true},
+		{name: "radius and certificate", file: "auth = \"radius[config=/etc/radcli/radiusclient.conf,groupconfig=true]\"\nenable-auth = \"certificate\"", invalid: true},
 		{name: "radius and plain", file: "auth = radius[config=/etc/radcli/radiusclient.conf]\nenable-auth = plain", invalid: true},
 		{name: "duplicate alternatives", file: "auth = radius[config=/etc/radcli/radiusclient.conf]\nenable-auth = certificate\nenable-auth = certificate", invalid: true},
 		{name: "plain", file: "auth = \"plain[passwd=/etc/ocserv/ocpasswd]\"", invalid: true},
@@ -74,7 +74,6 @@ func TestOcservAuthConfiguration(t *testing.T) {
 		{name: "missing", file: "# auth = certificate", invalid: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Setenv("CUSTOMER_MULTI_NODE_ENABLED", "false")
 			require.NoError(t, os.WriteFile(path, []byte(tc.file), 0600))
 			var cfg config.Config
 			err := cfg.LoadOcservAuth(path)
@@ -84,8 +83,6 @@ func TestOcservAuthConfiguration(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tc.radius, cfg.RadiusAuth)
-			require.Equal(t, tc.certificate, cfg.CertificateAuth)
-			require.Equal(t, tc.radius, cfg.CustomerMultiNodeEnabled)
 		})
 	}
 }
@@ -93,7 +90,6 @@ func TestOcservAuthConfiguration(t *testing.T) {
 func TestRadiusConfigurationKeepsSecretAndHTTPSRequirements(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "ocserv.conf")
 	require.NoError(t, os.WriteFile(path, []byte("auth = radius[config=/etc/radcli/radiusclient.conf]"), 0600))
-	t.Setenv("CUSTOMER_MULTI_NODE_ENABLED", "")
 	t.Setenv("SECRET_KEY", "0123456789abcdef0123456789abcdef")
 	t.Setenv("AGENT_NODE", "false")
 	t.Setenv("AGENT_UPSTREAM_SCHEME", "https")
@@ -103,7 +99,6 @@ func TestRadiusConfigurationKeepsSecretAndHTTPSRequirements(t *testing.T) {
 		config.Init(false, "", 0)
 		require.NoError(t, config.Get().LoadOcservAuth(path))
 		require.True(t, config.Get().RadiusAuth)
-		require.True(t, config.Get().CustomerMultiNodeEnabled)
 		return config.Validate()
 	}
 	require.NoError(t, validate())

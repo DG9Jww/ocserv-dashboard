@@ -21,9 +21,7 @@ type Config struct {
 	TLSKeyFile               string
 	TelegramEnabled          bool
 	CustomerAPIEnabled       bool
-	CustomerMultiNodeEnabled bool
 	RadiusAuth               bool
-	CertificateAuth          bool
 	CustomerRadiusRESTSecret string
 	AllowOrigins             []string
 	DB                       PostgresConfig
@@ -60,7 +58,6 @@ func Init(debug bool, host string, port int) {
 		TLSKeyFile:               tlsPath("TLS_KEY_FILE"),
 		TelegramEnabled:          getBoolEnv("TELEGRAM_BOT_ENABLED", false),
 		CustomerAPIEnabled:       getBoolEnv("CUSTOMER_API_ENABLED", true),
-		CustomerMultiNodeEnabled: getBoolEnv("CUSTOMER_MULTI_NODE_ENABLED", false),
 		CustomerRadiusRESTSecret: os.Getenv("CUSTOMER_RADIUS_REST_SECRET"),
 		AllowOrigins:             strings.Split(allowOrigins, ","),
 		DB:                       loadDatabaseEnv(),
@@ -96,7 +93,7 @@ func Validate() error {
 	if cfg.RadiusAuth && !cfg.AgentNode && len(cfg.CustomerRadiusRESTSecret) < 32 {
 		return errors.New("RADIUS requires a Master CUSTOMER_RADIUS_REST_SECRET of at least 32 characters")
 	}
-	if cfg.CustomerMultiNodeEnabled && ((cfg.AgentNode && !cfg.AgentAPIHTTPS) || (!cfg.AgentNode && cfg.AgentUpstreamScheme != "https")) {
+	if cfg.RadiusAuth && ((cfg.AgentNode && !cfg.AgentAPIHTTPS) || (!cfg.AgentNode && cfg.AgentUpstreamScheme != "https")) {
 		return errors.New("unified customer mode requires HTTPS between Master and Agent")
 	}
 	if cfg.AgentNode && cfg.AgentAPIHTTPS && (cfg.TLSCertFile == "" || cfg.TLSKeyFile == "") {

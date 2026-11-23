@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mmtaee/ocserv-dashboard/backend/config"
-
 	occtldocker "github.com/mmtaee/ocserv-dashboard/backend/internal/ocserv/docker"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/ocserv/occtl"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/ocserv/user"
@@ -91,7 +89,7 @@ func (j *logJob) Run(ctx context.Context) error {
 
 func New(dockerMode bool) *Service {
 	var access accessController
-	if cfg := config.Get(); dockerMode && (cfg == nil || !cfg.CustomerMultiNodeEnabled) {
+	if dockerMode {
 		client := occtldocker.NewOcservOcctlDocker()
 		access = accessController{disconnect: client.DisconnectUser, lock: client.Lock, unlock: client.Unlock}
 	} else {

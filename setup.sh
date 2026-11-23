@@ -736,7 +736,7 @@ install_docker() {
     fi
     if [[ "${auth_method}" == radius* ]]; then
         [[ "$(normalized_bool "$(env_value OCSERV_REGENERATE_CONFIG false)")" == false ]] || die "RADIUS requires OCSERV_REGENERATE_CONFIG=false"
-        radius_ocserv_config_ready "${ocserv_config}" "${auth_method}" "${data_root}/ocserv" ||
+        radius_ocserv_config_ready "${ocserv_config}" "${data_root}/ocserv" ||
             die "fix the RADIUS configuration before updating"
         if [[ "${agent_node}" == false ]]; then
             local radius_secret

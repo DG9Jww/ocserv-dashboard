@@ -20,15 +20,13 @@ import (
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/repository"
 )
 
-const provisionLifetime = 10 * time.Second
-
 func newNodeClient() *http.Client {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.Proxy = nil
 	return &http.Client{Transport: transport, Timeout: 4 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 }
 
-func (m *Master) nodeCall(ctx context.Context, node, endpoint string, input any, out *NodeResult) error {
+func (m *Master) nodeCall(ctx context.Context, node string, input Query, out *NodeResult) error {
 	id, err := strconv.ParseUint(strings.TrimPrefix(node, "agent-"), 10, 64)
 	if err != nil || node != agentRef(uint(id)) {
 		return ErrInvalid
@@ -37,7 +35,7 @@ func (m *Master) nodeCall(ctx context.Context, node, endpoint string, input any,
 	if err != nil {
 		return err
 	}
-	target := url.URL{Scheme: "https", Host: net.JoinHostPort(agent.Address, strconv.Itoa(agent.Port)), Path: "/api/customer-node/" + endpoint}
+	target := url.URL{Scheme: "https", Host: net.JoinHostPort(agent.Address, strconv.Itoa(agent.Port)), Path: "/api/customer-node/query"}
 	body, err := json.Marshal(input)
 	if err != nil {
 		return err
@@ -62,23 +60,6 @@ func (m *Master) nodeCall(ctx context.Context, node, endpoint string, input any,
 		return ErrConflict
 	case http.StatusUnauthorized, http.StatusForbidden:
 		return ErrNodeAuth
-	case http.StatusNotFound:
-		if endpoint == "apply" {
-			return ErrNodeSetup
-		}
-		return ErrDefault
-	case http.StatusBadRequest:
-		var failure struct {
-			Message []string `json:"message"`
-		}
-		if json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&failure) == nil && len(failure.Message) == 1 {
-			for _, known := range []error{ErrNodeSetup, ErrNodeGroup} {
-				if failure.Message[0] == known.Error() {
-					return known
-				}
-			}
-		}
-		return ErrInvalid
 	case http.StatusOK:
 		return json.NewDecoder(io.LimitReader(resp.Body, 8<<20)).Decode(out)
 	default:
@@ -86,37 +67,16 @@ func (m *Master) nodeCall(ctx context.Context, node, endpoint string, input any,
 	}
 }
 
-func (m *Master) query(ctx context.Context, a models.PortalAssignment, q Query) (NodeResult, error) {
-	if a.Node == radiusHistoryNode {
-		var out NodeResult
-		var err error
-		switch q.Operation {
-		case "bandwidth":
-			out.Bandwidth, err = m.store.RadiusBandwidth(ctx, a.CustomerID, "", q.From, q.Until)
-		case "daily":
-			out.Daily, err = m.store.RadiusDaily(ctx, a.CustomerID, q.From, q.Until)
-		case "activity":
-			out.Activities, out.Total, err = m.store.RadiusActivity(ctx, a.CustomerID, q.From, q.Until, q.Offset, q.Limit)
-		default:
-			err = ErrInvalid
-		}
-		return out, err
-	}
-	q.CustomerID, q.OcservID = a.CustomerID, a.OcservID
-	if a.Node == "master" {
+func (m *Master) query(ctx context.Context, node string, q Query) (NodeResult, error) {
+	if node == "master" {
 		return m.local.Execute(ctx, q)
 	}
 	var result NodeResult
-	err := m.nodeCall(ctx, a.Node, "query", q, &result)
+	err := m.nodeCall(ctx, node, q, &result)
 	return result, err
 }
 
 func (m *Master) Run(ctx context.Context) error {
-	if m.local.certificate {
-		if err := m.store.QueueMissingCertificateAccounts(ctx, time.Now().UTC()); err != nil {
-			return err
-		}
-	}
 	poll := time.NewTicker(3 * time.Second)
 	defer poll.Stop()
 	for {
@@ -141,7 +101,7 @@ func (m *Master) processJobs(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		localID, err := m.applyJob(ctx, job)
+		err := m.applyJob(ctx, job)
 		if err != nil {
 			code := provisioningError(err)
 			logger.Warn("customer sync failed for node %s, account %s: %s", job.Node, job.CustomerID, code)
@@ -151,9 +111,6 @@ func (m *Master) processJobs(ctx context.Context) {
 			continue
 		}
 		fields := map[string]any{"applied": job.Version, "error": ""}
-		if localID != 0 {
-			fields["ocserv_id"] = localID
-		}
 		if err := m.store.Finish(ctx, job, fields); err != nil {
 			logger.Warn("unable to record customer sync completion: %v", err)
 		}
@@ -161,63 +118,16 @@ func (m *Master) processJobs(ctx context.Context) {
 	m.purgeCompletedCustomers(ctx)
 }
 
-func (m *Master) applyJob(ctx context.Context, job models.PortalAssignment) (uint, error) {
-	expiresAt := time.Now().Add(provisionLifetime)
+func (m *Master) applyJob(ctx context.Context, job models.PortalAssignment) error {
 	customer, err := m.store.Customer(ctx, job.CustomerID)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	if job.Desired && (customer.Locked || customer.DeletedAt != nil) {
-		return 0, ErrPending
-	}
-	if m.local.radius {
-		if job.Desired && !m.local.certificate {
-			return 0, nil
-		}
-		if !job.Desired {
-			if _, err := m.query(ctx, job, Query{Operation: "terminate", RadiusUsername: customer.Username}); err != nil {
-				return 0, err
-			}
-			if job.OcservID == 0 && !job.Remove {
-				return 0, nil
-			}
-		}
-	}
-	input := Apply{CustomerID: customer.ID, Username: customer.Username, Version: job.Version, Desired: job.Desired, Remove: job.Remove}
 	if job.Desired {
-		input.ExpiresAt = expiresAt
-		defaults, err := m.store.Defaults(ctx)
-		if err != nil {
-			return 0, err
-		}
-		input.Default, err = defaultsFor(defaults, job.Node)
-		if err != nil {
-			return 0, err
-		}
-		password, err := m.certificatePassword(customer)
-		if err != nil {
-			return 0, err
-		}
-		input.Password = string(password)
-		input.TrustVersion = input.Default.TrustVersion
-		certScope := scope(input.Default)
-		if _, err = m.issue(ctx, customer, certScope); err != nil {
-			return 0, err
-		}
-		input.Trust, err = m.trust(ctx, certScope)
-		if err != nil {
-			return 0, err
-		}
+		return nil
 	}
-	if job.Node == "master" {
-		return m.local.Apply(ctx, input)
-	}
-	var result NodeResult
-	err = m.nodeCall(ctx, job.Node, "apply", input, &result)
-	if err == nil && ((!job.Desired && !result.LifecycleApplied) || (job.Remove && !result.PurgeApplied)) {
-		return 0, ErrNodeLifecycle
-	}
-	return result.OcservID, err
+	_, err = m.query(ctx, job.Node, Query{Operation: "terminate", RadiusUsername: customer.Username})
+	return err
 }
 
 func (m *Master) purgeCompletedCustomers(ctx context.Context) {
@@ -228,9 +138,6 @@ func (m *Master) purgeCompletedCustomers(ctx context.Context) {
 	}
 	for _, customer := range customers {
 		err := m.store.Transaction(ctx, func(tx *repository.PortalRepository) error {
-			if err := m.revokeCustomerCertificates(ctx, tx, customer.ID); err != nil {
-				return err
-			}
 			return tx.PurgeCustomer(ctx, customer.ID)
 		})
 		if err != nil {
@@ -240,7 +147,7 @@ func (m *Master) purgeCompletedCustomers(ctx context.Context) {
 }
 
 func provisioningError(err error) string {
-	for _, known := range []error{ErrConflict, ErrInvalid, ErrMissingDefaults, ErrNodeSetup, ErrNodeLifecycle, ErrNodeGroup, ErrNodeAuth, ErrNodeTLS} {
+	for _, known := range []error{ErrInvalid, ErrNodeAuth, ErrNodeTLS} {
 		if errors.Is(err, known) {
 			return known.Error()
 		}

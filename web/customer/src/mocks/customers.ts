@@ -29,8 +29,6 @@ const summary: SummaryResponse = {
     traffic_size: 100,
     running_rx: 12,
     running_tx: 4,
-    certificate_available: true,
-    certificate_enabled: true,
     is_locked: false,
   },
   usage: {
@@ -259,15 +257,10 @@ export const mockCustomers = {
       connection_name: "Ocserv VPN",
       server_address: "vpn.example.test",
       server_port: 443,
-      certificate_password: "customer",
-      certificate_import_uri: "cisco-secure-client://import",
       connection_create_uri: "cisco-secure-client://connect",
     };
   },
-  async certificate(): Promise<Blob> {
-    await ready();
-    return new Blob(["mock certificate"], { type: "application/x-pkcs12" });
-  },
+
   async accept(): Promise<void> {
     await ready();
   },

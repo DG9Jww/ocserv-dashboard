@@ -24,17 +24,6 @@ func (a Agent) ServiceName() string { return "customer-node" }
 
 func (a Agent) Register(api *echo.Group) {
 	group := api.Group("/customer-node", a.authenticate)
-	group.POST("/apply", func(c *echo.Context) error {
-		var input federation.Apply
-		if err := c.Bind(&input); err != nil {
-			return failure(c, federation.ErrInvalid)
-		}
-		id, err := a.Node.Apply(c.Request().Context(), input)
-		if err != nil {
-			return failure(c, err)
-		}
-		return c.JSON(http.StatusOK, federation.NodeResult{OcservID: id, LifecycleApplied: true, PurgeApplied: input.Remove})
-	})
 	group.POST("/query", func(c *echo.Context) error {
 		var input federation.Query
 		if err := c.Bind(&input); err != nil {
@@ -129,7 +118,6 @@ func failure(c *echo.Context, err error) error {
 	status, code := http.StatusServiceUnavailable, federation.ErrUnavailable.Error()
 	switch {
 	case errors.Is(err, federation.ErrInvalid), errors.Is(err, federation.ErrMissingDefaults), errors.Is(err, federation.ErrNoGrants),
-		errors.Is(err, federation.ErrNodeSetup), errors.Is(err, federation.ErrNodeGroup),
 		errors.Is(err, federation.ErrUsername), errors.Is(err, federation.ErrPassword):
 		status, code = http.StatusBadRequest, err.Error()
 	case errors.Is(err, federation.ErrConflict), errors.Is(err, gorm.ErrDuplicatedKey), strings.Contains(err.Error(), "SQLSTATE 23505"):

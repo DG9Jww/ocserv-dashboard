@@ -4,12 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"errors"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/ocserv/configfile"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 )
 
@@ -58,9 +56,6 @@ func NewOcservUser() *OcservUser {
 // a per-user configuration file is also written into ocserv.ConfigUserBaseDir
 // with permission 0640. Returns an error if user creation fails.
 func (u *OcservUser) Create(group, username, password string, config *models.OcservUserConfig) error {
-	if password == models.PortalManagedPassword {
-		return u.SyncConfig(username, group, config)
-	}
 	if err := u.SetPassword(group, username, password); err != nil {
 		return err
 	}
@@ -68,9 +63,6 @@ func (u *OcservUser) Create(group, username, password string, config *models.Ocs
 }
 
 func (u *OcservUser) SetPassword(group, username, password string) error {
-	if password == models.PortalManagedPassword {
-		return errors.New("managed customer passwords are changed in the unified portal")
-	}
 	args := []string{"-c", configfile.OcpasswdPath, username}
 	if group != "" && group != "defaults" {
 		args = append([]string{"-g", group}, args...)
@@ -114,11 +106,6 @@ func (u *OcservUser) UnLock(username string) (string, error) {
 // Delete removes a user account from ocserv by running ocpasswd with the -d flag.
 // Returns the command output or an error.
 func (u *OcservUser) Delete(username string) (string, error) {
-	if validCertificateUsername(username) {
-		if err := os.Remove(filepath.Join("/etc/ocserv/managed-customers", username)); err != nil && !os.IsNotExist(err) {
-			return "", err
-		}
-	}
 	if err := u.RevokeCertificate(username); err != nil {
 		return "", err
 	}

@@ -22,15 +22,13 @@ export async function login(request: LoginData): Promise<LoginResponse> {
     ? mockCustomers.login(request)
     : (await httpClient.post<LoginResponse>(path + "/login", request)).data;
 }
-type PortalStatus = { partial: boolean; unavailable: boolean; pending: boolean; managed: boolean };
-const noStatus: PortalStatus = { partial: false, unavailable: false, pending: false, managed: false };
+type PortalStatus = { partial: boolean; unavailable: boolean };
+const noStatus: PortalStatus = { partial: false, unavailable: false };
 
 function portalStatus(response: AxiosResponse): PortalStatus {
   return {
     partial: response.headers["x-ocserv-partial"] === "true",
     unavailable: response.headers["x-ocserv-unavailable"] === "true",
-    pending: response.headers["x-ocserv-sync-pending"] === "true",
-    managed: response.headers["x-ocserv-managed"] === "true",
   };
 }
 function result<T>(response: AxiosResponse<T>) {
@@ -59,9 +57,9 @@ export async function terminateSessions(): Promise<boolean> {
   if (isTestMode) { await mockCustomers.accept(); return false; }
   return portalStatus(await httpClient.post(path + "/terminate_sessions")).partial;
 }
-export async function changePassword(request: ChangePasswordInput): Promise<boolean> {
-  if (isTestMode) { await mockCustomers.changePassword(request); return false; }
-  return portalStatus(await httpClient.post(path + "/password", request)).pending;
+export async function changePassword(request: ChangePasswordInput): Promise<void> {
+  if (isTestMode) return mockCustomers.changePassword(request);
+  await httpClient.post(path + "/password", request);
 }
 export async function getActivities(params: ActivitiesQuery) {
   if (isTestMode) return { data: await mockCustomers.activities(params) as PortalActivities, status: noStatus };
@@ -80,13 +78,4 @@ export async function getCiscoSetup(): Promise<CiscoSetup> {
   return isTestMode
     ? mockCustomers.ciscoSetup()
     : (await httpClient.get<CiscoSetup>(path + "/setup/cisco")).data;
-}
-export async function downloadCiscoCertificate(): Promise<Blob> {
-  return isTestMode
-    ? mockCustomers.certificate()
-    : (
-        await httpClient.get<Blob>(path + "/setup/cisco/certificate", {
-          responseType: "blob",
-        })
-      ).data;
 }

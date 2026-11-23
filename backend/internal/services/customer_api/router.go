@@ -18,7 +18,5 @@ func (s *Service) Register(e *echo.Group) {
 	g.GET("/stats", s.controller.Stats)
 	g.GET("/activities", s.controller.Activities)
 	g.GET("/bandwidth", s.controller.Bandwidth)
-	g.GET("/certificate", s.controller.DownloadCertificate, middlewares.RateLimitMiddleware(2, "m", 5))
 	g.GET("/setup/cisco", s.controller.CiscoSetup, middlewares.RateLimitMiddleware(2, "m", 5))
-	g.GET("/setup/cisco/certificate", s.controller.DownloadCiscoSetupCertificate, middlewares.RateLimitMiddleware(10, "m", 20))
 }

@@ -32,7 +32,6 @@ export interface NodeDefaults {
   traffic_type: (typeof trafficTypes)[number];
   traffic_size: number;
   expiry_days: number;
-  certificate_group: string;
 }
 export interface Assignment {
   customer_id: string;
@@ -44,7 +43,6 @@ export interface Assignment {
   error: string;
 }
 export interface Inventory {
-  radius?: boolean;
   nodes: { id: string; name: string }[];
   groups: NodeGroup[] | null;
   customers: PortalCustomer[] | null;

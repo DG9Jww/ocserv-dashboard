@@ -139,15 +139,15 @@ func (u *BulkUsecase) Delete(ctx context.Context, principal authz.Principal, inp
 		return nil
 	})
 	if err != nil {
-		if !errors.Is(err, ErrManagedCustomerDelete) {
-			u.rollbackExternal(undo)
-		}
+		u.rollbackExternal(undo)
 		return nil, err
 	}
 	u.reload()
-	for _, account := range deleted {
-		if _, err := u.runtime.Terminate(account.Username); err != nil {
-			logger.Warn("failed to terminate deleted ocserv user %s: %v", account.Username, err)
+	if standaloneSessions() {
+		for _, account := range deleted {
+			if _, err := u.runtime.Terminate(account.Username); err != nil {
+				logger.Warn("failed to terminate deleted ocserv user %s: %v", account.Username, err)
+			}
 		}
 	}
 	return &BulkDeleteResponse{Count: len(deleted)}, nil
@@ -199,7 +199,7 @@ func (u *BulkUsecase) SetEnabled(ctx context.Context, principal authz.Principal,
 		u.rollbackExternal(undo)
 		return nil, err
 	}
-	if !*input.Enabled {
+	if !*input.Enabled && standaloneSessions() {
 		for _, account := range updated {
 			if !account.IsLocked {
 				continue

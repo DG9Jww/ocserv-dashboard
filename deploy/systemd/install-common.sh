@@ -307,7 +307,6 @@ build_ui() {
 
 setup_ocserv_host() {
     log "configuring Ocserv certificates, authentication, VPN network, and firewall"
-    install -D -m 755 "${PROJECT_ROOT}/deploy/common/portal-connect-check.sh" /usr/local/lib/ocserv-dashboard/portal-connect-check
     install -D -m 644 "${PROJECT_ROOT}/deploy/common/radius-config.sh" /usr/local/lib/ocserv-dashboard/radius-config.sh
     # The shared setup keeps Docker and systemd Ocserv layouts identical.
     # shellcheck source=/dev/null

@@ -2,10 +2,6 @@ package federation
 
 import (
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"crypto/sha256"
 	"errors"
 	"net/http"
 	"regexp"
@@ -24,12 +20,8 @@ var (
 	ErrInvalid         = errors.New("invalid_customer_configuration")
 	ErrUnavailable     = errors.New("customer_nodes_unavailable")
 	ErrDefault         = errors.New("customer_default_unavailable")
-	ErrPending         = errors.New("customer_sync_pending")
 	ErrNoGrants        = errors.New("customer_grant_required")
 	ErrMissingDefaults = errors.New("customer_node_defaults_missing")
-	ErrNodeSetup       = errors.New("customer_node_setup_required")
-	ErrNodeLifecycle   = errors.New("customer_node_lifecycle_upgrade_required")
-	ErrNodeGroup       = errors.New("customer_ocserv_group_missing")
 	ErrNodeAuth        = errors.New("customer_node_auth_failed")
 	ErrNodeTLS         = errors.New("customer_node_tls_failed")
 	ErrUsername        = errors.New("customer_invalid_username")
@@ -44,41 +36,16 @@ type Master struct {
 	store              *repository.PortalRepository
 	agents             *repository.OcservAgentRepository
 	local              *Node
-	box                cipher.AEAD
 	secret             []byte
 	client             *http.Client
 	radiusTerminations chan radiusTermination
 }
 
-func NewMaster(store *repository.PortalRepository, agents *repository.OcservAgentRepository, local *Node, secret string) (*Master, error) {
-	key := sha256.Sum256([]byte("ocserv-portal-encryption-v1\x00" + secret))
-	block, err := aes.NewCipher(key[:])
-	if err != nil {
-		return nil, err
+func NewMaster(store *repository.PortalRepository, agents *repository.OcservAgentRepository, local *Node, secret string) *Master {
+	return &Master{
+		store: store, agents: agents, local: local, secret: []byte(secret),
+		client: newNodeClient(), radiusTerminations: make(chan radiusTermination, 128),
 	}
-	box, err := cipher.NewGCM(block)
-	if err != nil {
-		return nil, err
-	}
-	master := &Master{store: store, agents: agents, local: local, box: box, secret: []byte(secret), client: newNodeClient()}
-	if local.radius {
-		master.radiusTerminations = make(chan radiusTermination, 128)
-	}
-	return master, nil
-}
-
-func (m *Master) encrypt(value []byte, scope string) []byte {
-	nonce := make([]byte, m.box.NonceSize())
-	rand.Read(nonce)
-	return m.box.Seal(nonce, nonce, value, []byte(scope))
-}
-
-func (m *Master) decrypt(value []byte, scope string) ([]byte, error) {
-	n := m.box.NonceSize()
-	if len(value) < n {
-		return nil, errors.New("invalid encrypted value")
-	}
-	return m.box.Open(nil, value[:n], value[n:], []byte(scope))
 }
 
 type CustomerInput struct {
@@ -102,7 +69,6 @@ type InventoryNode struct {
 }
 
 type Inventory struct {
-	Radius      bool                       `json:"radius,omitempty"`
 	Nodes       []InventoryNode            `json:"nodes"`
 	Groups      []models.PortalNodeGroup   `json:"groups"`
 	Defaults    []models.PortalNodeDefault `json:"defaults"`
@@ -125,7 +91,7 @@ func (m *Master) nodes(ctx context.Context) ([]InventoryNode, error) {
 }
 
 func (m *Master) Inventory(ctx context.Context) (Inventory, error) {
-	out := Inventory{Radius: !m.local.certificate}
+	var out Inventory
 	var err error
 	if out.Nodes, err = m.nodes(ctx); err != nil {
 		return out, err
@@ -170,7 +136,7 @@ func effective(customer models.PortalCustomer, groups []models.PortalNodeGroup) 
 	return nodes
 }
 
-func (m *Master) synchronize(ctx context.Context, tx *repository.PortalRepository, customer models.PortalCustomer, groups []models.PortalNodeGroup, forceNode string) error {
+func (m *Master) synchronize(ctx context.Context, tx *repository.PortalRepository, customer models.PortalCustomer, groups []models.PortalNodeGroup) error {
 	desired := effective(customer, groups)
 	current, err := tx.Assignments(ctx, customer.ID)
 	if err != nil {
@@ -180,26 +146,19 @@ func (m *Master) synchronize(ctx context.Context, tx *repository.PortalRepositor
 		want := desired[row.Node]
 		remove := customer.DeletedAt != nil
 		delete(desired, row.Node)
-		if row.Desired == want && row.Remove == remove && !(want && (forceNode == "*" || forceNode == row.Node)) {
+		if row.Desired == want && row.Remove == remove {
 			continue
 		}
 		row.Desired, row.Remove, row.Version, row.Error, row.RetryAt = want, remove, row.Version+1, "", time.Now().UTC()
-		if !m.local.certificate && want {
+		if want {
 			row.Applied = row.Version
-		}
-		if remove && (m.local.certificate || row.OcservID != 0) {
-			// Let every earlier provisioning request expire before dropping the node binding.
-			row.RetryAt = customer.DeletedAt.Add(2 * provisionLifetime)
 		}
 		if err := tx.Save(ctx, &row); err != nil {
 			return err
 		}
 	}
 	for node := range desired {
-		row := models.PortalAssignment{CustomerID: customer.ID, Node: node, Desired: true, Version: 1, RetryAt: time.Now().UTC()}
-		if !m.local.certificate {
-			row.Applied = row.Version
-		}
+		row := models.PortalAssignment{CustomerID: customer.ID, Node: node, Desired: true, Version: 1, Applied: 1, RetryAt: time.Now().UTC()}
 		if err := tx.Save(ctx, &row); err != nil {
 			return err
 		}
@@ -265,13 +224,9 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 		if err := ensureNodeDefaults(ctx, tx, targets, previousNodes); err != nil {
 			return err
 		}
-		force := ""
 		if id == "" || input.Password != "" {
-			if err := m.setPassword(&customer, input.Password); err != nil {
+			if err := setPassword(&customer, input.Password); err != nil {
 				return err
-			}
-			if !m.local.radius {
-				force = "*"
 			}
 		}
 		if id == "" {
@@ -282,11 +237,11 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 		if err != nil {
 			return err
 		}
-		return m.synchronize(ctx, tx, customer, groups, force)
+		return m.synchronize(ctx, tx, customer, groups)
 	})
 }
 
-func (m *Master) setPassword(customer *models.PortalCustomer, password string) error {
+func setPassword(customer *models.PortalCustomer, password string) error {
 	if !validPassword(password) {
 		return ErrPassword
 	}
@@ -295,11 +250,6 @@ func (m *Master) setPassword(customer *models.PortalCustomer, password string) e
 		return err
 	}
 	customer.PasswordHash = hash
-	if m.local.radius {
-		customer.PasswordBox = []byte{}
-	} else {
-		customer.PasswordBox = m.encrypt([]byte(password), "password:"+customer.Username)
-	}
 	return nil
 }
 
@@ -332,7 +282,7 @@ func (m *Master) SaveGroup(ctx context.Context, group models.PortalNodeGroup) er
 		}
 		for _, customer := range customers {
 			if slices.Contains(customer.Groups, group.ID) {
-				if err := m.synchronize(ctx, tx, customer, groups, ""); err != nil {
+				if err := m.synchronize(ctx, tx, customer, groups); err != nil {
 					return err
 				}
 			}
@@ -351,54 +301,7 @@ func (m *Master) SaveDefaults(ctx context.Context, value models.PortalNodeDefaul
 	if value.TrafficType == models.Free {
 		value.TrafficSize = 0
 	}
-	return m.store.Transaction(ctx, func(tx *repository.PortalRepository) error {
-		groups, err := tx.Groups(ctx)
-		if err != nil {
-			return err
-		}
-		if m.local.certificate && value.CertificateGroup != "" && !slices.ContainsFunc(groups, func(g models.PortalNodeGroup) bool { return g.ID == value.CertificateGroup }) {
-			return ErrInvalid
-		}
-		previous, err := tx.Defaults(ctx)
-		if err != nil {
-			return err
-		}
-		old, _ := defaultsFor(previous, value.Node)
-		if !m.local.certificate {
-			value.CertificateGroup, value.TrustVersion = old.CertificateGroup, old.TrustVersion
-			return tx.Save(ctx, &value)
-		}
-		changed := old.TrustVersion == 0 || old.CertificateGroup != value.CertificateGroup
-		value.TrustVersion = old.TrustVersion
-		if changed {
-			value.TrustVersion++
-		}
-		if err := tx.Save(ctx, &value); err != nil {
-			return err
-		}
-		if !changed {
-			return nil
-		}
-		customers, err := tx.Customers(ctx)
-		if err != nil {
-			return err
-		}
-		for _, customer := range customers {
-			if effective(customer, groups)[value.Node] {
-				if err := m.synchronize(ctx, tx, customer, groups, value.Node); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	})
-}
-
-func scope(d models.PortalNodeDefault) string {
-	if d.CertificateGroup != "" {
-		return "group:" + d.CertificateGroup
-	}
-	return "node:" + d.Node
+	return m.store.Save(ctx, &value)
 }
 
 func defaultsFor(defaults []models.PortalNodeDefault, node string) (models.PortalNodeDefault, error) {
@@ -452,7 +355,7 @@ func (m *Master) SetCustomerStatus(ctx context.Context, id string, locked, remov
 		if remove {
 			now := time.Now().UTC()
 			customer.DeletedAt = &now
-			customer.PasswordHash, customer.PasswordBox = []byte{}, []byte{}
+			customer.PasswordHash = []byte{}
 			customer.Nodes, customer.Groups, customer.DefaultNode = []string{}, []string{}, ""
 		}
 		if err := ensureNodeDefaults(ctx, tx, effective(customer, groups), previous); err != nil {
@@ -461,6 +364,6 @@ func (m *Master) SetCustomerStatus(ctx context.Context, id string, locked, remov
 		if err := tx.Save(ctx, &customer); err != nil {
 			return err
 		}
-		return m.synchronize(ctx, tx, customer, groups, "")
+		return m.synchronize(ctx, tx, customer, groups)
 	})
 }

@@ -107,14 +107,13 @@ type DailyTraffic struct {
 }
 
 type OcservUserSessionLog struct {
-	PortalKey       string                 `json:"portal_key,omitempty" gorm:"-"`
-	PortalAccountID *uint                  `json:"-" gorm:"index"`
-	ID              uint                   `json:"-" gorm:"primaryKey;autoIncrement"`
-	Username        string                 `json:"username" gorm:"type:varchar(64);index" validate:"required"`
-	IP              string                 `json:"ip" gorm:"type:varchar(45)" validate:"omitempty"`
-	Event           OcservUserSessionEvent `json:"event" gorm:"type:varchar(64)" enums:"user-agent,handshake,periodic-stats,disconnect" validate:"required"`
-	Message         string                 `json:"message" gorm:"type:text" validate:"required"`
-	CreatedAt       time.Time              `json:"created_at" validate:"required"`
+	PortalKey string                 `json:"portal_key,omitempty" gorm:"-"`
+	ID        uint                   `json:"-" gorm:"primaryKey;autoIncrement"`
+	Username  string                 `json:"username" gorm:"type:varchar(64);index" validate:"required"`
+	IP        string                 `json:"ip" gorm:"type:varchar(45)" validate:"omitempty"`
+	Event     OcservUserSessionEvent `json:"event" gorm:"type:varchar(64)" enums:"user-agent,handshake,periodic-stats,disconnect" validate:"required"`
+	Message   string                 `json:"message" gorm:"type:text" validate:"required"`
+	CreatedAt time.Time              `json:"created_at" validate:"required"`
 }
 
 func (c *OcservUserConfig) Value() (driver.Value, error) {

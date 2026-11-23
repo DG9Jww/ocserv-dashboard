@@ -35,7 +35,7 @@ func TestCustomerNodeEndpointsRequireTLSAndNodeToken(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodPost, "/api/customer-node/apply", strings.NewReader("{"))
+			req := httptest.NewRequest(http.MethodPost, "/api/customer-node/query", strings.NewReader("{"))
 			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 			req.Header.Set(echo.HeaderAuthorization, tc.auth)
 			if tc.tls {

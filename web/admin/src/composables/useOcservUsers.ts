@@ -60,12 +60,10 @@ export function useOcservUsers() {
   const detailLoading = shallowRef(false);
   const mutating = shallowRef(false);
   const error = shallowRef<string | null>(null);
-  const managedDeleteBlocked = shallowRef(false);
   const success = shallowRef<OcservUsersSuccess | null>(null);
 
   function clearFeedback(): void {
     error.value = null;
-    managedDeleteBlocked.value = false;
     success.value = null;
   }
 
@@ -118,17 +116,6 @@ export function useOcservUsers() {
       return true;
     } catch (cause) {
       const failure = normalizeApiError(cause);
-      const payload = failure.data as { error?: unknown } | undefined;
-      const codes = Array.isArray(payload?.error)
-        ? payload.error
-        : [payload?.error];
-      if (successType === "delete" || successType === "bulkDelete") {
-        managedDeleteBlocked.value = [...codes, failure.message].some(
-          (code) =>
-            code === "managed_customer_delete_blocked" ||
-            code === "managed customer accounts retain their node history",
-        );
-      }
       error.value = failure.message;
       return false;
     } finally {
@@ -218,7 +205,6 @@ export function useOcservUsers() {
     loadUser,
     loading: shallowReadonly(loading),
     lock,
-    managedDeleteBlocked: shallowReadonly(managedDeleteBlocked),
     meta: shallowReadonly(meta),
     mutating: shallowReadonly(mutating),
     refresh,

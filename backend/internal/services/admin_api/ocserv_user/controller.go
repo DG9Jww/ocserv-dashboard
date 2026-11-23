@@ -546,10 +546,6 @@ func (ctl *Controller) TerminateSessionById(c *echo.Context) error {
 }
 
 func (ctl *Controller) respondError(c *echo.Context, err error) error {
-	if errors.Is(err, userusecase.ErrManagedCustomerDelete) {
-		return ctl.request.BadRequest(c, userusecase.ErrManagedCustomerDelete,
-			"This is a managed customer account. Use Customer Management to revoke access to this node or permanently delete the customer and their node records.")
-	}
 	if errors.Is(err, authz.ErrForbidden) {
 		return echo.NewHTTPError(http.StatusForbidden, err.Error())
 	}

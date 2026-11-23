@@ -11,8 +11,6 @@ export type SessionEvent =
   "user-agent" | "handshake" | "periodic-stats" | "disconnect";
 
 export interface Customer {
-  certificate_available?: boolean;
-  certificate_enabled?: boolean;
   deactivated_at?: string;
   expire_at?: string;
   expire_days_after_first_connection?: number;
@@ -86,8 +84,6 @@ export interface OnlineUserSession {
 }
 export interface CiscoSetup {
   radius?: boolean;
-  certificate_import_uri?: string;
-  certificate_password?: string;
   connection_create_uri?: string;
   connection_name?: string;
   server_address?: string;

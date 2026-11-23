@@ -11,7 +11,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v5"
 	"github.com/mmtaee/ocserv-dashboard/backend/config"
-	ocservaccount "github.com/mmtaee/ocserv-dashboard/backend/internal/ocserv/user"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/platform/database"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/platform/httpserver"
 	logging "github.com/mmtaee/ocserv-dashboard/backend/internal/platform/logging"
@@ -78,17 +77,13 @@ func serve() error {
 	}
 	registrars := []httpserver.RouteRegistrar{admin}
 	var master *federation.Master
-	if cfg.CustomerMultiNodeEnabled {
+	if cfg.RadiusAuth {
 		store := repository.NewPortalRepository()
-		node := federation.NewNode(store, repository.NewtOcservUserRepository(), repository.NewSystemRepository(),
-			repository.NewUserRepository(), ocservaccount.NewOcservUser(), vpnruntime.NewClient(), strings.TrimSpace(os.Getenv("SUPERADMIN_USERNAME")), cfg.RadiusAuth, cfg.CertificateAuth)
+		node := federation.NewNode(repository.NewSystemRepository(), vpnruntime.NewClient())
 		if cfg.AgentNode {
 			registrars = append(registrars, customernodes.Agent{Node: node, Tokens: repository.NewAgentTokenRepository()})
 		} else {
-			master, err = federation.NewMaster(store, repository.NewOcservAgentRepository(), node, cfg.SecretKey)
-			if err != nil {
-				return err
-			}
+			master = federation.NewMaster(store, repository.NewOcservAgentRepository(), node, cfg.SecretKey)
 			admin.AttachCustomerManagement(func(group *echo.Group, authenticate echo.MiddlewareFunc) {
 				customernodes.RegisterAdmin(group, master, authenticate)
 			})
@@ -96,8 +91,6 @@ func serve() error {
 				registrars = append(registrars, customerapi.NewFederated(master))
 			}
 		}
-	} else if cfg.CustomerAPIEnabled {
-		registrars = append(registrars, customerapi.New(cfg))
 	}
 	apiServer := httpserver.New(cfg, registrars...)
 
@@ -109,11 +102,9 @@ func serve() error {
 	}
 	if master != nil {
 		group.Go(func() error { return master.Run(groupCtx) })
-		if cfg.RadiusAuth {
-			group.Go(func() error {
-				return customernodes.RunRadius(groupCtx, master, cfg.CustomerRadiusRESTSecret, dockerMode)
-			})
-		}
+		group.Go(func() error {
+			return customernodes.RunRadius(groupCtx, master, cfg.CustomerRadiusRESTSecret, dockerMode)
+		})
 	}
 	if cfg.TelegramEnabled {
 		receiptsDir := strings.TrimSpace(os.Getenv("TELEGRAM_RECEIPTS_DIR"))

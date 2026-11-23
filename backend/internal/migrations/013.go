@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var portalTables = []any{&models.PortalCustomer{}, &models.PortalNodeGroup{}, &models.PortalNodeDefault{}, &models.PortalAssignment{}, &models.PortalSigningCA{}, &models.PortalClientCertificate{}}
+var portalTables = []any{&models.PortalCustomer{}, &models.PortalNodeGroup{}, &models.PortalNodeDefault{}, &models.PortalAssignment{}}
 
 var Migration013 = &gormigrate.Migration{
 	ID:       "013_unified_customer_portal",

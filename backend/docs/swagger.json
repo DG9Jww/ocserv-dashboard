@@ -1,18 +1,8 @@
 {
-    "consumes": [
-        "application/json"
-    ],
-    "produces": [
-        "application/json"
-    ],
     "swagger": "2.0",
     "info": {
-        "description": "Administrative API for managing Ocserv Dashboard users, groups, reports, runtime, backups, system settings, Telegram integrations, and agent nodes.",
-        "title": "Ocserv Dashboard Admin API",
-        "contact": {},
-        "version": "1.0"
+        "contact": {}
     },
-    "basePath": "/api",
     "paths": {
         "/auth/logout": {
             "post": {
@@ -437,37 +427,6 @@
                 }
             }
         },
-        "/customers/certificate": {
-            "get": {
-                "tags": [
-                    "Customers"
-                ],
-                "summary": "Download customer certificate",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bearer TOKEN",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "file"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/request.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/customers/disconnect_sessions": {
             "post": {
                 "tags": [
@@ -510,7 +469,7 @@
                 "summary": "Customer login",
                 "parameters": [
                     {
-                        "description": "Ocserv credentials",
+                        "description": "Customer credentials",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -632,37 +591,6 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/customer.CiscoSetup"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/request.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/customers/setup/cisco/certificate": {
-            "get": {
-                "tags": [
-                    "Customers"
-                ],
-                "summary": "Download Cisco setup certificate",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bearer TOKEN",
-                        "name": "Authorization",
-                        "in": "header",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "file"
                         }
                     },
                     "401": {
@@ -4493,12 +4421,6 @@
         "customer.CiscoSetup": {
             "type": "object",
             "properties": {
-                "certificate_import_uri": {
-                    "type": "string"
-                },
-                "certificate_password": {
-                    "type": "string"
-                },
                 "connection_create_uri": {
                     "type": "string"
                 },
@@ -4519,12 +4441,6 @@
         "customer.Customer": {
             "type": "object",
             "properties": {
-                "certificate_available": {
-                    "type": "boolean"
-                },
-                "certificate_enabled": {
-                    "type": "boolean"
-                },
                 "deactivated_at": {
                     "type": "string"
                 },
@@ -4757,7 +4673,7 @@
             "properties": {
                 "password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 4
                 }
             }
@@ -4771,12 +4687,12 @@
             "properties": {
                 "new_password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 4
                 },
                 "old_password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 4
                 }
             }
@@ -4790,7 +4706,7 @@
             "properties": {
                 "password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 4
                 },
                 "username": {
@@ -4865,7 +4781,7 @@
             "properties": {
                 "password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 2,
                     "example": "doe123456"
                 },
@@ -4927,7 +4843,7 @@
             "properties": {
                 "new_password": {
                     "type": "string",
-                    "maxLength": 16,
+                    "maxLength": 32,
                     "minLength": 4
                 },
                 "secret_key": {
@@ -6050,6 +5966,9 @@
                 "message": {
                     "type": "string"
                 },
+                "portal_key": {
+                    "type": "string"
+                },
                 "username": {
                     "type": "string"
                 }
@@ -6090,6 +6009,9 @@
                     "type": "string"
                 },
                 "_Last connected at": {
+                    "type": "string"
+                },
+                "portal_key": {
                     "type": "string"
                 },
                 "vhost": {
@@ -7026,6 +6948,9 @@
                 "ban_reset_time": {
                     "type": "integer"
                 },
+                "ban_time": {
+                    "type": "integer"
+                },
                 "banner": {
                     "type": "string"
                 },
@@ -7066,9 +6991,6 @@
                     "type": "integer"
                 },
                 "max_same_clients": {
-                    "type": "integer"
-                },
-                "min_reauth_time": {
                     "type": "integer"
                 },
                 "mobile_dpd": {
@@ -7135,6 +7057,9 @@
                 "ban_reset_time": {
                     "type": "integer"
                 },
+                "ban_time": {
+                    "type": "integer"
+                },
                 "banner": {
                     "type": "string"
                 },
@@ -7175,9 +7100,6 @@
                     "type": "integer"
                 },
                 "max_same_clients": {
-                    "type": "integer"
-                },
-                "min_reauth_time": {
                     "type": "integer"
                 },
                 "mobile_dpd": {

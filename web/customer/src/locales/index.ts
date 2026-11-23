@@ -76,11 +76,8 @@ const en = {
   downloads: {
     title: "Certificates and Cisco setup",
     ciscoSetup: "Cisco setup",
-    ciscoCertificate: "Cisco setup certificate",
     connectionName: "Connection name",
     server: "Server",
-    certificatePassword: "Certificate password",
-    import: "Import certificate",
     connect: "Create connection",
   },
   password: {
@@ -169,11 +166,8 @@ const translations = {
     downloads: {
       title: "Certificati e configurazione Cisco",
       ciscoSetup: "Configurazione Cisco",
-      ciscoCertificate: "Certificato configurazione Cisco",
       connectionName: "Nome connessione",
       server: "Server",
-      certificatePassword: "Password certificato",
-      import: "Importa certificato",
       connect: "Crea connessione",
     },
     password: {
@@ -260,11 +254,8 @@ const translations = {
     downloads: {
       title: "证书与 Cisco 设置",
       ciscoSetup: "Cisco 设置",
-      ciscoCertificate: "Cisco 设置证书",
       connectionName: "连接名称",
       server: "服务器",
-      certificatePassword: "证书密码",
-      import: "导入证书",
       connect: "创建连接",
     },
     password: {
@@ -351,11 +342,8 @@ const translations = {
     downloads: {
       title: "憑證與 Cisco 設定",
       ciscoSetup: "Cisco 設定",
-      ciscoCertificate: "Cisco 設定憑證",
       connectionName: "連線名稱",
       server: "伺服器",
-      certificatePassword: "憑證密碼",
-      import: "匯入憑證",
       connect: "建立連線",
     },
     password: {
@@ -442,11 +430,8 @@ const translations = {
     downloads: {
       title: "Сертификаты и настройка Cisco",
       ciscoSetup: "Настройка Cisco",
-      ciscoCertificate: "Сертификат настройки Cisco",
       connectionName: "Имя подключения",
       server: "Сервер",
-      certificatePassword: "Пароль сертификата",
-      import: "Импортировать сертификат",
       connect: "Создать подключение",
     },
     password: {
@@ -533,11 +518,8 @@ const translations = {
     downloads: {
       title: "گواهی‌ها و راه‌اندازی Cisco",
       ciscoSetup: "راه‌اندازی Cisco",
-      ciscoCertificate: "گواهی راه‌اندازی Cisco",
       connectionName: "نام اتصال",
       server: "سرور",
-      certificatePassword: "گذرواژه گواهی",
-      import: "واردکردن گواهی",
       connect: "ایجاد اتصال",
     },
     password: {
@@ -624,11 +606,8 @@ const translations = {
     downloads: {
       title: "الشهادات وإعداد Cisco",
       ciscoSetup: "إعداد Cisco",
-      ciscoCertificate: "شهادة إعداد Cisco",
       connectionName: "اسم الاتصال",
       server: "الخادم",
-      certificatePassword: "كلمة مرور الشهادة",
-      import: "استيراد الشهادة",
       connect: "إنشاء اتصال",
     },
     password: {

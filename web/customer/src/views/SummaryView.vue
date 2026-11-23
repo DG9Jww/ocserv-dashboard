@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, shallowRef } from "vue";
+import { computed, onMounted, shallowRef } from "vue";
 import { useI18n } from "vue-i18n";
 import { normalizeApiError } from "@/api/http";
 import { getSummary, type PortalSummary } from "@/api/services/customers";
@@ -14,32 +14,6 @@ const data = shallowRef<PortalSummary | null>(null);
 const loading = shallowRef(true);
 const error = shallowRef("");
 const status = computed(() => data.value?.portalStatus);
-const passwordRevision = shallowRef(0);
-let timer: ReturnType<typeof setTimeout> | undefined;
-let mounted = true;
-function schedulePendingRefresh() {
-  clearTimeout(timer);
-  if (mounted && status.value?.pending) {
-    timer = setTimeout(() => refreshAfterChange(), 5000);
-  }
-}
-async function refreshAfterChange() {
-  try {
-    data.value = await getSummary();
-  } catch (cause) {
-    error.value = normalizeApiError(cause).message;
-  } finally {
-    schedulePendingRefresh();
-  }
-}
-function passwordChanged() {
-  if (data.value?.portalStatus) {
-    data.value = { ...data.value, portalStatus: { ...data.value.portalStatus, pending: true } };
-  }
-  passwordRevision.value++;
-  void refreshAfterChange();
-}
-onUnmounted(() => { mounted = false; clearTimeout(timer); });
 const account = computed(() => data.value?.ocserv_user);
 const accountInitials = computed(() => {
   const username = account.value?.username?.trim() ?? "";
@@ -70,7 +44,6 @@ async function load(): Promise<void> {
   error.value = "";
   try {
     data.value = auth.takeRestoredSummary() ?? (await getSummary());
-    schedulePendingRefresh();
   } catch (cause) {
     error.value = normalizeApiError(cause).message;
   } finally {
@@ -87,7 +60,6 @@ onMounted(load);
     <p v-if="status?.unavailable || status?.partial" role="status" class="text-sm text-muted-foreground">
       {{ t(status.unavailable ? "portal.unavailable" : "portal.partial") }}
     </p>
-    <p v-if="status?.pending" role="status" class="text-sm text-muted-foreground">{{ t("portal.pending") }}</p>
     <p v-if="loading">{{ t("common.loading") }}</p>
     <div v-else-if="data" class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
       <article class="card relative overflow-hidden">
@@ -143,7 +115,7 @@ onMounted(load);
             </div>
             <div class="rounded-xl bg-muted/60 p-3">
               <dt class="text-xs font-medium text-muted-foreground">
-                {{ t(status?.managed ? "portal.defaultPlan" : "summary.trafficPlan") }}
+                {{ t("portal.defaultPlan") }}
               </dt>
               <dd class="mt-1 truncate font-medium">
                 {{ account?.traffic_type || "—" }}
@@ -155,7 +127,7 @@ onMounted(load);
               </dt>
               <dd class="mt-1 font-medium">
                 {{
-                  account?.traffic_size === undefined || (status?.managed && !account.traffic_type)
+                  account?.traffic_size === undefined || !account.traffic_type
                     ? "—"
                     : n(account.traffic_size, "traffic") + " GiB"
                 }}
@@ -226,8 +198,8 @@ onMounted(load);
       </article>
 
       <section class="lg:col-span-2 grid gap-6 border-t pt-6">
-        <DownloadsView :key="passwordRevision" :sync-pending="status?.pending ?? false" />
-        <PasswordView @changed="passwordChanged" />
+        <DownloadsView />
+        <PasswordView />
       </section>
     </div>
   </section>

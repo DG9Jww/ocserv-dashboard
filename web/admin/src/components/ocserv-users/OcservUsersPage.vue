@@ -50,10 +50,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { useOcservUsers } from "@/composables/useOcservUsers";
-import { useAuthStore } from "@/stores/auth";
 
 const { t } = useI18n({ useScope: "global" });
-const auth = useAuthStore();
 const {
   activate,
   bulkDescription,
@@ -70,7 +68,6 @@ const {
   loadUser,
   loading,
   lock,
-  managedDeleteBlocked,
   meta,
   mutating,
   refresh,
@@ -116,12 +113,7 @@ const totalPages = computed(() =>
 const successMessage = computed(() =>
   success.value ? t(`ocservUsers.${success.value}Success`) : "",
 );
-const actionError = computed(() =>
-  error.value && managedDeleteBlocked.value
-    ? t("ocservUsers.managedDeleteBlocked")
-    : error.value,
-);
-const requestError = computed(() => actionError.value || pageError.value);
+const requestError = computed(() => error.value || pageError.value);
 
 function currentFilters(): OcservUsersListOptions {
   const expireInDays = Number(filters.expireInDays);
@@ -574,22 +566,10 @@ onMounted(async () => {
       :action="confirmationAction"
       :description="confirmationDescription"
       :destructive="confirmationDestructive"
-      :error="confirmationFailed ? (actionError ?? undefined) : undefined"
+      :error="confirmationFailed ? (error ?? undefined) : undefined"
       :pending="mutating"
       :title="confirmationTitle"
       @confirm="runConfirmation"
-    >
-      <template #error-action>
-        <RouterLink
-          v-if="
-            confirmationFailed && managedDeleteBlocked && auth.user?.superadmin
-          "
-          :to="{ name: 'customer-management' }"
-          class="justify-self-start text-sm text-primary underline underline-offset-4"
-          @click="confirmationOpen = false"
-          >{{ t("customerManagement.title") }}</RouterLink
-        >
-      </template>
-    </OcservUserActionDialog>
+    />
   </div>
 </template>

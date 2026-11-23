@@ -24,7 +24,7 @@ Ocserv Dashboard is a self-hosted control plane for an [OpenConnect Server (ocse
 
 ## 🙋 Customer self-service portal
 
-The optional customer portal lets each VPN user sign in with their Ocserv username and password. From a single Home page, customers can view account status, expiry, traffic allowance, received/transmitted usage, certificates, Cisco Secure Client setup details, and change their password. They can also review active sessions and activity history, view daily bandwidth statistics, and disconnect or terminate their own sessions.
+The optional customer portal lets each VPN user sign in with their RADIUS customer username and password. From a single Home page, customers can view account status, expiry, traffic allowance, received/transmitted usage, Cisco Secure Client setup details, and change their password. They can also review active sessions and activity history, view daily bandwidth statistics, and disconnect or terminate their own sessions.
 
 <p align="center">
   <img src="docs/customer.png" alt="Ocserv Dashboard customer self-service portal" width="100%">
@@ -375,7 +375,7 @@ sudo docker compose -f compose.production.yml down
 
 The API reference is available at `/swagger/index.html` on the backend endpoint. Keep it private or protected in production.
 
-The Docker entrypoint creates `ocserv.conf` when the mounted file is missing. It reuses an existing file on restart, including its certificate paths. Set `OCSERV_REGENERATE_CONFIG=true` only when you intend to replace the file, and recreate the container with the flag off after regeneration. Enabling or disabling unified customer authentication updates the required authentication directives. While unified customer authentication is enabled, incompatible changes to its installed authentication directives stop startup and leave the file intact.
+The Docker entrypoint creates `ocserv.conf` when the mounted file is missing. It reuses an existing file on restart, including its certificate paths. Set `OCSERV_REGENERATE_CONFIG=true` only when you intend to replace the file, and recreate the container with the flag off after regeneration. Selecting RADIUS in `ocserv.conf` enables unified customer management. Incompatible directives stop startup and leave the file intact.
 
 ### 🔑 Agent token management
 
@@ -452,13 +452,11 @@ For a new translation key, update all supported language catalogs in the same ch
 
 ## Unified customer portal
 
-For RADIUS and certificate authentication on the same listener, follow the [RADIUS deployment guide](deploy/radius/README.md). For unified customer management with certificate authentication, set `CUSTOMER_MULTI_NODE_ENABLED=true` on the Master and each participating Agent, then redeploy. Keep `CUSTOMER_API_ENABLED=true` on Master. Agents need `AGENT_API_HTTPS=true` and a certificate trusted by Master. Master uses its `SECRET_KEY` to protect stored provisioning credentials and certificate keys. Keep that key with the Master database backup.
+Unified customers authenticate through FreeRADIUS. Follow the [RADIUS deployment guide](deploy/radius/README.md) and keep `CUSTOMER_API_ENABLED=true` on Master for the portal. The Master holds customer credentials, node access and RADIUS history. An account can use one node or one node group.
 
-In **Agent Nodes**, create node groups and configure each participating node's Ocserv user group, traffic and expiry defaults, and certificate group. Then open **Customer management** to create customers, assign each customer one node group or one individual node, and check each node's sync status. Set a default connection for each customer who should be able to download a certificate and create a Cisco connection. The node chosen for this default must have a Cisco connection profile in its system settings.
+Configure node defaults and groups in **Agent Nodes**, then create customers in **Customer Management**. Customers use the existing `/customer/` path to view their sessions and traffic or change their password. A default connection with a configured Cisco profile enables Cisco Secure Client setup.
 
-Customers use the existing `/customer/` path. They see combined traffic and activity, and receive a certificate for their default connection. A certificate can be reused on other permitted nodes in that certificate group. Use **Manage access** to replace the current assignment. For customers with older multi-grant configurations, select one node or node group when saving the account. Locking a customer disables portal access and locks their node accounts. Unlocking restores access according to the customer's grants. Deleting a customer permanently removes their node accounts, history, assignments and certificate files. Offline nodes keep the deletion pending until all nodes confirm removal. Upgrade the Master and participating Agents together. The shared CA retains revoked certificate serial numbers so a previously issued certificate cannot authenticate if the username is reused.
-
-The managed certificate mode uses a node-local Ocserv connection check. The installer removes the password fallback generated by older releases. Start with fresh test accounts or clear conflicting local accounts before granting access. Keep the persistent `/etc/ocserv` volume on each node. The installer configures the default Ocserv virtual host and requires its own connection check.
+Locking, deleting or revoking a customer blocks new authentication at Master immediately. Master also asks the affected nodes to terminate existing sessions and retries when a node is offline.
 
 ## 📄 License
 
