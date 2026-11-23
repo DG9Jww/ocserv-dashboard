@@ -6,12 +6,17 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
+	"github.com/mmtaee/ocserv-dashboard/backend/internal/platform/database"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/repository"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/services/customer_nodes"
 	federation "github.com/mmtaee/ocserv-dashboard/backend/internal/usecase/customer_federation"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 type radiusStub struct {
@@ -19,6 +24,37 @@ type radiusStub struct {
 	policy        federation.RadiusPolicy
 	err           error
 	packet        repository.RadiusAccounting
+}
+
+func TestRecordRadiusStartUpdatesLockedSession(t *testing.T) {
+	sqlDB, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = sqlDB.Close() })
+	db, err := gorm.Open(postgres.New(postgres.Config{Conn: sqlDB}), &gorm.Config{DisableAutomaticPing: true})
+	require.NoError(t, err)
+	originalDB := database.PostgresDB
+	database.PostgresDB = db
+	t.Cleanup(func() { database.PostgresDB = originalDB })
+
+	const customerID = "018f5485-0000-7000-8000-000000000001"
+	packet := repository.RadiusAccounting{
+		Node: "master", SessionID: "session", Event: models.EventHandshake,
+		At: time.Now().UTC(), IP: "192.0.2.1",
+	}
+	mock.ExpectBegin()
+	mock.ExpectQuery(`^SELECT \* FROM "portal_radius_sessions" WHERE node = \$1 AND session_id = \$2 LIMIT \$3 FOR UPDATE$`).
+		WithArgs(packet.Node, packet.SessionID, 1).
+		WillReturnRows(sqlmock.NewRows([]string{"customer_id", "rx", "tx", "started", "stopped"}).AddRow(customerID, 0, 0, false, false))
+	mock.ExpectExec(`^UPDATE "portal_radius_sessions" SET "rx"=\$1,"started"=\$2,"stopped"=\$3,"tx"=\$4 WHERE node = \$5 AND session_id = \$6$`).
+		WithArgs(0, true, false, 0, packet.Node, packet.SessionID).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`^INSERT INTO "portal_radius_events"`).
+		WithArgs(packet.At, customerID, packet.Event, packet.IP, packet.Node, 0, 0).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectCommit()
+
+	id, err := repository.NewPortalRepository().RecordRadius(context.Background(), packet)
+	require.NoError(t, err)
+	require.Equal(t, customerID, id)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func (s *radiusStub) AuthorizeRadius(_ context.Context, node, username, password, sessionID string) (federation.RadiusPolicy, error) {

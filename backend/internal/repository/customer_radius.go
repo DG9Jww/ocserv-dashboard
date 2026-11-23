@@ -60,7 +60,10 @@ func (r *PortalRepository) BindCertificateAccounting(ctx context.Context, assign
 func (r *PortalRepository) RecordRadius(ctx context.Context, packet RadiusAccounting) (string, error) {
 	var id string
 	err := r.db.WithContext(ctx).Transaction(func(db *gorm.DB) error {
-		key := db.Table("portal_radius_sessions").Where("node = ? AND session_id = ?", packet.Node, packet.SessionID)
+		// Keep the locking read's FROM clause out of the UPDATE.
+		key := db.Table("portal_radius_sessions").
+			Where("node = ? AND session_id = ?", packet.Node, packet.SessionID).
+			Session(&gorm.Session{})
 		var state radiusSession
 		err := key.Clauses(clause.Locking{Strength: "UPDATE"}).Take(&state).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
