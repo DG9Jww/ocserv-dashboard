@@ -382,7 +382,7 @@ ensure_ocserv_layout() {
             die "configure certificate or RADIUS auth in ${OCSERV_CONF}"
         if [[ "${auth_method}" == radius* ]]; then
             is_true "${OCSERV_REGENERATE_CONFIG:-false}" && die "RADIUS requires OCSERV_REGENERATE_CONFIG=false"
-            radius_ocserv_config_ready "${OCSERV_CONF}" "${auth_method}" || die "RADIUS requires auth and accounting, groupconfig=true, and certificate as the only supported enable-auth method"
+            radius_ocserv_config_ready "${OCSERV_CONF}" "${auth_method}" || die "RADIUS configuration preflight failed"
         else
             certificate_ocserv_config_ready "${OCSERV_CONF}" || die "remove enable-auth from ${OCSERV_CONF}"
         fi

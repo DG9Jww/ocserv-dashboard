@@ -13,11 +13,13 @@ The Dashboard Master stores customer accounts, bcrypt password hashes and node g
 7. In each node's persistent `ocserv.conf`, replace existing `auth`, `enable-auth`, and `acct` directives with the following. The installer configures the Dashboard connection check and the managed client CA and CRL. Keep the VPN server's TLS certificate and private key settings. Use the default virtual host. For custom Ocserv groups, configure the names in the corresponding node's `select-group` and group profiles.
 
    ```ini
-   auth = "radius[config=/etc/ocserv/radiusclient.conf,groupconfig=true]"
+   auth = "radius[config=/etc/ocserv/radiusclient.conf,groupconfig=false]"
    enable-auth = "certificate"
    acct = "radius[config=/etc/ocserv/radiusclient.conf]"
    stats-report-time = 60
    ```
+
+   Keep existing `config-per-user` and `config-per-group` directives. With `groupconfig=false`, Ocserv uses local supplemental settings for both login methods. Master checks expiry and quotas during session admission and accounting. A RADIUS-only configuration using `groupconfig=true` must omit both local directives.
 
 8. Run `freeradius -XC` with your distribution's service configuration before reloading FreeRADIUS. Use the same Master and Agent names in Dashboard grants and the client map. Upgrade Master and each Agent using their usual deployment command during the maintenance window. For a Docker Master, use `./setup.sh --deployment docker --node master --yes` to apply the image, environment and port mapping. Apply authentication changes on participating nodes together. Recreate the Docker Master when changing from certificate to RADIUS so the host loopback callback port is published.
 

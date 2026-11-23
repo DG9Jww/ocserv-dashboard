@@ -70,14 +70,15 @@ radius_ocserv_config_ready() {
                 }
                 if (key == "auth" && option ~ /^groupconfig=/) {
                     groupconfigs++
-                    if (option != "groupconfig=true")
-                        invalid("auth requires groupconfig=true", FNR)
+                    if (option != "groupconfig=" required_groupconfig)
+                        invalid("auth requires groupconfig=" required_groupconfig, FNR)
                 }
             }
             if (configs != 1) invalid(key " requires exactly one config= option", FNR)
             if (key == "auth" && groupconfigs != 1)
-                invalid("auth requires exactly one groupconfig=true option", FNR)
+                invalid("auth requires exactly one groupconfig=" required_groupconfig " option", FNR)
         }
+        BEGIN { required_groupconfig = (method == "radius-certificate") ? "false" : "true" }
         /^[[:space:]]*(#|$)/ { next }
         /^[[:space:]]*\[vhost[[:space:]]*:/ {
             invalid("RADIUS requires the default Ocserv virtual host", FNR)
@@ -92,6 +93,8 @@ radius_ocserv_config_ready() {
             if (key == "auth" || key == "acct") {
                 if (++count[key] > 1) invalid("duplicate " key " directive", FNR)
                 validate_radius(key, value)
+            } else if (method == "radius" && (key == "config-per-user" || key == "config-per-group") && value != "") {
+                invalid(key " conflicts with groupconfig=true in RADIUS-only mode", FNR)
             } else if (key == "enable-auth") {
                 if (++count[key] > 1 || method != "radius-certificate" || value != "certificate")
                     invalid("the only supported alternative is enable-auth = certificate", FNR)
