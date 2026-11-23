@@ -350,6 +350,14 @@ configure_customer_portal_auth() {
         return
     fi
 
+    if [[ "${mode}" == on ]] && \
+       { [[ "${hook_state}" == managed ]] || \
+         grep -Eq '^[[:space:]]*(ca-cert|crl)[[:space:]]*=[[:space:]]*/etc/ocserv/ssl/portal-trust/' "${OCSERV_CONF}"; }; then
+        die "${OCSERV_CONF} was kept unchanged: unified customer mode requires auth = \"certificate\"," \
+            'enable-auth = "plain[passwd=/etc/ocserv/ocpasswd]", and its managed CA, CRL, and connect-script.' \
+            'Restore those directives or disable CUSTOMER_MULTI_NODE_ENABLED before choosing another authentication setup.'
+    fi
+
     local config_tmp
     config_tmp="$(mktemp "${OCSERV_CONF}.XXXXXX")"
     awk -v hook="${hook}" -v mode="${mode}" -v ca="${ca}" -v crl="${crl}" '
