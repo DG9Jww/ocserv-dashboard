@@ -60,10 +60,13 @@ func serve() error {
 	}()
 
 	config.Init(debugMode, serverHost, serverPort)
+	cfg := config.Get()
+	if err := cfg.LoadOcservAuth("/etc/ocserv/ocserv.conf"); err != nil {
+		return err
+	}
 	if err := config.Validate(); err != nil {
 		return err
 	}
-	cfg := config.Get()
 	if err := database.Connect(); err != nil {
 		return err
 	}
@@ -78,7 +81,7 @@ func serve() error {
 	if cfg.CustomerMultiNodeEnabled {
 		store := repository.NewPortalRepository()
 		node := federation.NewNode(store, repository.NewtOcservUserRepository(), repository.NewSystemRepository(),
-			repository.NewUserRepository(), ocservaccount.NewOcservUser(), vpnruntime.NewClient(), strings.TrimSpace(os.Getenv("SUPERADMIN_USERNAME")), cfg.CustomerAuthMode == "radius")
+			repository.NewUserRepository(), ocservaccount.NewOcservUser(), vpnruntime.NewClient(), strings.TrimSpace(os.Getenv("SUPERADMIN_USERNAME")), cfg.RadiusAuth, cfg.CertificateAuth)
 		if cfg.AgentNode {
 			registrars = append(registrars, customernodes.Agent{Node: node, Tokens: repository.NewAgentTokenRepository()})
 		} else {
@@ -100,13 +103,13 @@ func serve() error {
 
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error { return apiServer.Run(groupCtx) })
-	if cfg.CustomerAuthMode != "radius" {
+	if !cfg.RadiusAuth {
 		backgroundWorker := workerservice.New(dockerMode)
 		group.Go(func() error { return backgroundWorker.Run(groupCtx) })
 	}
 	if master != nil {
 		group.Go(func() error { return master.Run(groupCtx) })
-		if cfg.CustomerAuthMode == "radius" {
+		if cfg.RadiusAuth {
 			group.Go(func() error {
 				return customernodes.RunRadius(groupCtx, master, cfg.CustomerRadiusRESTSecret, dockerMode)
 			})

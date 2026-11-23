@@ -35,56 +35,72 @@ func (m *Master) AuthorizeRadius(ctx context.Context, node, name, password, sess
 	if customer.Locked || customer.DeletedAt != nil || bcrypt.CompareHashAndPassword(customer.PasswordHash, []byte(password)) != nil {
 		return policy, ErrRadiusRejected
 	}
-	if err := m.validateNodes(ctx, []string{node}); err != nil {
-		if errors.Is(err, ErrInvalid) {
-			return policy, ErrRadiusRejected
-		}
-		return policy, err
-	}
-	rows, err := m.store.Assignments(ctx, customer.ID)
+	row, policy, err := m.radiusGrant(ctx, customer, node)
 	if err != nil {
 		return policy, err
 	}
-	for _, row := range rows {
-		if row.Node != node || !row.Desired {
-			continue
-		}
-		defaults, err := m.store.Defaults(ctx)
-		if err != nil {
-			return policy, err
-		}
-		d, err := defaultsFor(defaults, node)
-		if err != nil {
-			return policy, ErrRadiusRejected
-		}
-		now := time.Now().UTC()
-		if expires := radiusExpiry(customer, d); expires != nil {
-			seconds := math.Floor(expires.Sub(now).Seconds())
-			if seconds <= 0 {
-				return policy, ErrRadiusRejected
-			}
-			policy.SessionTimeout = uint32(min(seconds, math.MaxUint32))
-		}
-		exceeded, err := m.radiusQuotaExceeded(ctx, row, d, now)
-		if err != nil {
-			return policy, err
-		}
-		if exceeded {
-			return policy, ErrRadiusRejected
-		}
-		bound, err := m.store.BindRadiusSession(ctx, customer, row, sessionID)
-		if err != nil {
-			return policy, err
-		}
-		if !bound {
-			return policy, ErrRadiusRejected
-		}
-		if d.Group != "defaults" {
-			policy.Group = d.Group
-		}
-		return policy, nil
+	bound, err := m.store.BindRadiusSession(ctx, customer, row, sessionID)
+	if err != nil {
+		return policy, err
 	}
-	return policy, ErrRadiusRejected
+	if !bound {
+		return policy, ErrRadiusRejected
+	}
+	return policy, nil
+}
+
+func (m *Master) radiusGrant(ctx context.Context, customer models.PortalCustomer, node string) (models.PortalAssignment, RadiusPolicy, error) {
+	var assignment models.PortalAssignment
+	var policy RadiusPolicy
+	if customer.Locked || customer.DeletedAt != nil {
+		return assignment, policy, ErrRadiusRejected
+	}
+	if err := m.validateNodes(ctx, []string{node}); err != nil {
+		if errors.Is(err, ErrInvalid) {
+			err = ErrRadiusRejected
+		}
+		return assignment, policy, err
+	}
+	rows, err := m.store.Assignments(ctx, customer.ID)
+	if err != nil {
+		return assignment, policy, err
+	}
+	for _, row := range rows {
+		if row.Node == node && row.Desired {
+			assignment = row
+			break
+		}
+	}
+	if !assignment.Desired || (m.local.certificate && (assignment.OcservID == 0 || assignment.Version != assignment.Applied)) {
+		return assignment, policy, ErrRadiusRejected
+	}
+	defaults, err := m.store.Defaults(ctx)
+	if err != nil {
+		return assignment, policy, err
+	}
+	d, err := defaultsFor(defaults, node)
+	if err != nil {
+		return assignment, policy, ErrRadiusRejected
+	}
+	now := time.Now().UTC()
+	if expires := radiusExpiry(customer, d); expires != nil {
+		seconds := math.Floor(expires.Sub(now).Seconds())
+		if seconds <= 0 {
+			return assignment, policy, ErrRadiusRejected
+		}
+		policy.SessionTimeout = uint32(min(seconds, math.MaxUint32))
+	}
+	exceeded, err := m.radiusQuotaExceeded(ctx, assignment, d, now)
+	if err != nil {
+		return assignment, policy, err
+	}
+	if exceeded {
+		return assignment, policy, ErrRadiusRejected
+	}
+	if d.Group != "defaults" {
+		policy.Group = d.Group
+	}
+	return assignment, policy, nil
 }
 
 func radiusExpiry(customer models.PortalCustomer, d models.PortalNodeDefault) *time.Time {
@@ -136,6 +152,24 @@ type radiusTermination struct {
 }
 
 func (m *Master) AccountRadius(ctx context.Context, packet repository.RadiusAccounting) error {
+	if m.local.certificate && packet.Event == models.EventHandshake {
+		// Certificate-authenticated sessions have no preceding RADIUS Access-Request.
+		customer, err := m.store.ByUsername(ctx, packet.Username)
+		if err != nil {
+			return err
+		}
+		grant, _, err := m.radiusGrant(ctx, customer, packet.Node)
+		if err != nil {
+			return err
+		}
+		bound, err := m.store.BindCertificateAccounting(ctx, grant, packet)
+		if err != nil {
+			return err
+		}
+		if !bound {
+			return ErrRadiusRejected
+		}
+	}
 	id, err := m.store.RecordRadius(ctx, packet)
 	if err != nil || id == "" || packet.Event == models.EventDisconnect {
 		return err

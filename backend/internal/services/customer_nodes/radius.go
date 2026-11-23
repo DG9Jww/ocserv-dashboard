@@ -77,8 +77,8 @@ func (a radiusAttributes) counter(direction string) (int64, error) {
 }
 
 func (a radiusAttributes) accounting(now time.Time) (repository.RadiusAccounting, error) {
-	p := repository.RadiusAccounting{Node: a.field("NAS-Identifier"), SessionID: a.field("Acct-Session-Id"), At: now}
-	if !federation.ValidUsername(a.field("User-Name")) || p.Node == "" || len(p.Node) > 32 || p.SessionID == "" || len(p.SessionID) > 128 {
+	p := repository.RadiusAccounting{Node: a.field("NAS-Identifier"), SessionID: a.field("Acct-Session-Id"), Username: a.field("User-Name"), At: now}
+	if !federation.ValidUsername(p.Username) || p.Node == "" || len(p.Node) > 32 || p.SessionID == "" || len(p.SessionID) > 128 {
 		return p, federation.ErrInvalid
 	}
 	switch a.field("Acct-Status-Type") {

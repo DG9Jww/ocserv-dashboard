@@ -40,11 +40,6 @@ mkdir -p /etc/ocserv /var/run/ocserv
 echo "Adding ocserv user..."
 id -u ocserv &>/dev/null || useradd -r -s /usr/sbin/nologin ocserv
 
-echo "Copying default config..."
-if [[ ! -e /etc/ocserv/ocserv.conf && ! -L /etc/ocserv/ocserv.conf && -f doc/sample.config ]]; then
-    cp doc/sample.config /etc/ocserv/ocserv.conf
-fi
-
 # -------------------------
 # Optional: shrink binary
 # -------------------------

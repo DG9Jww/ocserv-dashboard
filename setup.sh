@@ -726,21 +726,25 @@ install_docker() {
         )
     fi
 
-    local customer_auth_mode
-    customer_auth_mode="$(env_value CUSTOMER_AUTH_MODE local)"
-    [[ "${customer_auth_mode}" == local || "${customer_auth_mode}" == radius ]] || die "CUSTOMER_AUTH_MODE must be local or radius"
-    if [[ "${customer_auth_mode}" == radius ]]; then
-        [[ "$(normalized_bool "$(env_value CUSTOMER_MULTI_NODE_ENABLED false)")" == true ]] || die "RADIUS requires CUSTOMER_MULTI_NODE_ENABLED=true"
+    local ocserv_config="${data_root}/ocserv/ocserv.conf"
+    local auth_method=certificate
+    # shellcheck source=deploy/common/radius-config.sh
+    source "${PROJECT_ROOT}/deploy/common/radius-config.sh"
+    if [[ -e "${ocserv_config}" || -L "${ocserv_config}" ]]; then
+        auth_method="$(ocserv_auth_method "${ocserv_config}")" ||
+            die "configure certificate or RADIUS auth in ${ocserv_config}"
+    fi
+    if [[ "${auth_method}" == radius* ]]; then
         [[ "$(normalized_bool "$(env_value OCSERV_REGENERATE_CONFIG false)")" == false ]] || die "RADIUS requires OCSERV_REGENERATE_CONFIG=false"
-        # shellcheck source=deploy/common/radius-config.sh
-        source "${PROJECT_ROOT}/deploy/common/radius-config.sh"
-        radius_ocserv_config_ready "${data_root}/ocserv/ocserv.conf" || die "configure RADIUS auth and accounting in ${data_root}/ocserv/ocserv.conf before updating"
+        radius_ocserv_config_ready "${ocserv_config}" "${auth_method}" || die "configure RADIUS auth and accounting in ${ocserv_config} before updating"
         if [[ "${agent_node}" == false ]]; then
             local radius_secret
             radius_secret="$(env_value CUSTOMER_RADIUS_REST_SECRET '')"
             [[ "${#radius_secret}" -ge 32 ]] || die "set a Master CUSTOMER_RADIUS_REST_SECRET of at least 32 characters"
             service_publish_args+=(--publish 127.0.0.1:18120:18120/tcp)
         fi
+    elif [[ -f "${ocserv_config}" ]] && ! certificate_ocserv_config_ready "${ocserv_config}"; then
+        die "remove enable-auth from ${ocserv_config} before updating"
     fi
 
     check_docker

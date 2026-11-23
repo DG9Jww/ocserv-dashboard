@@ -125,7 +125,7 @@ func (m *Master) nodes(ctx context.Context) ([]InventoryNode, error) {
 }
 
 func (m *Master) Inventory(ctx context.Context) (Inventory, error) {
-	out := Inventory{Radius: m.local.radius}
+	out := Inventory{Radius: !m.local.certificate}
 	var err error
 	if out.Nodes, err = m.nodes(ctx); err != nil {
 		return out, err
@@ -184,10 +184,10 @@ func (m *Master) synchronize(ctx context.Context, tx *repository.PortalRepositor
 			continue
 		}
 		row.Desired, row.Remove, row.Version, row.Error, row.RetryAt = want, remove, row.Version+1, "", time.Now().UTC()
-		if m.local.radius && want {
+		if !m.local.certificate && want {
 			row.Applied = row.Version
 		}
-		if remove && (!m.local.radius || row.OcservID != 0) {
+		if remove && (m.local.certificate || row.OcservID != 0) {
 			// Let every earlier provisioning request expire before dropping the node binding.
 			row.RetryAt = customer.DeletedAt.Add(2 * provisionLifetime)
 		}
@@ -197,7 +197,7 @@ func (m *Master) synchronize(ctx context.Context, tx *repository.PortalRepositor
 	}
 	for node := range desired {
 		row := models.PortalAssignment{CustomerID: customer.ID, Node: node, Desired: true, Version: 1, RetryAt: time.Now().UTC()}
-		if m.local.radius {
+		if !m.local.certificate {
 			row.Applied = row.Version
 		}
 		if err := tx.Save(ctx, &row); err != nil {
@@ -356,7 +356,7 @@ func (m *Master) SaveDefaults(ctx context.Context, value models.PortalNodeDefaul
 		if err != nil {
 			return err
 		}
-		if !m.local.radius && value.CertificateGroup != "" && !slices.ContainsFunc(groups, func(g models.PortalNodeGroup) bool { return g.ID == value.CertificateGroup }) {
+		if m.local.certificate && value.CertificateGroup != "" && !slices.ContainsFunc(groups, func(g models.PortalNodeGroup) bool { return g.ID == value.CertificateGroup }) {
 			return ErrInvalid
 		}
 		previous, err := tx.Defaults(ctx)
@@ -364,7 +364,7 @@ func (m *Master) SaveDefaults(ctx context.Context, value models.PortalNodeDefaul
 			return err
 		}
 		old, _ := defaultsFor(previous, value.Node)
-		if m.local.radius {
+		if !m.local.certificate {
 			value.CertificateGroup, value.TrustVersion = old.CertificateGroup, old.TrustVersion
 			return tx.Save(ctx, &value)
 		}

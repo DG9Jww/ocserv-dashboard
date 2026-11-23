@@ -233,7 +233,6 @@ write_ocserv_config() {
     cat >"${OCSERV_CONF}" <<EOF
 # Managed by the ocserv-dashboard container
 auth = "certificate"
-enable-auth = "plain[passwd=/etc/ocserv/ocpasswd]"
 ca-cert = /etc/ocserv/ssl/ca-cert.pem
 crl = /etc/ocserv/ssl/crl.pem
 cert-user-oid = 2.5.4.3
@@ -282,13 +281,7 @@ EOF
 }
 
 configure_customer_portal_auth() {
-    if [[ "${CUSTOMER_AUTH_MODE:-local}" == radius ]]; then
-        # shellcheck source=../common/radius-config.sh
-        source /usr/local/lib/ocserv-dashboard/radius-config.sh
-        radius_ocserv_config_ready "${OCSERV_CONF}" || die "RADIUS mode requires radius auth and accounting, groupconfig=true, and no fallback auth or managed connection hook"
-        return
-    fi
-
+    local auth_method="$1"
     local hook=/usr/local/lib/ocserv-dashboard/portal-connect-check
     local ca="${OCSERV_CA_CERT}"
     local crl="${OCSERV_CRL}"
@@ -306,7 +299,7 @@ configure_customer_portal_auth() {
         END { print custom ? "custom" : (managed ? "managed" : "absent") }
     ' "${OCSERV_CONF}")"
 
-    if is_true "${CUSTOMER_MULTI_NODE_ENABLED:-false}"; then
+    if [[ "${auth_method}" == radius-certificate ]] || is_true "${CUSTOMER_MULTI_NODE_ENABLED:-false}"; then
         mode=on
         ca="${OCSERV_SSL_DIR}/portal-trust/ca.pem"
         crl="${OCSERV_SSL_DIR}/portal-trust/crl.pem"
@@ -331,8 +324,6 @@ configure_customer_portal_auth() {
 
     if [[ "${mode}" == on ]] && awk -v hook="${hook}" -v ca="${ca}" -v crl="${crl}" '
         BEGIN {
-            expected["auth"] = "\"certificate\""
-            expected["enable-auth"] = "\"plain[passwd=/etc/ocserv/ocpasswd]\""
             expected["cert-user-oid"] = "2.5.4.3"
             expected["ca-cert"] = ca
             expected["crl"] = crl
@@ -346,6 +337,7 @@ configure_customer_portal_auth() {
             value = $0
             sub(/^[^=]*=[[:space:]]*/, "", value)
             sub(/[[:space:]]+$/, "", value)
+            sub(/[[:space:]]+#.*$/, "", value)
             if (value == expected[key]) matched[key]++
             seen[key]++
         }
@@ -360,20 +352,16 @@ configure_customer_portal_auth() {
     if [[ "${mode}" == on ]] && \
        { [[ "${hook_state}" == managed ]] || \
          grep -Eq '^[[:space:]]*(ca-cert|crl)[[:space:]]*=[[:space:]]*/etc/ocserv/ssl/portal-trust/' "${OCSERV_CONF}"; }; then
-        die "${OCSERV_CONF} was kept unchanged: unified customer mode requires auth = \"certificate\"," \
-            'enable-auth = "plain[passwd=/etc/ocserv/ocpasswd]", and its managed CA, CRL, and connect-script.' \
-            'Restore those directives or disable CUSTOMER_MULTI_NODE_ENABLED before choosing another authentication setup.'
+        die "${OCSERV_CONF} was kept unchanged: unified certificate authentication requires its managed CA, CRL, and connect-script."
     fi
 
     local config_tmp
     config_tmp="$(mktemp "${OCSERV_CONF}.XXXXXX")"
     awk -v hook="${hook}" -v mode="${mode}" -v ca="${ca}" -v crl="${crl}" '
-        /^[[:space:]]*(auth|enable-auth|ca-cert|crl|cert-user-oid)[[:space:]]*=/ { next }
+        /^[[:space:]]*(ca-cert|crl|cert-user-oid)[[:space:]]*=/ { next }
         /^[[:space:]]*connect-script[[:space:]]*=/ { next }
         { print }
         END {
-            print "auth = \"certificate\""
-            print "enable-auth = \"plain[passwd=/etc/ocserv/ocpasswd]\""
             print "cert-user-oid = 2.5.4.3"
             print "ca-cert = " ca
             print "crl = " crl
@@ -385,29 +373,46 @@ configure_customer_portal_auth() {
 }
 
 ensure_ocserv_layout() {
+    local auth_method=certificate
+    # shellcheck source=../common/radius-config.sh
+    source /usr/local/lib/ocserv-dashboard/radius-config.sh
+    if [[ -e "${OCSERV_CONF}" || -L "${OCSERV_CONF}" ]]; then
+        [[ -s "${OCSERV_CONF}" && -f "${OCSERV_CONF}" ]] || die "existing ${OCSERV_CONF} is empty or is not a regular file"
+        auth_method="$(ocserv_auth_method "${OCSERV_CONF}")" ||
+            die "configure certificate or RADIUS auth in ${OCSERV_CONF}"
+        if [[ "${auth_method}" == radius* ]]; then
+            is_true "${OCSERV_REGENERATE_CONFIG:-false}" && die "RADIUS requires OCSERV_REGENERATE_CONFIG=false"
+            radius_ocserv_config_ready "${OCSERV_CONF}" "${auth_method}" || die "RADIUS requires auth and accounting, groupconfig=true, and certificate as the only supported enable-auth method"
+        else
+            certificate_ocserv_config_ready "${OCSERV_CONF}" || die "remove enable-auth from ${OCSERV_CONF}"
+        fi
+    fi
+
     mkdir -p /etc/ocserv/defaults /etc/ocserv/groups /etc/ocserv/users
     touch /etc/ocserv/defaults/group.conf /etc/ocserv/ocpasswd
     chmod 600 /etc/ocserv/ocpasswd
 
-    if [[ "${CUSTOMER_AUTH_MODE:-local}" == radius ]]; then
-        if [[ ! -s "${OCSERV_CONF}" ]] || is_true "${OCSERV_REGENERATE_CONFIG:-false}"; then
-            die "RADIUS mode requires an existing ocserv.conf and OCSERV_REGENERATE_CONFIG=false"
-        fi
-        configure_customer_portal_auth
+    if [[ "${auth_method}" == radius ]]; then
         log "preserving existing RADIUS configuration in ${OCSERV_CONF}"
         return
     fi
 
     ensure_client_pki
-    if [[ ! -e "${OCSERV_CONF}" && ! -L "${OCSERV_CONF}" ]] || \
-       is_true "${OCSERV_REGENERATE_CONFIG:-false}"; then
+    if [[ ! -e "${OCSERV_CONF}" ]] || is_true "${OCSERV_REGENERATE_CONFIG:-false}"; then
         ensure_server_certificate
         write_ocserv_config
+    elif [[ "${auth_method}" == certificate ]] &&
+        grep -Eq '^[[:space:]]*enable-auth[[:space:]]*=' "${OCSERV_CONF}"; then
+        local config_tmp
+        config_tmp="$(mktemp "${OCSERV_CONF}.XXXXXX")"
+        awk '!/^[[:space:]]*enable-auth[[:space:]]*=/' "${OCSERV_CONF}" >"${config_tmp}"
+        chmod --reference="${OCSERV_CONF}" "${config_tmp}"
+        mv -f "${config_tmp}" "${OCSERV_CONF}"
+        log "removed the legacy password fallback from ${OCSERV_CONF}"
     else
-        [[ -s "${OCSERV_CONF}" && -f "${OCSERV_CONF}" ]] || die "existing ${OCSERV_CONF} is empty or is not a regular file"
         log "preserving existing ${OCSERV_CONF}"
     fi
-    configure_customer_portal_auth
+    configure_customer_portal_auth "${auth_method}"
 }
 
 ensure_networking() {

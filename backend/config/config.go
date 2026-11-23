@@ -22,7 +22,8 @@ type Config struct {
 	TelegramEnabled          bool
 	CustomerAPIEnabled       bool
 	CustomerMultiNodeEnabled bool
-	CustomerAuthMode         string
+	RadiusAuth               bool
+	CertificateAuth          bool
 	CustomerRadiusRESTSecret string
 	AllowOrigins             []string
 	DB                       PostgresConfig
@@ -60,7 +61,6 @@ func Init(debug bool, host string, port int) {
 		TelegramEnabled:          getBoolEnv("TELEGRAM_BOT_ENABLED", false),
 		CustomerAPIEnabled:       getBoolEnv("CUSTOMER_API_ENABLED", true),
 		CustomerMultiNodeEnabled: getBoolEnv("CUSTOMER_MULTI_NODE_ENABLED", false),
-		CustomerAuthMode:         getEnv("CUSTOMER_AUTH_MODE", "local"),
 		CustomerRadiusRESTSecret: os.Getenv("CUSTOMER_RADIUS_REST_SECRET"),
 		AllowOrigins:             strings.Split(allowOrigins, ","),
 		DB:                       loadDatabaseEnv(),
@@ -93,14 +93,11 @@ func Validate() error {
 	if cfg == nil || len(cfg.SecretKey) < 32 {
 		return errors.New("SECRET_KEY must be set to a random value of at least 32 characters")
 	}
-	if cfg.CustomerAuthMode != "local" && cfg.CustomerAuthMode != "radius" {
-		return errors.New("CUSTOMER_AUTH_MODE must be local or radius")
-	}
-	if cfg.CustomerAuthMode == "radius" && (!cfg.CustomerMultiNodeEnabled || (!cfg.AgentNode && len(cfg.CustomerRadiusRESTSecret) < 32)) {
-		return errors.New("RADIUS requires CUSTOMER_MULTI_NODE_ENABLED and a Master CUSTOMER_RADIUS_REST_SECRET of at least 32 characters")
+	if cfg.RadiusAuth && !cfg.AgentNode && len(cfg.CustomerRadiusRESTSecret) < 32 {
+		return errors.New("RADIUS requires a Master CUSTOMER_RADIUS_REST_SECRET of at least 32 characters")
 	}
 	if cfg.CustomerMultiNodeEnabled && ((cfg.AgentNode && !cfg.AgentAPIHTTPS) || (!cfg.AgentNode && cfg.AgentUpstreamScheme != "https")) {
-		return errors.New("CUSTOMER_MULTI_NODE_ENABLED requires HTTPS between Master and Agent")
+		return errors.New("unified customer mode requires HTTPS between Master and Agent")
 	}
 	if cfg.AgentNode && cfg.AgentAPIHTTPS && (cfg.TLSCertFile == "" || cfg.TLSKeyFile == "") {
 		return errors.New("AGENT_API_HTTPS requires TLS_CERT_FILE and TLS_KEY_FILE")

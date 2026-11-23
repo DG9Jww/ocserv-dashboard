@@ -68,6 +68,12 @@ func (r *PortalRepository) Assignments(ctx context.Context, id string) ([]models
 	return assignments, err
 }
 
+func (r *PortalRepository) QueueMissingCertificateAccounts(ctx context.Context, now time.Time) error {
+	return r.db.WithContext(ctx).Model(&models.PortalAssignment{}).
+		Where("desired AND version = applied AND ocserv_id = 0").
+		Updates(map[string]any{"version": gorm.Expr("version + 1"), "retry_at": now, "error": ""}).Error
+}
+
 func (r *PortalRepository) Jobs(ctx context.Context, now time.Time) ([]models.PortalAssignment, error) {
 	var jobs []models.PortalAssignment
 	err := r.db.WithContext(ctx).Where("version > applied AND retry_at <= ?", now).

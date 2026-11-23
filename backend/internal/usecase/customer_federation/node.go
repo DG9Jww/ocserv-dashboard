@@ -39,14 +39,15 @@ type Node struct {
 	runtime        *runtime.Client
 	operator       string
 	radius         bool
+	certificate    bool
 	mu             sync.RWMutex
 	loadedCA       []byte
 	loadedCRL      []byte
 	loadedRevision uint64
 }
 
-func NewNode(store *repository.PortalRepository, users *repository.OcservUserRepository, systems *repository.SystemRepository, admins *repository.UserRepository, accounts *account.OcservUser, runtime *runtime.Client, operator string, radius bool) *Node {
-	return &Node{store: store, users: users, systems: systems, admins: admins, accounts: accounts, runtime: runtime, operator: operator, radius: radius}
+func NewNode(store *repository.PortalRepository, users *repository.OcservUserRepository, systems *repository.SystemRepository, admins *repository.UserRepository, accounts *account.OcservUser, runtime *runtime.Client, operator string, radius, certificate bool) *Node {
+	return &Node{store: store, users: users, systems: systems, admins: admins, accounts: accounts, runtime: runtime, operator: operator, radius: radius, certificate: certificate}
 }
 
 type Trust struct {
@@ -164,7 +165,7 @@ func (n *Node) applyTrust(trust Trust, revision uint64) error {
 	return nil
 }
 
-func portalConfigReady() bool {
+func (n *Node) portalConfigReady() bool {
 	config, err := os.ReadFile("/etc/ocserv/ocserv.conf")
 	if err != nil {
 		return false
@@ -173,23 +174,31 @@ func portalConfigReady() bool {
 		"connect-script": "/usr/local/lib/ocserv-dashboard/portal-connect-check",
 		"ca-cert":        caFile,
 		"crl":            crlFile,
-		"auth":           `"certificate"`,
-		"enable-auth":    `"plain[passwd=/etc/ocserv/ocpasswd]"`,
 		"cert-user-oid":  "2.5.4.3",
 	}
 	hook, err := os.Stat(directives["connect-script"])
 	if err != nil || !hook.Mode().IsRegular() || hook.Mode().Perm()&0111 == 0 {
 		return false
 	}
+	if n.radius {
+		directives["enable-auth"] = `"certificate"`
+	} else {
+		directives["auth"] = `"certificate"`
+	}
 	seen := make(map[string]bool)
 	for _, line := range strings.Split(string(config), "\n") {
 		key, value, ok := strings.Cut(line, "=")
 		key = strings.TrimSpace(key)
-		if strings.HasPrefix(key, "[vhost:") {
+		if strings.HasPrefix(key, "[vhost:") || (key == "enable-auth" && !n.radius) {
 			return false
 		}
 		if expected, found := directives[key]; ok && found {
-			if seen[key] || strings.TrimSpace(value) != expected {
+			value, _, _ = strings.Cut(value, "#")
+			value = strings.TrimSpace(value)
+			if (key == "auth" || key == "enable-auth") && value == "certificate" {
+				value = `"certificate"`
+			}
+			if seen[key] || value != expected {
 				return false
 			}
 			seen[key] = true
@@ -202,7 +211,7 @@ func (n *Node) Apply(ctx context.Context, input Apply) (uint, error) {
 	if !ValidID(input.CustomerID) || !ValidUsername(input.Username) || input.Version == 0 || (input.Desired && input.Remove) {
 		return 0, ErrInvalid
 	}
-	if input.Desired && (n.radius || !portalConfigReady()) {
+	if input.Desired && (!n.certificate || !n.portalConfigReady()) {
 		return 0, ErrNodeSetup
 	}
 	if input.Desired && (input.TrustVersion == 0 || !validPassword(input.Password) || !groupPattern.MatchString(input.Default.Group) ||

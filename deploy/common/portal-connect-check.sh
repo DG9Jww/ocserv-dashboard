@@ -1,5 +1,5 @@
 #!/bin/sh
-# Ocserv supplies USERNAME after either authentication method succeeds.
+# Ocserv supplies USERNAME after authentication.
 set -eu
 case "${USERNAME:-}" in
     ''|.|..|*[!A-Za-z0-9._-]*) exit 1 ;;

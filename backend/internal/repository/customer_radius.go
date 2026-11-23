@@ -12,10 +12,10 @@ import (
 )
 
 type RadiusAccounting struct {
-	Node, SessionID, IP string
-	Event               models.OcservUserSessionEvent
-	At                  time.Time
-	RX, TX              int64
+	Node, SessionID, Username, IP string
+	Event                         models.OcservUserSessionEvent
+	At                            time.Time
+	RX, TX                        int64
 }
 
 type radiusSession struct {
@@ -36,6 +36,23 @@ func (r *PortalRepository) BindRadiusSession(ctx context.Context, customer model
 		ON CONFLICT (node, session_id) DO UPDATE SET customer_id = EXCLUDED.customer_id
 		WHERE portal_radius_sessions.customer_id = EXCLUDED.customer_id AND NOT portal_radius_sessions.stopped
 	`, sessionID, customer.ID, customer.PasswordHash, assignment.Node, assignment.Version)
+	return result.RowsAffected == 1, result.Error
+}
+
+// BindCertificateAccounting admits a session announced by a trusted node's Accounting-Start.
+func (r *PortalRepository) BindCertificateAccounting(ctx context.Context, assignment models.PortalAssignment, packet RadiusAccounting) (bool, error) {
+	result := r.db.WithContext(ctx).Exec(`
+		INSERT INTO portal_radius_sessions (node, session_id, customer_id)
+		SELECT a.node, ?, c.id
+		FROM portal_customers AS c
+		JOIN portal_assignments AS a ON a.customer_id = c.id
+		WHERE c.id = ? AND c.username = ? AND c.created_at <= ?
+		  AND NOT c.locked AND c.deleted_at IS NULL
+		  AND a.node = ? AND a.version = ? AND a.version = a.applied
+		  AND a.desired AND a.ocserv_id > 0
+		ON CONFLICT (node, session_id) DO UPDATE SET customer_id = EXCLUDED.customer_id
+		WHERE portal_radius_sessions.customer_id = EXCLUDED.customer_id AND NOT portal_radius_sessions.stopped
+	`, packet.SessionID, assignment.CustomerID, packet.Username, packet.At, assignment.Node, assignment.Version)
 	return result.RowsAffected == 1, result.Error
 }
 

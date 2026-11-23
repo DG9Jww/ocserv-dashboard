@@ -112,6 +112,11 @@ func (m *Master) query(ctx context.Context, a models.PortalAssignment, q Query) 
 }
 
 func (m *Master) Run(ctx context.Context) error {
+	if m.local.certificate {
+		if err := m.store.QueueMissingCertificateAccounts(ctx, time.Now().UTC()); err != nil {
+			return err
+		}
+	}
 	poll := time.NewTicker(3 * time.Second)
 	defer poll.Stop()
 	for {
@@ -166,14 +171,16 @@ func (m *Master) applyJob(ctx context.Context, job models.PortalAssignment) (uin
 		return 0, ErrPending
 	}
 	if m.local.radius {
-		if job.Desired {
+		if job.Desired && !m.local.certificate {
 			return 0, nil
 		}
-		if _, err := m.query(ctx, job, Query{Operation: "terminate", RadiusUsername: customer.Username}); err != nil {
-			return 0, err
-		}
-		if job.OcservID == 0 && !job.Remove {
-			return 0, nil
+		if !job.Desired {
+			if _, err := m.query(ctx, job, Query{Operation: "terminate", RadiusUsername: customer.Username}); err != nil {
+				return 0, err
+			}
+			if job.OcservID == 0 && !job.Remove {
+				return 0, nil
+			}
 		}
 	}
 	input := Apply{CustomerID: customer.ID, Username: customer.Username, Version: job.Version, Desired: job.Desired, Remove: job.Remove}
@@ -187,7 +194,7 @@ func (m *Master) applyJob(ctx context.Context, job models.PortalAssignment) (uin
 		if err != nil {
 			return 0, err
 		}
-		password, err := m.decrypt(customer.PasswordBox, "password:"+customer.Username)
+		password, err := m.certificatePassword(customer)
 		if err != nil {
 			return 0, err
 		}

@@ -445,7 +445,7 @@ func (m *Master) defaultConnection(ctx context.Context, name string) (models.Por
 		if row.Node != user.DefaultNode || !row.Desired {
 			continue
 		}
-		if !m.local.radius && (row.Applied != row.Version || row.OcservID == 0) {
+		if m.local.certificate && (row.Applied != row.Version || row.OcservID == 0) {
 			return user, models.PortalNodeDefault{}, nil, ErrPending
 		}
 		defaults, err := m.store.Defaults(ctx)
@@ -471,8 +471,8 @@ func (m *Master) CiscoSetup(ctx context.Context, name, _ string) (*customerapi.C
 		return nil, err
 	}
 	var password []byte
-	if !m.local.radius {
-		password, err = m.decrypt(user.PasswordBox, "password:"+name)
+	if m.local.certificate {
+		password, err = m.certificatePassword(user)
 		if err != nil {
 			return nil, err
 		}
@@ -481,11 +481,11 @@ func (m *Master) CiscoSetup(ctx context.Context, name, _ string) (*customerapi.C
 	if err != nil {
 		return nil, err
 	}
-	return &customerapi.CiscoSetup{ConnectionCreateURI: uri, CertificatePassword: string(password), Radius: m.local.radius, ConnectionName: profile.Name, ServerAddress: profile.Address, ServerPort: profile.Port}, nil
+	return &customerapi.CiscoSetup{ConnectionCreateURI: uri, CertificatePassword: string(password), Radius: !m.local.certificate, ConnectionName: profile.Name, ServerAddress: profile.Address, ServerPort: profile.Port}, nil
 }
 
 func (m *Master) Download(ctx context.Context, name string) ([]byte, error) {
-	if m.local.radius {
+	if !m.local.certificate {
 		return nil, ErrDefault
 	}
 	user, d, _, err := m.defaultConnection(ctx, name)

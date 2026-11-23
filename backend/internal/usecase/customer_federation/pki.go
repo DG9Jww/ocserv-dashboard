@@ -5,10 +5,13 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"math/big"
@@ -78,6 +81,17 @@ func (m *Master) ensureCA(ctx context.Context, tx *repository.PortalRepository, 
 	return ca, tx.SaveNew(ctx, &ca)
 }
 
+func (m *Master) certificatePassword(customer models.PortalCustomer) ([]byte, error) {
+	if !m.local.radius && len(customer.PasswordBox) != 0 {
+		return m.decrypt(customer.PasswordBox, "password:"+customer.Username)
+	}
+	// Use a separate password for PKCS#12 and the node's certificate access record.
+	// This also supports existing RADIUS customers with only a password hash.
+	mac := hmac.New(sha256.New, m.secret)
+	mac.Write([]byte("ocserv-portal-pkcs12-password-v1:" + customer.ID))
+	return base64.RawURLEncoding.AppendEncode(nil, mac.Sum(nil)[:24]), nil
+}
+
 func (m *Master) PKCS12(ctx context.Context, customer models.PortalCustomer, scope string) ([]byte, error) {
 	row, err := m.store.Certificate(ctx, customer.ID, scope)
 	if err == nil {
@@ -99,7 +113,7 @@ func (m *Master) PKCS12(ctx context.Context, customer models.PortalCustomer, sco
 	if err != nil {
 		return nil, err
 	}
-	password, err := m.decrypt(customer.PasswordBox, "password:"+customer.Username)
+	password, err := m.certificatePassword(customer)
 	if err != nil {
 		return nil, err
 	}
