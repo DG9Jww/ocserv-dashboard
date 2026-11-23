@@ -313,7 +313,6 @@ apply_static_defaults() {
     set_env_default PGDATA "\"/var/lib/postgresql/18/docker\""
     set_env_default INSTALL_POSTGRES true
     set_env_default SYSTEMD_INSTALL_DIR "\"/opt/ocserv-dashboard\""
-    set_env_default OCSERV_PRESERVE_CONFIG false
     set_env_default OCSERV_REGENERATE_CONFIG false
     set_env_default TELEGRAM_RECEIPTS_DIR "\"\""
     set_env_default TELEGRAM_I18N_PATH "\"\""

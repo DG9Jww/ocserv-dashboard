@@ -49,7 +49,6 @@ normalize_container_environment() {
 : "${SSL_CN:=ocserv-dashboard}"
 : "${SSL_ORG:=ocserv-dashboard}"
 : "${SSL_EXPIRE:=3650}"
-: "${OCSERV_PRESERVE_CONFIG:=false}"
 : "${PGDATA:=/var/lib/postgresql/18/docker}"
 : "${POSTGRES_HOST:=127.0.0.1}"
 : "${POSTGRES_PORT:=5432}"
@@ -66,7 +65,6 @@ OCSERV_DNS="$(strip_surrounding_quotes "${OCSERV_DNS}")"
 SSL_CN="$(strip_surrounding_quotes "${SSL_CN}")"
 SSL_ORG="$(strip_surrounding_quotes "${SSL_ORG}")"
 SSL_EXPIRE="$(strip_surrounding_quotes "${SSL_EXPIRE}")"
-OCSERV_PRESERVE_CONFIG="$(strip_surrounding_quotes "${OCSERV_PRESERVE_CONFIG}")"
 PGDATA="$(strip_surrounding_quotes "${PGDATA}")"
 POSTGRES_HOST="$(strip_surrounding_quotes "${POSTGRES_HOST}")"
 POSTGRES_PORT="$(strip_surrounding_quotes "${POSTGRES_PORT}")"
@@ -288,6 +286,18 @@ configure_customer_portal_auth() {
     local ca="${OCSERV_CA_CERT}"
     local crl="${OCSERV_CRL}"
     local mode=off
+    local hook_state
+
+    hook_state="$(awk -v hook="${hook}" '
+        /^[[:space:]]*connect-script[[:space:]]*=/ {
+            sub(/^[^=]*=[[:space:]]*/, "")
+            sub(/[[:space:]]+[#].*$/, "")
+            sub(/[[:space:]]+$/, "")
+            if ($0 == hook) managed = 1
+            else custom = 1
+        }
+        END { print custom ? "custom" : (managed ? "managed" : "absent") }
+    ' "${OCSERV_CONF}")"
 
     if is_true "${CUSTOMER_MULTI_NODE_ENABLED:-false}"; then
         mode=on
@@ -297,8 +307,7 @@ configure_customer_portal_auth() {
         if grep -Eq '^[[:space:]]*\[vhost:' "${OCSERV_CONF}"; then
             die "unified customer mode requires the default Ocserv virtual host"
         fi
-        if grep -Eq '^[[:space:]]*connect-script[[:space:]]*=' "${OCSERV_CONF}" && \
-           ! grep -Fxq "connect-script = ${hook}" "${OCSERV_CONF}"; then
+        if [[ "${hook_state}" == custom ]]; then
             die "unified customer mode requires its Ocserv connection check"
         fi
         install -d -m 700 /etc/ocserv/managed-customers
@@ -309,7 +318,35 @@ configure_customer_portal_auth() {
             ln -s portal-trust-bootstrap "${OCSERV_SSL_DIR}/portal-trust"
         fi
         [[ -f "${ca}" && -f "${crl}" ]] || die "customer CA and CRL are missing"
-    elif ! grep -Fxq "connect-script = ${hook}" "${OCSERV_CONF}"; then
+    elif [[ "${hook_state}" != managed ]]; then
+        return
+    fi
+
+    if [[ "${mode}" == on ]] && awk -v hook="${hook}" -v ca="${ca}" -v crl="${crl}" '
+        BEGIN {
+            expected["auth"] = "\"certificate\""
+            expected["enable-auth"] = "\"plain[passwd=/etc/ocserv/ocpasswd]\""
+            expected["cert-user-oid"] = "2.5.4.3"
+            expected["ca-cert"] = ca
+            expected["crl"] = crl
+            expected["connect-script"] = hook
+        }
+        /^[[:space:]]*[^#[:space:]][^=]*=/ {
+            key = $0
+            sub(/=.*/, "", key)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
+            if (!(key in expected)) next
+            value = $0
+            sub(/^[^=]*=[[:space:]]*/, "", value)
+            sub(/[[:space:]]+$/, "", value)
+            if (value == expected[key]) matched[key]++
+            seen[key]++
+        }
+        END {
+            for (key in expected)
+                if (matched[key] != 1 || seen[key] != 1) exit 1
+        }
+    ' "${OCSERV_CONF}"; then
         return
     fi
 
@@ -338,23 +375,13 @@ ensure_ocserv_layout() {
     chmod 600 /etc/ocserv/ocpasswd
 
     ensure_client_pki
-    ensure_server_certificate
-
-    local panel_manages_tls=false
-    if grep -Fxq '# Ocserv Dashboard: certificate paths saved in Settings' "${OCSERV_CONF}" 2>/dev/null; then
-        panel_manages_tls=true
-    fi
-    if [[ ! -f "${OCSERV_CONF}" ]] || \
-       is_true "${OCSERV_REGENERATE_CONFIG:-false}" || \
-       { ! grep -q '^# Managed by the ocserv-dashboard container$' "${OCSERV_CONF}" && \
-         [[ "${panel_manages_tls}" == false ]] && \
-         ! is_true "${OCSERV_PRESERVE_CONFIG}"; }; then
+    if [[ ! -e "${OCSERV_CONF}" && ! -L "${OCSERV_CONF}" ]] || \
+       is_true "${OCSERV_REGENERATE_CONFIG:-false}"; then
+        ensure_server_certificate
         write_ocserv_config
     else
+        [[ -s "${OCSERV_CONF}" && -f "${OCSERV_CONF}" ]] || die "existing ${OCSERV_CONF} is empty or is not a regular file"
         log "preserving existing ${OCSERV_CONF}"
-        if [[ "${panel_manages_tls}" == false ]] && grep -q '^# Managed by the ocserv-dashboard container$' "${OCSERV_CONF}"; then
-            sed -i "s|^server-cert = .*|server-cert = ${SERVER_CERT}|; s|^server-key = .*|server-key = ${SERVER_KEY}|" "${OCSERV_CONF}"
-        fi
     fi
     configure_customer_portal_auth
 }

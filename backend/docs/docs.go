@@ -7181,7 +7181,7 @@ const docTemplate = `{
                 "max_same_clients": {
                     "type": "integer"
                 },
-                "min_reauth_time": {
+                "ban_time": {
                     "type": "integer"
                 },
                 "mobile_dpd": {

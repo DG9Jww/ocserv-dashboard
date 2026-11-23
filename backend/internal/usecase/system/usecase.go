@@ -61,7 +61,7 @@ func ValidateConfig(config OcservConfig) error {
 	for name, value := range map[string]*int{
 		"keepalive": config.Keepalive, "dpd": config.DPD, "mobile_dpd": config.MobileDPD,
 		"switch_to_tcp_timeout": config.SwitchToTCPTimeout, "auth_timeout": config.AuthTimeout,
-		"min_reauth_time": config.MinReauthTime, "ban_reset_time": config.BanResetTime,
+		"ban_time": config.BanTime, "ban_reset_time": config.BanResetTime,
 		"cookie_timeout": config.CookieTimeout, "rekey_time": config.RekeyTime,
 	} {
 		if value != nil && (*value < 0 || *value > 2678400) {
@@ -112,7 +112,7 @@ func hasChanges(config OcservConfig) bool {
 		config.IPv4Network != nil || config.DNS != nil ||
 		config.MaxClients != nil || config.MaxSameClients != nil || config.Keepalive != nil || config.DPD != nil ||
 		config.MobileDPD != nil || config.SwitchToTCPTimeout != nil || config.TryMTUDiscovery != nil ||
-		config.AuthTimeout != nil || config.MinReauthTime != nil || config.MaxBanScore != nil ||
+		config.AuthTimeout != nil || config.BanTime != nil || config.MaxBanScore != nil ||
 		config.BanResetTime != nil || config.CookieTimeout != nil || config.DenyRoaming != nil ||
 		config.RekeyTime != nil || config.RekeyMethod != nil || config.PredictableIPs != nil ||
 		config.TunnelAllDNS != nil || config.PingLeases != nil || config.MTU != nil ||

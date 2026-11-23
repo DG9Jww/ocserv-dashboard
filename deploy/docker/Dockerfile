@@ -103,6 +103,7 @@ RUN apt-get update \
         tini \
     && if [ "${AGENT_NODE}" = "true" ]; then export OCSERV_BUILD_JOBS=1; fi \
     && /usr/local/bin/ocserv-binary-install \
+    && rm -f /etc/ocserv/ocserv.conf \
     && for binary in occtl ocpasswd; do \
         binary_path="$(command -v "${binary}")"; \
         if [ "${binary_path}" != "/usr/bin/${binary}" ]; then \
@@ -156,7 +157,6 @@ ENV OCSERV_PORT=443 \
     SSL_CN=ocserv-dashboard \
     SSL_ORG=ocserv-dashboard \
     SSL_EXPIRE=3650 \
-    OCSERV_PRESERVE_CONFIG=false \
     PGDATA=/var/lib/postgresql/18/docker \
     POSTGRES_HOST=127.0.0.1 \
     POSTGRES_PORT=5432 \

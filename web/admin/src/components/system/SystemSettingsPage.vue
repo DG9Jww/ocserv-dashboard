@@ -64,7 +64,7 @@ const numberFields: (keyof OcservConfig)[] = [
   "max_ban_score",
   "max_clients",
   "max_same_clients",
-  "min_reauth_time",
+  "ban_time",
   "mobile_dpd",
   "mtu",
   "rate_limit_ms",

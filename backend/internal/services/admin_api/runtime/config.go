@@ -25,7 +25,7 @@ var supportedConfigKeys = []string{
 	"server-cert", "server-key",
 	"tcp-port", "udp-port", "ipv4-network", "dns", "max-clients", "max-same-clients",
 	"keepalive", "dpd", "mobile-dpd", "switch-to-tcp-timeout", "try-mtu-discovery",
-	"auth-timeout", "min-reauth-time", "max-ban-score", "ban-reset-time", "cookie-timeout",
+	"auth-timeout", "ban-time", "max-ban-score", "ban-reset-time", "cookie-timeout",
 	"deny-roaming", "rekey-time", "rekey-method", "predictable-ips", "tunnel-all-dns",
 	"ping-leases", "mtu", "cisco-client-compat", "dtls-legacy", "log-level", "rate-limit-ms",
 	"pre-login-banner", "banner",
@@ -135,8 +135,8 @@ func ParseConfig(content []byte) (*systemusecase.OcservConfig, error) {
 			result.TryMTUDiscovery, err = parseBool(value)
 		case "auth-timeout":
 			result.AuthTimeout, err = parseInt(value)
-		case "min-reauth-time":
-			result.MinReauthTime, err = parseInt(value)
+		case "ban_time":
+			result.BanTime, err = parseInt(value)
 		case "max-ban-score":
 			result.MaxBanScore, err = parseInt(value)
 		case "ban-reset-time":
@@ -270,7 +270,7 @@ func configUpdates(config systemusecase.OcservConfig) map[string][]string {
 	addInt("switch-to-tcp-timeout", config.SwitchToTCPTimeout)
 	addBool("try-mtu-discovery", config.TryMTUDiscovery)
 	addInt("auth-timeout", config.AuthTimeout)
-	addInt("min-reauth-time", config.MinReauthTime)
+	addInt("ban-time", config.BanTime)
 	addInt("max-ban-score", config.MaxBanScore)
 	addInt("ban-reset-time", config.BanResetTime)
 	addInt("cookie-timeout", config.CookieTimeout)

@@ -736,7 +736,7 @@ export interface RuntimeOcservConfig {
   max_ban_score?: number;
   max_clients?: number;
   max_same_clients?: number;
-  min_reauth_time?: number;
+  ban_time?: number;
   mobile_dpd?: number;
   mtu?: number;
   ping_leases?: boolean;
@@ -776,7 +776,7 @@ export type SystemRekeyMethod =
 /**
  * AuthApi - axios parameter creator
  */
-export const AuthApiAxiosParamCreator = function (
+export const AuthApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -931,7 +931,7 @@ export const AuthApiAxiosParamCreator = function (
 /**
  * AuthApi - functional programming interface
  */
-export const AuthApiFp = function (configuration?: Configuration) {
+export const AuthApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator = AuthApiAxiosParamCreator(configuration);
   return {
     /**
@@ -1037,7 +1037,7 @@ export const AuthApiFp = function (configuration?: Configuration) {
 /**
  * AuthApi - factory interface
  */
-export const AuthApiFactory = function (
+export const AuthApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -1232,7 +1232,7 @@ export class AuthApi extends BaseAPI implements AuthApiInterface {
 /**
  * HomeApi - axios parameter creator
  */
-export const HomeApiAxiosParamCreator = function (
+export const HomeApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -1430,7 +1430,7 @@ export const HomeApiAxiosParamCreator = function (
 /**
  * HomeApi - functional programming interface
  */
-export const HomeApiFp = function (configuration?: Configuration) {
+export const HomeApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator = HomeApiAxiosParamCreator(configuration);
   return {
     /**
@@ -1573,7 +1573,7 @@ export const HomeApiFp = function (configuration?: Configuration) {
 /**
  * HomeApi - factory interface
  */
-export const HomeApiFactory = function (
+export const HomeApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -1808,7 +1808,7 @@ export class HomeApi extends BaseAPI implements HomeApiInterface {
 /**
  * OCCTLApi - axios parameter creator
  */
-export const OCCTLApiAxiosParamCreator = function (
+export const OCCTLApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -1917,7 +1917,7 @@ export const OCCTLApiAxiosParamCreator = function (
 /**
  * OCCTLApi - functional programming interface
  */
-export const OCCTLApiFp = function (configuration?: Configuration) {
+export const OCCTLApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator = OCCTLApiAxiosParamCreator(configuration);
   return {
     /**
@@ -1992,7 +1992,7 @@ export const OCCTLApiFp = function (configuration?: Configuration) {
 /**
  * OCCTLApi - factory interface
  */
-export const OCCTLApiFactory = function (
+export const OCCTLApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -2123,7 +2123,7 @@ export class OCCTLApi extends BaseAPI implements OCCTLApiInterface {
 /**
  * OcservAgentsApi - axios parameter creator
  */
-export const OcservAgentsApiAxiosParamCreator = function (
+export const OcservAgentsApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -2456,7 +2456,7 @@ export const OcservAgentsApiAxiosParamCreator = function (
 /**
  * OcservAgentsApi - functional programming interface
  */
-export const OcservAgentsApiFp = function (configuration?: Configuration) {
+export const OcservAgentsApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator =
     OcservAgentsApiAxiosParamCreator(configuration);
   return {
@@ -2681,7 +2681,7 @@ export const OcservAgentsApiFp = function (configuration?: Configuration) {
 /**
  * OcservAgentsApi - factory interface
  */
-export const OcservAgentsApiFactory = function (
+export const OcservAgentsApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -2965,8 +2965,7 @@ export interface OcservAgentsApiOcservAgentsStatusGetRequest {
  */
 export class OcservAgentsApi
   extends BaseAPI
-  implements OcservAgentsApiInterface
-{
+  implements OcservAgentsApiInterface {
   /**
    *
    * @summary List Ocserv agents
@@ -3084,7 +3083,7 @@ export class OcservAgentsApi
 /**
  * OcservGroupsApi - axios parameter creator
  */
-export const OcservGroupsApiAxiosParamCreator = function (
+export const OcservGroupsApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -3552,7 +3551,7 @@ export const OcservGroupsApiAxiosParamCreator = function (
 /**
  * OcservGroupsApi - functional programming interface
  */
-export const OcservGroupsApiFp = function (configuration?: Configuration) {
+export const OcservGroupsApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator =
     OcservGroupsApiAxiosParamCreator(configuration);
   return {
@@ -3854,7 +3853,7 @@ export const OcservGroupsApiFp = function (configuration?: Configuration) {
 /**
  * OcservGroupsApi - factory interface
  */
-export const OcservGroupsApiFactory = function (
+export const OcservGroupsApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -4248,8 +4247,7 @@ export interface OcservGroupsApiOcservGroupsPostRequest {
  */
 export class OcservGroupsApi
   extends BaseAPI
-  implements OcservGroupsApiInterface
-{
+  implements OcservGroupsApiInterface {
   /**
    * Ocserv Defaults Group config
    * @summary Ocserv Defaults Group config
@@ -4417,7 +4415,7 @@ export type OcservGroupsGetSortEnum =
 /**
  * OcservOcpasswdApi - axios parameter creator
  */
-export const OcservOcpasswdApiAxiosParamCreator = function (
+export const OcservOcpasswdApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -4503,7 +4501,7 @@ export const OcservOcpasswdApiAxiosParamCreator = function (
 /**
  * OcservOcpasswdApi - functional programming interface
  */
-export const OcservOcpasswdApiFp = function (configuration?: Configuration) {
+export const OcservOcpasswdApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator =
     OcservOcpasswdApiAxiosParamCreator(configuration);
   return {
@@ -4563,7 +4561,7 @@ export const OcservOcpasswdApiFp = function (configuration?: Configuration) {
 /**
  * OcservOcpasswdApi - factory interface
  */
-export const OcservOcpasswdApiFactory = function (
+export const OcservOcpasswdApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -4623,8 +4621,7 @@ export interface OcservOcpasswdApiInterface {
  */
 export class OcservOcpasswdApi
   extends BaseAPI
-  implements OcservOcpasswdApiInterface
-{
+  implements OcservOcpasswdApiInterface {
   /**
    *
    * @param {*} [options] Override http request option.
@@ -4651,7 +4648,7 @@ export class OcservOcpasswdApi
 /**
  * OcservUnsyncedGroupApi - axios parameter creator
  */
-export const OcservUnsyncedGroupApiAxiosParamCreator = function (
+export const OcservUnsyncedGroupApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -4768,7 +4765,7 @@ export const OcservUnsyncedGroupApiAxiosParamCreator = function (
 /**
  * OcservUnsyncedGroupApi - functional programming interface
  */
-export const OcservUnsyncedGroupApiFp = function (
+export const OcservUnsyncedGroupApiFp = function(
   configuration?: Configuration,
 ) {
   const localVarAxiosParamCreator =
@@ -4848,7 +4845,7 @@ export const OcservUnsyncedGroupApiFp = function (
 /**
  * OcservUnsyncedGroupApi - factory interface
  */
-export const OcservUnsyncedGroupApiFactory = function (
+export const OcservUnsyncedGroupApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -4951,8 +4948,7 @@ export interface OcservUnsyncedGroupApiOcservGroupsUnsyncedGetRequest {
  */
 export class OcservUnsyncedGroupApi
   extends BaseAPI
-  implements OcservUnsyncedGroupApiInterface
-{
+  implements OcservUnsyncedGroupApiInterface {
   /**
    * Ocserv Groups from file
    * @summary Ocserv Groups from file
@@ -4993,7 +4989,7 @@ export class OcservUnsyncedGroupApi
 /**
  * OcservUsersApi - axios parameter creator
  */
-export const OcservUsersApiAxiosParamCreator = function (
+export const OcservUsersApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -6042,7 +6038,7 @@ export const OcservUsersApiAxiosParamCreator = function (
 /**
  * OcservUsersApi - functional programming interface
  */
-export const OcservUsersApiFp = function (configuration?: Configuration) {
+export const OcservUsersApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator =
     OcservUsersApiAxiosParamCreator(configuration);
   return {
@@ -6710,7 +6706,7 @@ export const OcservUsersApiFp = function (configuration?: Configuration) {
 /**
  * OcservUsersApi - factory interface
  */
-export const OcservUsersApiFactory = function (
+export const OcservUsersApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -7844,7 +7840,7 @@ export class OcservUsersApi extends BaseAPI implements OcservUsersApiInterface {
 /**
  * ReportApi - axios parameter creator
  */
-export const ReportApiAxiosParamCreator = function (
+export const ReportApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -8114,7 +8110,7 @@ export const ReportApiAxiosParamCreator = function (
 /**
  * ReportApi - functional programming interface
  */
-export const ReportApiFp = function (configuration?: Configuration) {
+export const ReportApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator = ReportApiAxiosParamCreator(configuration);
   return {
     /**
@@ -8288,7 +8284,7 @@ export const ReportApiFp = function (configuration?: Configuration) {
 /**
  * ReportApi - factory interface
  */
-export const ReportApiFactory = function (
+export const ReportApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -8618,7 +8614,7 @@ export type ReportsSessionLogsGetSortEnum =
 /**
  * SystemApi - axios parameter creator
  */
-export const SystemApiAxiosParamCreator = function (
+export const SystemApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -9104,7 +9100,7 @@ export const SystemApiAxiosParamCreator = function (
 /**
  * SystemApi - functional programming interface
  */
-export const SystemApiFp = function (configuration?: Configuration) {
+export const SystemApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator = SystemApiAxiosParamCreator(configuration);
   return {
     /**
@@ -9447,7 +9443,7 @@ export const SystemApiFp = function (configuration?: Configuration) {
 /**
  * SystemApi - factory interface
  */
-export const SystemApiFactory = function (
+export const SystemApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -9990,7 +9986,7 @@ export class SystemApi extends BaseAPI implements SystemApiInterface {
 /**
  * SystemBackupApi - axios parameter creator
  */
-export const SystemBackupApiAxiosParamCreator = function (
+export const SystemBackupApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -10096,7 +10092,7 @@ export const SystemBackupApiAxiosParamCreator = function (
 /**
  * SystemBackupApi - functional programming interface
  */
-export const SystemBackupApiFp = function (configuration?: Configuration) {
+export const SystemBackupApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator =
     SystemBackupApiAxiosParamCreator(configuration);
   return {
@@ -10168,7 +10164,7 @@ export const SystemBackupApiFp = function (configuration?: Configuration) {
 /**
  * SystemBackupApi - factory interface
  */
-export const SystemBackupApiFactory = function (
+export const SystemBackupApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -10262,8 +10258,7 @@ export interface SystemBackupApiBackupOcservUsersGetRequest {
  */
 export class SystemBackupApi
   extends BaseAPI
-  implements SystemBackupApiInterface
-{
+  implements SystemBackupApiInterface {
   /**
    * Download gzip compressed JSON backup of all ocserv groups including default group configuration
    * @summary Backup ocserv groups
@@ -10300,7 +10295,7 @@ export class SystemBackupApi
 /**
  * SystemRestoreApi - axios parameter creator
  */
-export const SystemRestoreApiAxiosParamCreator = function (
+export const SystemRestoreApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -10440,7 +10435,7 @@ export const SystemRestoreApiAxiosParamCreator = function (
 /**
  * SystemRestoreApi - functional programming interface
  */
-export const SystemRestoreApiFp = function (configuration?: Configuration) {
+export const SystemRestoreApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator =
     SystemRestoreApiAxiosParamCreator(configuration);
   return {
@@ -10524,7 +10519,7 @@ export const SystemRestoreApiFp = function (configuration?: Configuration) {
 /**
  * SystemRestoreApi - factory interface
  */
-export const SystemRestoreApiFactory = function (
+export const SystemRestoreApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -10636,8 +10631,7 @@ export interface SystemRestoreApiBackupOcservUsersPostRequest {
  */
 export class SystemRestoreApi
   extends BaseAPI
-  implements SystemRestoreApiInterface
-{
+  implements SystemRestoreApiInterface {
   /**
    * Upload JSON or gzip-compressed (.json.gz) backup of ocserv groups
    * @summary Restore ocserv groups
@@ -10682,7 +10676,7 @@ export class SystemRestoreApi
 /**
  * SystemUserApi - axios parameter creator
  */
-export const SystemUserApiAxiosParamCreator = function (
+export const SystemUserApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -10742,7 +10736,7 @@ export const SystemUserApiAxiosParamCreator = function (
 /**
  * SystemUserApi - functional programming interface
  */
-export const SystemUserApiFp = function (configuration?: Configuration) {
+export const SystemUserApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator =
     SystemUserApiAxiosParamCreator(configuration);
   return {
@@ -10786,7 +10780,7 @@ export const SystemUserApiFp = function (configuration?: Configuration) {
 /**
  * SystemUserApi - factory interface
  */
-export const SystemUserApiFactory = function (
+export const SystemUserApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,
@@ -10862,7 +10856,7 @@ export class SystemUserApi extends BaseAPI implements SystemUserApiInterface {
 /**
  * SystemUsersApi - axios parameter creator
  */
-export const SystemUsersApiAxiosParamCreator = function (
+export const SystemUsersApiAxiosParamCreator = function(
   configuration?: Configuration,
 ) {
   return {
@@ -11303,7 +11297,7 @@ export const SystemUsersApiAxiosParamCreator = function (
 /**
  * SystemUsersApi - functional programming interface
  */
-export const SystemUsersApiFp = function (configuration?: Configuration) {
+export const SystemUsersApiFp = function(configuration?: Configuration) {
   const localVarAxiosParamCreator =
     SystemUsersApiAxiosParamCreator(configuration);
   return {
@@ -11580,7 +11574,7 @@ export const SystemUsersApiFp = function (configuration?: Configuration) {
 /**
  * SystemUsersApi - factory interface
  */
-export const SystemUsersApiFactory = function (
+export const SystemUsersApiFactory = function(
   configuration?: Configuration,
   basePath?: string,
   axios?: AxiosInstance,

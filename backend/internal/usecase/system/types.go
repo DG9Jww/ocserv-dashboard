@@ -40,7 +40,7 @@ type OcservConfig struct {
 	SwitchToTCPTimeout *int         `json:"switch_to_tcp_timeout,omitempty"`
 	TryMTUDiscovery    *bool        `json:"try_mtu_discovery,omitempty"`
 	AuthTimeout        *int         `json:"auth_timeout,omitempty"`
-	MinReauthTime      *int         `json:"min_reauth_time,omitempty"`
+	BanTime            *int         `json:"ban_time,omitempty"`
 	MaxBanScore        *int         `json:"max_ban_score,omitempty"`
 	BanResetTime       *int         `json:"ban_reset_time,omitempty"`
 	CookieTimeout      *int         `json:"cookie_timeout,omitempty"`

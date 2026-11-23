@@ -29,6 +29,7 @@ RUN apt-get update \
         ocserv \
         procps \
         tini \
+    && rm -f /etc/ocserv/ocserv.conf \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -55,7 +56,6 @@ ENV DEBUG=1 \
     SSL_CN=ocserv-dashboard-dev \
     SSL_ORG=ocserv-dashboard-dev \
     SSL_EXPIRE=3650 \
-    OCSERV_PRESERVE_CONFIG=false \
     PGDATA=/var/lib/postgresql/18/docker \
     POSTGRES_HOST=127.0.0.1 \
     POSTGRES_PORT=5432 \

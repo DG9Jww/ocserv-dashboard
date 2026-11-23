@@ -375,6 +375,8 @@ sudo docker compose -f compose.production.yml down
 
 The API reference is available at `/swagger/index.html` on the backend endpoint. Keep it private or protected in production.
 
+The Docker entrypoint creates `ocserv.conf` when the mounted file is missing. It reuses an existing file on restart, including its certificate paths. Set `OCSERV_REGENERATE_CONFIG=true` only when you intend to replace the file, and recreate the container with the flag off after regeneration. Enabling or disabling unified customer authentication updates the required authentication directives.
+
 ### 🔑 Agent token management
 
 Agent-token commands are local-only and reject master mode:
