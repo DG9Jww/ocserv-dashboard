@@ -4,17 +4,13 @@ import { MoreHorizontal, Plus, RefreshCw, Search, Users } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 import {
   deletePortalCustomer,
-  deleteCustomerPolicyGroup,
-  saveCustomerPolicyGroup,
   savePortalCustomer,
   setPortalCustomerLocked,
   type Assignment,
-  type CustomerPolicyGroup,
   type PortalCustomer,
   type PortalCustomerInput,
 } from "@/api/services/customer-management";
 import PortalCustomerEditor from "@/components/customer-management/PortalCustomerEditor.vue";
-import CustomerPolicyGroupEditor from "@/components/customer-management/CustomerPolicyGroupEditor.vue";
 import OcservUserActionDialog from "@/components/ocserv-users/OcservUserActionDialog.vue";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -68,7 +64,6 @@ const filter = ref("all");
 const page = ref(1);
 const pageSize = 20;
 const editorOpen = ref(false);
-const policyOpen = ref(false);
 const policyGroups = computed(() => data.value?.policy_groups ?? []);
 const policyNames = computed(() => new Map(policyGroups.value.map((group) => [group.id, group.name])));
 const grantsOnly = ref(false);
@@ -174,16 +169,6 @@ async function save(input: PortalCustomerInput) {
     },
   );
 }
-function openPolicies() {
-  mutationError.value = "";
-  policyOpen.value = true;
-}
-function savePolicy(group: CustomerPolicyGroup) {
-  return mutate(() => saveCustomerPolicyGroup(group), () => { policyOpen.value = false; });
-}
-function deletePolicy(id: string) {
-  return mutate(() => deleteCustomerPolicyGroup(id), () => { policyOpen.value = false; });
-}
 async function submitAction() {
   const customer = actionCustomer.value;
   if (!customer) return;
@@ -233,9 +218,6 @@ const description = computed(() =>
           </Button>
           <Button :disabled="!data || pending" @click="openEditor()">
             <Plus data-icon="inline-start" />{{ label("newCustomer") }}
-          </Button>
-          <Button variant="outline" :disabled="!data || pending" @click="openPolicies">
-            {{ label("policyGroups") }}
           </Button>
         </CardAction>
       </CardHeader>
@@ -427,15 +409,6 @@ const description = computed(() =>
       :pending="pending"
       :error="mutationError"
       @save="save"
-    />
-    <CustomerPolicyGroupEditor
-      v-model:open="policyOpen"
-      :groups="policyGroups"
-      :pending="pending"
-      :error="mutationError"
-      @save="savePolicy"
-      @remove="deletePolicy"
-      @select="mutationError = ''"
     />
     <OcservUserActionDialog
       v-model:open="actionOpen"

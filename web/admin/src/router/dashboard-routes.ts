@@ -163,6 +163,14 @@ export const dashboardRoutes: DashboardRoute[] = [
     adminVisible: false,
   },
   {
+    path: "/radius-policies",
+    name: "radius-policies",
+    titleKey: "customerManagement.radiusPolicies",
+    sectionKey: "navigation.system",
+    icon: SlidersHorizontal,
+    adminVisible: false,
+  },
+  {
     path: "/agent-nodes",
     name: "agent-nodes",
     titleKey: "customerManagement.agentNodes",

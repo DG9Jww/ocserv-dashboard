@@ -1,23 +1,50 @@
 export const customerManagementMessages = {
   en: {
-    policyGroup: "Customer policy group",
-    policyGroups: "Customer policy groups",
-    newPolicyGroup: "New policy group",
+    policyGroup: "Radius policy",
+    radiusPolicies: "Radius Policies",
+    radiusPoliciesDescription:
+      "Manage network settings shared by customers authenticating through RADIUS.",
+    newPolicy: "New Policy",
+    viewPolicy: "Policy details",
+    editPolicy: "Edit policy",
+    deletePolicy: "Delete policy",
+    policyMorePages: "More pages",
+    policyActions: "Policy actions",
+    searchPolicies: "Search by policy name…",
+    noPolicies: "No policies match this view.",
+    configuredPolicyFields: "Configured settings",
+    assignedPolicyCustomers: "Assigned customers",
+    policyPageStatus: "Page {page} of {pages} · {total} policies",
+    policySaved: "Policy saved.",
+    policyDeleted: "Policy deleted.",
+    policyHelp: "Changes apply at the next full VPN login.",
+    primaryDNSHint:
+      "Enter one IPv4 address, such as 1.1.1.1. Leave blank to use the node defaults.",
+    secondaryDNSHint:
+      "Enter one IPv4 address, such as 1.0.0.1, after setting the primary DNS. Leave blank to omit the secondary override.",
+    policyRoutesHint:
+      "Enter up to 32 IPv4 CIDRs, one per line, such as 192.168.10.0/24. Leave blank to use the node routes.",
+    uploadLimitHint:
+      "Enter a whole number in kB/s for traffic sent by the client, such as 500. Leave blank or enter 0 to use the node limit.",
+    downloadLimitHint:
+      "Enter a whole number in kB/s for traffic received by the client, such as 2000. Leave blank or enter 0 to use the node limit.",
+    policyInUse:
+      "Assign another policy or use node defaults for the customers using this policy before deleting it.",
+    deletePolicyDescription: "Delete the policy {name}?",
     nodePolicyDefaults: "Use node defaults",
-    policyHelp: "Settings apply at the next VPN login. Empty fields and zero speed limits use the node defaults.",
     policyRoutes: "IPv4 routes",
-    policyRoutesHint: "Enter one CIDR per line, such as 192.168.10.0/24.",
     primaryDNS: "Primary IPv4 DNS",
     secondaryDNS: "Secondary IPv4 DNS",
     uploadKBPerSecond: "Upload limit (kB/s)",
     downloadKBPerSecond: "Download limit (kB/s)",
-    policyInvalid: "Enter a name, valid IPv4 DNS servers and up to 32 IPv4 CIDRs. A secondary DNS server requires a primary server.",
-    policyInUse: "Reassign the customers using this policy group before deleting it.",
-    deletePolicyDescription: "Delete the policy group {name}?",
+    policyInvalid:
+      "Enter a name, valid IPv4 DNS servers and up to 32 IPv4 CIDRs. A secondary DNS server requires a primary server.",
     manageGrants: "Manage access",
     grantSelection: "Access assignment",
-    changeGrantHelp: "Choose the node or node group for {username}. Lock the customer to suspend all access.",
-    legacyGrantHelp: "Choose a new assignment to replace this account’s previous grants.",
+    changeGrantHelp:
+      "Choose the node or node group for {username}. Lock the customer to suspend all access.",
+    legacyGrantHelp:
+      "Choose a new assignment to replace this account’s previous grants.",
     pendingRemove: "Pending deletion",
     apiPort: "API Port",
     agentHealth: {
@@ -80,7 +107,8 @@ export const customerManagementMessages = {
     noCustomers: "No customers match this view.",
     previous: "Previous",
     next: "Next",
-    grantHelp: "Choose one node or one node group. The default connection is used in the customer portal.",
+    grantHelp:
+      "Choose one node or one node group. The default connection is used in the customer portal.",
     passwordHint: "Leave blank to keep the current password.",
     missingDefaults:
       "Configure provisioning defaults in Node groups for the selected nodes.",
@@ -92,7 +120,8 @@ export const customerManagementMessages = {
       "Lock {username}? Portal access ends immediately and the assigned nodes are scheduled for deactivation.",
     unlockDescription:
       "Unlock {username} and restore access to their assigned nodes?",
-    deleteDescription: "Permanently delete {username} and their traffic and activity history? This cannot be undone.",
+    deleteDescription:
+      "Permanently delete {username} and their traffic and activity history? This cannot be undone.",
     nodeAuth: "The Agent rejected its registered authentication token.",
     nodeTLS: "The Master could not verify the Agent HTTPS certificate.",
     nodeUnavailable:
@@ -117,24 +146,51 @@ export const customerManagementMessages = {
     TotallyRxTx: "Total receive + transmit",
   },
   it: {
-    policyGroup: "Gruppo di criteri cliente",
-    policyGroups: "Gruppi di criteri clienti",
-    newPolicyGroup: "Nuovo gruppo di criteri",
+    policyGroup: "Criterio RADIUS",
+    radiusPolicies: "Criteri RADIUS",
+    radiusPoliciesDescription:
+      "Gestisci le impostazioni di rete condivise dai clienti che accedono tramite RADIUS.",
+    newPolicy: "Nuovo criterio",
+    viewPolicy: "Dettagli del criterio",
+    editPolicy: "Modifica criterio",
+    deletePolicy: "Elimina criterio",
+    policyMorePages: "Altre pagine",
+    policyActions: "Azioni del criterio",
+    searchPolicies: "Cerca per nome del criterio…",
+    noPolicies: "Nessun criterio corrisponde a questa vista.",
+    configuredPolicyFields: "Impostazioni configurate",
+    assignedPolicyCustomers: "Clienti assegnati",
+    policyPageStatus: "Pagina {page} di {pages} · Criteri: {total}",
+    policySaved: "Criterio salvato.",
+    policyDeleted: "Criterio eliminato.",
+    policyHelp: "Le modifiche si applicano al prossimo accesso VPN completo.",
+    primaryDNSHint:
+      "Inserisci un indirizzo IPv4, ad esempio 1.1.1.1. Lascia vuoto per usare le impostazioni del nodo.",
+    secondaryDNSHint:
+      "Inserisci un indirizzo IPv4, ad esempio 1.0.0.1, dopo aver impostato il DNS primario. Lascia vuoto per non specificare un DNS secondario.",
+    policyRoutesHint:
+      "Inserisci fino a 32 reti IPv4 in formato CIDR, una per riga, ad esempio 192.168.10.0/24. Lascia vuoto per usare le route del nodo.",
+    uploadLimitHint:
+      "Inserisci un numero intero in kB/s per il traffico inviato dal client, ad esempio 500. Lascia vuoto o inserisci 0 per usare il limite del nodo.",
+    downloadLimitHint:
+      "Inserisci un numero intero in kB/s per il traffico ricevuto dal client, ad esempio 2000. Lascia vuoto o inserisci 0 per usare il limite del nodo.",
+    policyInUse:
+      "Assegna un altro criterio o le impostazioni del nodo ai clienti che usano questo criterio prima di eliminarlo.",
+    deletePolicyDescription: "Eliminare il criterio {name}?",
     nodePolicyDefaults: "Usa le impostazioni del nodo",
-    policyHelp: "Le impostazioni si applicano al prossimo accesso VPN. I campi vuoti e i limiti a zero usano le impostazioni del nodo.",
     policyRoutes: "Route IPv4",
-    policyRoutesHint: "Inserisci un CIDR per riga, ad esempio 192.168.10.0/24.",
     primaryDNS: "DNS IPv4 primario",
     secondaryDNS: "DNS IPv4 secondario",
     uploadKBPerSecond: "Limite upload (kB/s)",
     downloadKBPerSecond: "Limite download (kB/s)",
-    policyInvalid: "Inserisci un nome, DNS IPv4 validi e fino a 32 CIDR IPv4. Il DNS secondario richiede quello primario.",
-    policyInUse: "Riassegna i clienti di questo gruppo prima di eliminarlo.",
-    deletePolicyDescription: "Eliminare il gruppo di criteri {name}?",
+    policyInvalid:
+      "Inserisci un nome, DNS IPv4 validi e fino a 32 CIDR IPv4. Il DNS secondario richiede quello primario.",
     manageGrants: "Gestisci accesso",
     grantSelection: "Assegnazione di accesso",
-    changeGrantHelp: "Scegli il nodo o il gruppo di nodi per {username}. Blocca il cliente per sospendere ogni accesso.",
-    legacyGrantHelp: "Scegli una nuova assegnazione per sostituire le autorizzazioni precedenti.",
+    changeGrantHelp:
+      "Scegli il nodo o il gruppo di nodi per {username}. Blocca il cliente per sospendere ogni accesso.",
+    legacyGrantHelp:
+      "Scegli una nuova assegnazione per sostituire le autorizzazioni precedenti.",
     pendingRemove: "Eliminazione in attesa",
     apiPort: "Porta API",
     agentHealth: {
@@ -197,7 +253,8 @@ export const customerManagementMessages = {
     noCustomers: "Nessun cliente corrisponde ai filtri.",
     previous: "Indietro",
     next: "Avanti",
-    grantHelp: "Scegli un nodo o un gruppo di nodi. Il portale cliente usa la connessione predefinita.",
+    grantHelp:
+      "Scegli un nodo o un gruppo di nodi. Il portale cliente usa la connessione predefinita.",
     passwordHint: "Lascia vuoto per mantenere la password attuale.",
     missingDefaults:
       "Configura in Gruppi di nodi i valori predefiniti per i nodi selezionati.",
@@ -209,7 +266,8 @@ export const customerManagementMessages = {
       "Bloccare {username}? L’accesso al portale termina subito e viene pianificata la disattivazione sui nodi.",
     unlockDescription:
       "Sbloccare {username} e ripristinare l’accesso ai nodi assegnati?",
-    deleteDescription: "Eliminare definitivamente {username} e la cronologia del traffico e delle attività? L’operazione è irreversibile.",
+    deleteDescription:
+      "Eliminare definitivamente {username} e la cronologia del traffico e delle attività? L’operazione è irreversibile.",
     nodeAuth: "L’Agent ha rifiutato il token registrato.",
     nodeTLS:
       "Il Master non ha potuto verificare il certificato HTTPS dell’Agent.",
@@ -222,7 +280,8 @@ export const customerManagementMessages = {
     noGroups: "Nessun gruppo di nodi.",
     groupHelp:
       "Le modifiche valgono per tutti i clienti autorizzati tramite questo gruppo.",
-    radiusPolicyHelp: "Queste impostazioni si applicano agli accessi RADIUS su questo nodo.",
+    radiusPolicyHelp:
+      "Queste impostazioni si applicano agli accessi RADIUS su questo nodo.",
     actions: "Azioni cliente",
     lock: "Blocca",
     unlock: "Sblocca",
@@ -236,23 +295,46 @@ export const customerManagementMessages = {
     TotallyRxTx: "Ricezione + trasmissione totale",
   },
   "zh-cn": {
-    policyGroup: "客户策略组",
-    policyGroups: "客户策略组",
-    newPolicyGroup: "新建策略组",
+    policyGroup: "RADIUS 策略",
+    radiusPolicies: "RADIUS 策略",
+    radiusPoliciesDescription: "管理通过 RADIUS 认证的客户共用的网络配置。",
+    newPolicy: "新建策略",
+    viewPolicy: "策略详情",
+    editPolicy: "编辑策略",
+    deletePolicy: "删除策略",
+    policyMorePages: "更多页",
+    policyActions: "策略操作",
+    searchPolicies: "按策略名称搜索…",
+    noPolicies: "没有符合条件的策略。",
+    configuredPolicyFields: "已配置项",
+    assignedPolicyCustomers: "已分配客户",
+    policyPageStatus: "第 {page} 页，共 {pages} 页 · {total} 条策略",
+    policySaved: "策略已保存。",
+    policyDeleted: "策略已删除。",
+    policyHelp: "变更在下次完整的 VPN 登录时生效。",
+    primaryDNSHint: "填写一个 IPv4 地址，例如 1.1.1.1。留空使用节点默认配置。",
+    secondaryDNSHint:
+      "先填写主 DNS，再填写一个 IPv4 地址，例如 1.0.0.1。留空则不下发备用 DNS。",
+    policyRoutesHint:
+      "每行填写一个 IPv4 CIDR，例如 192.168.10.0/24，最多 32 条。留空使用节点默认路由。",
+    uploadLimitHint:
+      "填写客户端发送流量的整数限速，单位为 kB/s，例如 500。留空或填 0 使用节点默认限速。",
+    downloadLimitHint:
+      "填写客户端接收流量的整数限速，单位为 kB/s，例如 2000。留空或填 0 使用节点默认限速。",
+    policyInUse: "请先将使用此策略的客户改为其他策略或节点默认配置。",
+    deletePolicyDescription: "删除策略 {name}？",
     nodePolicyDefaults: "使用节点默认配置",
-    policyHelp: "设置在下次 VPN 登录时生效。留空的字段和填为 0 的限速沿用节点默认值。",
     policyRoutes: "IPv4 路由",
-    policyRoutesHint: "每行填写一个 CIDR，例如 192.168.10.0/24。",
     primaryDNS: "主 IPv4 DNS",
     secondaryDNS: "备用 IPv4 DNS",
     uploadKBPerSecond: "上传限速（kB/s）",
     downloadKBPerSecond: "下载限速（kB/s）",
-    policyInvalid: "请输入名称、有效的 IPv4 DNS 和最多 32 条 IPv4 CIDR。填写备用 DNS 时也要填写主 DNS。",
-    policyInUse: "请先将使用此策略组的客户改为其他策略组或节点默认配置。",
-    deletePolicyDescription: "删除策略组 {name}？",
+    policyInvalid:
+      "请输入名称、有效的 IPv4 DNS 和最多 32 条 IPv4 CIDR。填写备用 DNS 时也要填写主 DNS。",
     manageGrants: "管理授权",
     grantSelection: "授权对象",
-    changeGrantHelp: "为 {username} 选择一个节点或节点组。需要暂停所有访问时，请锁定客户。",
+    changeGrantHelp:
+      "为 {username} 选择一个节点或节点组。需要暂停所有访问时，请锁定客户。",
     legacyGrantHelp: "请选择新的授权对象，以替换此账号原有的授权。",
     pendingRemove: "待删除",
     apiPort: "API 端口",
@@ -325,7 +407,8 @@ export const customerManagementMessages = {
     lockDescription:
       "锁定 {username}？门户访问会立即停止，各节点账号将同步停用。",
     unlockDescription: "解锁 {username} 并恢复其已授权节点的访问？",
-    deleteDescription: "永久删除 {username} 及其流量和活动记录？此操作无法撤销。",
+    deleteDescription:
+      "永久删除 {username} 及其流量和活动记录？此操作无法撤销。",
     nodeAuth: "Agent 拒绝了已登记的认证令牌。",
     nodeTLS: "Master 无法验证 Agent 的 HTTPS 证书。",
     nodeUnavailable: "节点无法访问或未应用更改，稍后会自动重试。",
@@ -348,23 +431,47 @@ export const customerManagementMessages = {
     TotallyRxTx: "累计收发",
   },
   "zh-tw": {
-    policyGroup: "客戶原則群組",
-    policyGroups: "客戶原則群組",
-    newPolicyGroup: "新增原則群組",
+    policyGroup: "RADIUS 原則",
+    radiusPolicies: "RADIUS 原則",
+    radiusPoliciesDescription: "管理透過 RADIUS 驗證的客戶共用的網路設定。",
+    newPolicy: "新增原則",
+    viewPolicy: "原則詳細資料",
+    editPolicy: "編輯原則",
+    deletePolicy: "刪除原則",
+    policyMorePages: "更多頁",
+    policyActions: "原則操作",
+    searchPolicies: "依原則名稱搜尋…",
+    noPolicies: "沒有符合條件的原則。",
+    configuredPolicyFields: "已設定項目",
+    assignedPolicyCustomers: "已指派客戶",
+    policyPageStatus: "第 {page} 頁，共 {pages} 頁 · {total} 項原則",
+    policySaved: "原則已儲存。",
+    policyDeleted: "原則已刪除。",
+    policyHelp: "變更會在下次完整的 VPN 登入時生效。",
+    primaryDNSHint:
+      "輸入一個 IPv4 位址，例如 1.1.1.1。留空則使用節點預設設定。",
+    secondaryDNSHint:
+      "先設定主要 DNS，再輸入一個 IPv4 位址，例如 1.0.0.1。留空則不下發備用 DNS。",
+    policyRoutesHint:
+      "每行輸入一個 IPv4 CIDR，例如 192.168.10.0/24，最多 32 條。留空則使用節點預設路由。",
+    uploadLimitHint:
+      "輸入用戶端傳送流量的整數限速，單位為 kB/s，例如 500。留空或填 0 則使用節點預設限速。",
+    downloadLimitHint:
+      "輸入用戶端接收流量的整數限速，單位為 kB/s，例如 2000。留空或填 0 則使用節點預設限速。",
+    policyInUse: "請先將使用此原則的客戶改用其他原則或節點預設設定。",
+    deletePolicyDescription: "刪除原則 {name}？",
     nodePolicyDefaults: "使用節點預設設定",
-    policyHelp: "設定會在下次 VPN 登入時生效。留空的欄位和填為 0 的限速沿用節點預設值。",
     policyRoutes: "IPv4 路由",
-    policyRoutesHint: "每行輸入一個 CIDR，例如 192.168.10.0/24。",
     primaryDNS: "主要 IPv4 DNS",
     secondaryDNS: "備用 IPv4 DNS",
     uploadKBPerSecond: "上傳限速（kB/s）",
     downloadKBPerSecond: "下載限速（kB/s）",
-    policyInvalid: "請輸入名稱、有效的 IPv4 DNS 和最多 32 個 IPv4 CIDR。填寫備用 DNS 時也需填寫主要 DNS。",
-    policyInUse: "請先重新指派使用此原則群組的客戶。",
-    deletePolicyDescription: "刪除原則群組 {name}？",
+    policyInvalid:
+      "請輸入名稱、有效的 IPv4 DNS 和最多 32 個 IPv4 CIDR。填寫備用 DNS 時也需填寫主要 DNS。",
     manageGrants: "管理授權",
     grantSelection: "授權對象",
-    changeGrantHelp: "為 {username} 選擇一個節點或節點群組。若要暫停所有存取，請鎖定客戶。",
+    changeGrantHelp:
+      "為 {username} 選擇一個節點或節點群組。若要暫停所有存取，請鎖定客戶。",
     legacyGrantHelp: "請選擇新的授權對象，以取代此帳號原有的授權。",
     pendingRemove: "等待刪除",
     apiPort: "API 連接埠",
@@ -437,7 +544,8 @@ export const customerManagementMessages = {
     lockDescription:
       "鎖定 {username}？入口網站存取會立即停止，各節點帳號將同步停用。",
     unlockDescription: "解除鎖定 {username} 並恢復其已授權節點的存取？",
-    deleteDescription: "永久刪除 {username} 及其流量與活動記錄？此操作無法復原。",
+    deleteDescription:
+      "永久刪除 {username} 及其流量與活動記錄？此操作無法復原。",
     nodeAuth: "Agent 拒絕了已登記的驗證權杖。",
     nodeTLS: "Master 無法驗證 Agent 的 HTTPS 憑證。",
     nodeUnavailable: "節點無法存取或未套用變更，稍後會自動重試。",
@@ -460,24 +568,51 @@ export const customerManagementMessages = {
     TotallyRxTx: "累計收發",
   },
   ru: {
-    policyGroup: "Группа политик клиента",
-    policyGroups: "Группы политик клиентов",
-    newPolicyGroup: "Новая группа политик",
+    policyGroup: "Политика RADIUS",
+    radiusPolicies: "Политики RADIUS",
+    radiusPoliciesDescription:
+      "Управляйте общими сетевыми настройками для клиентов с аутентификацией через RADIUS.",
+    newPolicy: "Новая политика",
+    viewPolicy: "Сведения о политике",
+    editPolicy: "Изменить политику",
+    deletePolicy: "Удалить политику",
+    policyMorePages: "Другие страницы",
+    policyActions: "Действия с политикой",
+    searchPolicies: "Поиск по названию политики…",
+    noPolicies: "Нет политик, соответствующих условиям.",
+    configuredPolicyFields: "Заданные параметры",
+    assignedPolicyCustomers: "Назначенные клиенты",
+    policyPageStatus: "Страница {page} из {pages} · Политик: {total}",
+    policySaved: "Политика сохранена.",
+    policyDeleted: "Политика удалена.",
+    policyHelp: "Изменения применяются при следующем полном входе в VPN.",
+    primaryDNSHint:
+      "Укажите один адрес IPv4, например 1.1.1.1. Если оставить поле пустым, используются настройки узла.",
+    secondaryDNSHint:
+      "После основного DNS укажите один адрес IPv4, например 1.0.0.1. Оставьте поле пустым, чтобы не задавать дополнительный DNS.",
+    policyRoutesHint:
+      "Укажите до 32 сетей IPv4 в формате CIDR, по одной на строку, например 192.168.10.0/24. Оставьте поле пустым, чтобы использовать маршруты узла.",
+    uploadLimitHint:
+      "Введите целое число в кБ/с для исходящего трафика клиента, например 500. Пустое поле или 0 означает ограничение узла.",
+    downloadLimitHint:
+      "Введите целое число в кБ/с для входящего трафика клиента, например 2000. Пустое поле или 0 означает ограничение узла.",
+    policyInUse:
+      "Перед удалением назначьте этим клиентам другую политику или настройки узла.",
+    deletePolicyDescription: "Удалить политику {name}?",
     nodePolicyDefaults: "Настройки узла",
-    policyHelp: "Настройки применяются при следующем входе в VPN. Пустые поля и нулевые лимиты используют настройки узла.",
     policyRoutes: "Маршруты IPv4",
-    policyRoutesHint: "Введите по одному CIDR на строку, например 192.168.10.0/24.",
     primaryDNS: "Основной DNS IPv4",
     secondaryDNS: "Дополнительный DNS IPv4",
     uploadKBPerSecond: "Лимит отправки (кБ/с)",
     downloadKBPerSecond: "Лимит загрузки (кБ/с)",
-    policyInvalid: "Укажите название, допустимые DNS IPv4 и до 32 IPv4 CIDR. Для дополнительного DNS нужен основной.",
-    policyInUse: "Перед удалением переназначьте клиентов этой группы.",
-    deletePolicyDescription: "Удалить группу политик {name}?",
+    policyInvalid:
+      "Укажите название, допустимые DNS IPv4 и до 32 IPv4 CIDR. Для дополнительного DNS нужен основной.",
     manageGrants: "Управление доступом",
     grantSelection: "Назначение доступа",
-    changeGrantHelp: "Выберите узел или группу узлов для {username}. Чтобы приостановить весь доступ, заблокируйте клиента.",
-    legacyGrantHelp: "Выберите новое назначение доступа взамен прежних разрешений.",
+    changeGrantHelp:
+      "Выберите узел или группу узлов для {username}. Чтобы приостановить весь доступ, заблокируйте клиента.",
+    legacyGrantHelp:
+      "Выберите новое назначение доступа взамен прежних разрешений.",
     pendingRemove: "Ожидает удаления",
     apiPort: "Порт API",
     agentHealth: {
@@ -541,7 +676,8 @@ export const customerManagementMessages = {
     noCustomers: "Нет клиентов, соответствующих фильтру.",
     previous: "Назад",
     next: "Вперёд",
-    grantHelp: "Выберите один узел или одну группу узлов. Портал клиента использует подключение по умолчанию.",
+    grantHelp:
+      "Выберите один узел или одну группу узлов. Портал клиента использует подключение по умолчанию.",
     passwordHint: "Оставьте поле пустым, чтобы сохранить пароль.",
     missingDefaults:
       "Настройте параметры создания учётных записей для выбранных узлов в разделе групп узлов.",
@@ -553,7 +689,8 @@ export const customerManagementMessages = {
       "Заблокировать {username}? Доступ к порталу прекратится сразу, отключение на узлах будет запланировано.",
     unlockDescription:
       "Разблокировать {username} и восстановить доступ к назначенным узлам?",
-    deleteDescription: "Удалить {username}, историю трафика и активности навсегда? Это действие нельзя отменить.",
+    deleteDescription:
+      "Удалить {username}, историю трафика и активности навсегда? Это действие нельзя отменить.",
     nodeAuth: "Агент отклонил зарегистрированный токен.",
     nodeTLS: "Главный узел не смог проверить HTTPS-сертификат агента.",
     nodeUnavailable:
@@ -565,7 +702,8 @@ export const customerManagementMessages = {
     noGroups: "Групп узлов пока нет.",
     groupHelp:
       "Изменение применяется ко всем клиентам с доступом через эту группу.",
-    radiusPolicyHelp: "Эти настройки применяются при входе через RADIUS на этом узле.",
+    radiusPolicyHelp:
+      "Эти настройки применяются при входе через RADIUS на этом узле.",
     actions: "Действия с клиентом",
     lock: "Заблокировать",
     unlock: "Разблокировать",
@@ -579,24 +717,51 @@ export const customerManagementMessages = {
     TotallyRxTx: "Приём и передача всего",
   },
   fa: {
-    policyGroup: "گروه سیاست مشتری",
-    policyGroups: "گروه‌های سیاست مشتریان",
-    newPolicyGroup: "گروه سیاست جدید",
+    policyGroup: "سیاست RADIUS",
+    radiusPolicies: "سیاست‌های RADIUS",
+    radiusPoliciesDescription:
+      "تنظیمات شبکهٔ مشترک مشتریانی را که از طریق RADIUS احراز هویت می‌شوند مدیریت کنید.",
+    newPolicy: "سیاست جدید",
+    viewPolicy: "جزئیات سیاست",
+    editPolicy: "ویرایش سیاست",
+    deletePolicy: "حذف سیاست",
+    policyMorePages: "صفحه‌های بیشتر",
+    policyActions: "عملیات سیاست",
+    searchPolicies: "جست‌وجو بر اساس نام سیاست…",
+    noPolicies: "هیچ سیاستی با این نما مطابقت ندارد.",
+    configuredPolicyFields: "گزینه‌های تنظیم‌شده",
+    assignedPolicyCustomers: "مشتریان تخصیص‌یافته",
+    policyPageStatus: "صفحهٔ {page} از {pages} · تعداد سیاست‌ها: {total}",
+    policySaved: "سیاست ذخیره شد.",
+    policyDeleted: "سیاست حذف شد.",
+    policyHelp: "تغییرات در ورود کامل بعدی به VPN اعمال می‌شوند.",
+    primaryDNSHint:
+      "یک نشانی IPv4 مانند \u20661.1.1.1\u2069 وارد کنید. برای استفاده از پیش‌فرض گره، فیلد را خالی بگذارید.",
+    secondaryDNSHint:
+      "پس از تنظیم DNS اصلی، یک نشانی IPv4 مانند \u20661.0.0.1\u2069 وارد کنید. برای تعیین نکردن DNS ثانویه، فیلد را خالی بگذارید.",
+    policyRoutesHint:
+      "حداکثر ۳۲ مسیر IPv4 به قالب CIDR وارد کنید، هر مسیر در یک خط، مانند \u2066192.168.10.0/24\u2069. برای استفاده از مسیرهای گره، فیلد را خالی بگذارید.",
+    uploadLimitHint:
+      "برای ترافیک ارسالی از کارخواه، عددی صحیح بر حسب کیلوبایت بر ثانیه وارد کنید، مانند ۵۰۰. مقدار خالی یا ۰ از محدودیت گره استفاده می‌کند.",
+    downloadLimitHint:
+      "برای ترافیک دریافتی کارخواه، عددی صحیح بر حسب کیلوبایت بر ثانیه وارد کنید، مانند ۲۰۰۰. مقدار خالی یا ۰ از محدودیت گره استفاده می‌کند.",
+    policyInUse:
+      "پیش از حذف، برای مشتریان این سیاست، سیاست دیگری یا پیش‌فرض گره را تعیین کنید.",
+    deletePolicyDescription: "سیاست {name} حذف شود؟",
     nodePolicyDefaults: "استفاده از پیش‌فرض گره",
-    policyHelp: "تنظیمات در ورود بعدی به VPN اعمال می‌شوند. فیلدهای خالی و محدودیت‌های صفر از پیش‌فرض گره استفاده می‌کنند.",
     policyRoutes: "مسیرهای IPv4",
-    policyRoutesHint: "در هر خط یک CIDR مانند 192.168.10.0/24 وارد کنید.",
     primaryDNS: "DNS اصلی IPv4",
     secondaryDNS: "DNS ثانویه IPv4",
     uploadKBPerSecond: "محدودیت بارگذاری (kB/s)",
     downloadKBPerSecond: "محدودیت دریافت (kB/s)",
-    policyInvalid: "نام، DNS معتبر IPv4 و حداکثر ۳۲ CIDR وارد کنید. DNS ثانویه به DNS اصلی نیاز دارد.",
-    policyInUse: "پیش از حذف، مشتریان این گروه را به سیاست دیگری اختصاص دهید.",
-    deletePolicyDescription: "گروه سیاست {name} حذف شود؟",
+    policyInvalid:
+      "نام، DNS معتبر IPv4 و حداکثر ۳۲ CIDR وارد کنید. DNS ثانویه به DNS اصلی نیاز دارد.",
     manageGrants: "مدیریت دسترسی",
     grantSelection: "تخصیص دسترسی",
-    changeGrantHelp: "برای {username} یک گره یا گروه گره انتخاب کنید. برای تعلیق همه دسترسی‌ها، مشتری را قفل کنید.",
-    legacyGrantHelp: "برای جایگزینی مجوزهای قبلی این حساب، تخصیص جدیدی انتخاب کنید.",
+    changeGrantHelp:
+      "برای {username} یک گره یا گروه گره انتخاب کنید. برای تعلیق همه دسترسی‌ها، مشتری را قفل کنید.",
+    legacyGrantHelp:
+      "برای جایگزینی مجوزهای قبلی این حساب، تخصیص جدیدی انتخاب کنید.",
     pendingRemove: "در انتظار حذف",
     apiPort: "درگاه API",
     agentHealth: {
@@ -659,7 +824,8 @@ export const customerManagementMessages = {
     noCustomers: "هیچ مشتری مطابق فیلتر نیست.",
     previous: "قبلی",
     next: "بعدی",
-    grantHelp: "یک گره یا یک گروه گره انتخاب کنید. درگاه مشتری از اتصال پیش‌فرض استفاده می‌کند.",
+    grantHelp:
+      "یک گره یا یک گروه گره انتخاب کنید. درگاه مشتری از اتصال پیش‌فرض استفاده می‌کند.",
     passwordHint: "برای حفظ گذرواژه فعلی خالی بگذارید.",
     missingDefaults:
       "برای گره‌های انتخاب‌شده پیش‌فرض‌های ایجاد حساب را در گروه‌های گره تنظیم کنید.",
@@ -671,7 +837,8 @@ export const customerManagementMessages = {
       "{username} مسدود شود؟ دسترسی پورتال فوری قطع و غیرفعال‌سازی در گره‌ها زمان‌بندی می‌شود.",
     unlockDescription:
       "قفل {username} باز و دسترسی به گره‌های تخصیص‌یافته بازیابی شود؟",
-    deleteDescription: "آیا {username} و سابقهٔ ترافیک و فعالیت برای همیشه حذف شوند؟ این کار قابل بازگشت نیست.",
+    deleteDescription:
+      "آیا {username} و سابقهٔ ترافیک و فعالیت برای همیشه حذف شوند؟ این کار قابل بازگشت نیست.",
     nodeAuth: "عامل توکن ثبت‌شده را رد کرد.",
     nodeTLS: "گره اصلی نتوانست گواهی HTTPS عامل را تأیید کند.",
     nodeUnavailable:
@@ -683,7 +850,8 @@ export const customerManagementMessages = {
     noGroups: "هنوز گروه گره‌ای وجود ندارد.",
     groupHelp:
       "تغییرها برای همه مشتریانی اعمال می‌شوند که از طریق این گروه دسترسی دارند.",
-    radiusPolicyHelp: "این تنظیمات برای ورود از طریق RADIUS در این گره اعمال می‌شوند.",
+    radiusPolicyHelp:
+      "این تنظیمات برای ورود از طریق RADIUS در این گره اعمال می‌شوند.",
     actions: "عملیات مشتری",
     lock: "قفل کردن",
     unlock: "باز کردن قفل",
@@ -697,23 +865,49 @@ export const customerManagementMessages = {
     TotallyRxTx: "کل دریافت و ارسال",
   },
   ar: {
-    policyGroup: "مجموعة سياسة العميل",
-    policyGroups: "مجموعات سياسات العملاء",
-    newPolicyGroup: "مجموعة سياسة جديدة",
+    policyGroup: "سياسة RADIUS",
+    radiusPolicies: "سياسات RADIUS",
+    radiusPoliciesDescription:
+      "إدارة إعدادات الشبكة المشتركة للعملاء الذين يصادقون عبر RADIUS.",
+    newPolicy: "سياسة جديدة",
+    viewPolicy: "تفاصيل السياسة",
+    editPolicy: "تعديل السياسة",
+    deletePolicy: "حذف السياسة",
+    policyMorePages: "صفحات إضافية",
+    policyActions: "إجراءات السياسة",
+    searchPolicies: "البحث حسب اسم السياسة…",
+    noPolicies: "لا توجد سياسات مطابقة.",
+    configuredPolicyFields: "الإعدادات المضبوطة",
+    assignedPolicyCustomers: "العملاء المعيّنون",
+    policyPageStatus: "الصفحة {page} من {pages} · عدد السياسات: {total}",
+    policySaved: "تم حفظ السياسة.",
+    policyDeleted: "تم حذف السياسة.",
+    policyHelp: "تسري التغييرات عند تسجيل الدخول الكامل التالي إلى VPN.",
+    primaryDNSHint:
+      "أدخل عنوان IPv4 واحدًا، مثل \u20661.1.1.1\u2069. اترك الحقل فارغًا لاستخدام إعدادات العقدة.",
+    secondaryDNSHint:
+      "بعد ضبط DNS الأساسي، أدخل عنوان IPv4 واحدًا مثل \u20661.0.0.1\u2069. اترك الحقل فارغًا لعدم إرسال DNS ثانوي.",
+    policyRoutesHint:
+      "أدخل ما يصل إلى ٣٢ مسار IPv4 بصيغة CIDR، واحدًا في كل سطر، مثل \u2066192.168.10.0/24\u2069. اترك الحقل فارغًا لاستخدام مسارات العقدة.",
+    uploadLimitHint:
+      "أدخل عددًا صحيحًا بالكيلوبايت في الثانية لحركة البيانات التي يرسلها العميل، مثل ٥٠٠. اترك الحقل فارغًا أو أدخل ٠ لاستخدام حد العقدة.",
+    downloadLimitHint:
+      "أدخل عددًا صحيحًا بالكيلوبايت في الثانية لحركة البيانات التي يتلقاها العميل، مثل ٢٠٠٠. اترك الحقل فارغًا أو أدخل ٠ لاستخدام حد العقدة.",
+    policyInUse:
+      "قبل الحذف، عيّن سياسة أخرى أو الإعدادات الافتراضية للعقدة للعملاء الذين يستخدمون هذه السياسة.",
+    deletePolicyDescription: "هل تريد حذف السياسة {name}؟",
     nodePolicyDefaults: "استخدام إعدادات العقدة",
-    policyHelp: "تسري الإعدادات عند تسجيل الدخول التالي إلى VPN. تستخدم الحقول الفارغة والحدود الصفرية إعدادات العقدة.",
     policyRoutes: "مسارات IPv4",
-    policyRoutesHint: "أدخل نطاق CIDR واحدًا في كل سطر، مثل 192.168.10.0/24.",
     primaryDNS: "DNS IPv4 الأساسي",
     secondaryDNS: "DNS IPv4 الثانوي",
     uploadKBPerSecond: "حد الرفع (kB/s)",
     downloadKBPerSecond: "حد التنزيل (kB/s)",
-    policyInvalid: "أدخل اسمًا وخوادم DNS IPv4 صالحة وما يصل إلى 32 نطاق CIDR. يتطلب DNS الثانوي تحديد الأساسي.",
-    policyInUse: "أعد تعيين العملاء الذين يستخدمون هذه المجموعة قبل حذفها.",
-    deletePolicyDescription: "هل تريد حذف مجموعة السياسة {name}؟",
+    policyInvalid:
+      "أدخل اسمًا وخوادم DNS IPv4 صالحة وما يصل إلى 32 نطاق CIDR. يتطلب DNS الثانوي تحديد الأساسي.",
     manageGrants: "إدارة الوصول",
     grantSelection: "تعيين الوصول",
-    changeGrantHelp: "اختر عقدة أو مجموعة عقد لـ {username}. اقفل حساب العميل لتعليق الوصول بالكامل.",
+    changeGrantHelp:
+      "اختر عقدة أو مجموعة عقد لـ {username}. اقفل حساب العميل لتعليق الوصول بالكامل.",
     legacyGrantHelp: "اختر تعيينًا جديدًا ليحل محل أذونات هذا الحساب السابقة.",
     pendingRemove: "بانتظار الحذف",
     apiPort: "منفذ API",
@@ -777,7 +971,8 @@ export const customerManagementMessages = {
     noCustomers: "لا يوجد عملاء يطابقون عوامل التصفية.",
     previous: "السابق",
     next: "التالي",
-    grantHelp: "اختر عقدة واحدة أو مجموعة عقد واحدة. تستخدم بوابة العميل الاتصال الافتراضي.",
+    grantHelp:
+      "اختر عقدة واحدة أو مجموعة عقد واحدة. تستخدم بوابة العميل الاتصال الافتراضي.",
     passwordHint: "اتركه فارغًا للإبقاء على كلمة المرور الحالية.",
     missingDefaults:
       "اضبط الإعدادات الافتراضية لإنشاء الحسابات للعقد المحددة في مجموعات العقد.",
@@ -789,7 +984,8 @@ export const customerManagementMessages = {
       "هل تريد قفل {username}؟ يتوقف الوصول إلى البوابة فورًا وتُجدول عملية تعطيل الحسابات على العقد.",
     unlockDescription:
       "هل تريد إلغاء قفل {username} واستعادة الوصول إلى العقد المعيّنة؟",
-    deleteDescription: "هل تريد حذف {username} وسجل حركة المرور والنشاط نهائيًا؟ لا يمكن التراجع عن ذلك.",
+    deleteDescription:
+      "هل تريد حذف {username} وسجل حركة المرور والنشاط نهائيًا؟ لا يمكن التراجع عن ذلك.",
     nodeAuth: "رفض الوكيل رمز المصادقة المسجل.",
     nodeTLS: "تعذّر على العقدة الرئيسية التحقق من شهادة HTTPS الخاصة بالوكيل.",
     nodeUnavailable:
@@ -799,7 +995,8 @@ export const customerManagementMessages = {
     editGroup: "تعديل مجموعة العقد",
     noGroups: "لا توجد مجموعات عقد حتى الآن.",
     groupHelp: "تطبّق التغييرات على جميع العملاء المصرح لهم عبر هذه المجموعة.",
-    radiusPolicyHelp: "تنطبق هذه الإعدادات على تسجيل الدخول عبر RADIUS في هذه العقدة.",
+    radiusPolicyHelp:
+      "تنطبق هذه الإعدادات على تسجيل الدخول عبر RADIUS في هذه العقدة.",
     actions: "إجراءات العميل",
     lock: "قفل",
     unlock: "إلغاء القفل",

@@ -22,8 +22,18 @@ Master stores customer accounts, password hashes, node access and RADIUS account
 
 Create a customer with a single node or node group and connect using the customer's password. Verify that unauthorized nodes reject the login, traffic appears in `/customer/`, and locking or deleting the customer blocks the next login and schedules session termination. Set a default connection to enable Cisco Secure Client setup in the portal.
 
-## Customer policy groups
+## Radius Policies
 
-In **Customer Management → Customer policy groups**, define IPv4 DNS servers, routes in CIDR format, and upload and download limits in kB/s (1 kB = 1,000 bytes). Then edit each customer's account to select a group. Empty values and zero speed limits leave that part of the configuration to the node. Changes apply at the next full VPN authentication.
+Open **System → Radius Policies** on the Master to create and manage shared VPN settings. In **Customer Management**, edit each customer to select a policy or **Use node defaults**. Clear all customer assignments before deleting a policy.
+
+| Setting | How to configure it |
+| --- | --- |
+| Primary IPv4 DNS | Enter one IPv4 address, such as `1.1.1.1`. Leave blank to use the node defaults. |
+| Secondary IPv4 DNS | Set the primary DNS first, then enter one IPv4 address, such as `1.0.0.1`. Leave blank to omit the secondary override. |
+| IPv4 routes | Enter up to 32 IPv4 networks in CIDR notation, one per line, such as `192.168.10.0/24`. Leave blank to use the node routes. |
+| Upload limit | Enter a whole number in kB/s for traffic sent by the client, such as `500`. Leave blank or enter `0` to use the node limit. |
+| Download limit | Enter a whole number in kB/s for traffic received by the client, such as `2000`. Leave blank or enter `0` to use the node limit. |
+
+One kB is 1,000 bytes. Changes apply at the next full VPN authentication.
 
 The Master sends the policy through the existing FreeRADIUS REST callback. Use `groupconfig=true` on participating nodes. The FreeRADIUS and radcli dictionaries must recognize the Microsoft DNS and Roaring Penguin speed-limit attributes listed in [Ocserv's RADIUS documentation](https://gitlab.com/openconnect/ocserv/-/raw/1.6.0/doc/README-radius.md#L97).

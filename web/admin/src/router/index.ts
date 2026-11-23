@@ -45,6 +45,7 @@ const dashboardComponents: Partial<
   backup: backupView,
   "system-settings": systemSettingsView,
   "customer-management": () => import("@/views/CustomerManagementView.vue"),
+  "radius-policies": () => import("@/views/RadiusPoliciesView.vue"),
   "agent-nodes": () => import("@/views/AgentNodesView.vue"),
 };
 
