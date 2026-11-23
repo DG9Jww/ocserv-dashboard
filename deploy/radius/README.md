@@ -21,3 +21,9 @@ Master stores customer accounts, password hashes, node access and RADIUS account
 ## Verification
 
 Create a customer with a single node or node group and connect using the customer's password. Verify that unauthorized nodes reject the login, traffic appears in `/customer/`, and locking or deleting the customer blocks the next login and schedules session termination. Set a default connection to enable Cisco Secure Client setup in the portal.
+
+## Customer policy groups
+
+In **Customer Management → Customer policy groups**, define IPv4 DNS servers, routes in CIDR format, and upload and download limits in kB/s (1 kB = 1,000 bytes). Then edit each customer's account to select a group. Empty values and zero speed limits leave that part of the configuration to the node. Changes apply at the next full VPN authentication.
+
+The Master sends the policy through the existing FreeRADIUS REST callback. Use `groupconfig=true` on participating nodes. The FreeRADIUS and radcli dictionaries must recognize the Microsoft DNS and Roaring Penguin speed-limit attributes listed in [Ocserv's RADIUS documentation](https://gitlab.com/openconnect/ocserv/-/raw/1.6.0/doc/README-radius.md#L97).

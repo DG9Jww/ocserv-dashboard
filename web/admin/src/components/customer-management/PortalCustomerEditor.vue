@@ -37,6 +37,7 @@ const form = reactive<Omit<PortalCustomerInput, "nodes" | "groups">>({
   username: "",
   password: "",
   default_node: "",
+  policy_group_id: "",
 });
 const selectClass = "h-9 w-full rounded-md border bg-background px-2 text-sm";
 const selection = ref("");
@@ -78,6 +79,7 @@ watch(open, (value) => {
     username: customer?.username ?? "",
     password: "",
     default_node: targets.value.has(defaultNode) ? defaultNode : "",
+    policy_group_id: customer?.policy_group_id ?? "",
   });
 });
 watch(targets, (nodes) => {
@@ -97,6 +99,7 @@ function submit() {
   if (!selectedNode.value && !selectedGroup.value) return;
   emit("save", {
     ...form,
+    policy_group_id: props.grantsOnly ? undefined : form.policy_group_id,
     username: form.username.trim(),
     nodes: selectedNode.value ? [selectedNode.value.id] : [],
     groups: selectedGroup.value ? [selectedGroup.value.id] : [],
@@ -187,6 +190,15 @@ function submit() {
             {{ missing.map(name).join(", ") }}</AlertDescription
           >
         </Alert>
+        <label v-if="!grantsOnly" class="grid gap-1 text-sm">
+          {{ label("policyGroup") }}
+          <select v-model="form.policy_group_id" :class="selectClass">
+            <option value="">{{ label("nodePolicyDefaults") }}</option>
+            <option v-for="group in inventory.policy_groups" :key="group.id" :value="group.id">
+              {{ group.name }}
+            </option>
+          </select>
+        </label>
         <label class="grid gap-1 text-sm"
           >{{ label("defaultConnection") }}
           <select v-model="form.default_node" :class="selectClass">

@@ -92,6 +92,21 @@ func TestRadiusCallbackAuthorize(t *testing.T) {
 	require.Equal(t, http.StatusOK, out.Code)
 	require.JSONEq(t, `{"reply:Class":"OU=sales","reply:Session-Timeout":60}`, out.Body.String())
 	require.Equal(t, [4]string{"agent-2", "customer", "example-password", "session"}, stub.authorization)
+	stub.policy = federation.RadiusPolicy{}
+	require.Equal(t, http.StatusNoContent, request(secret).Code)
+	stub.policy.Network = models.PortalPolicyGroup{
+		PrimaryDNS: "10.1.0.53", SecondaryDNS: "10.1.0.54",
+		Routes: []string{"10.1.0.0/24", "192.168.10.0/24"}, UploadKBPerSecond: 2000, DownloadKBPerSecond: 8000,
+	}
+	out = request(secret)
+	require.Equal(t, http.StatusOK, out.Code)
+	require.JSONEq(t, `{
+		"reply:MS-Primary-DNS-Server":"10.1.0.53",
+		"reply:MS-Secondary-DNS-Server":"10.1.0.54",
+		"reply:Framed-Route":{"op":"+=","value":["10.1.0.0/24","192.168.10.0/24"]},
+		"reply:RP-Upstream-Speed-Limit":2000,
+		"reply:RP-Downstream-Speed-Limit":8000
+	}`, out.Body.String())
 	stub.err = federation.ErrRadiusRejected
 	require.Equal(t, http.StatusUnauthorized, request(secret).Code)
 }

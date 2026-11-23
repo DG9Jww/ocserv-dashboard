@@ -19,6 +19,7 @@ var ErrRadiusRejected = errors.New("radius access rejected")
 type RadiusPolicy struct {
 	Group          string
 	SessionTimeout uint32
+	Network        models.PortalPolicyGroup
 }
 
 func (m *Master) AuthorizeRadius(ctx context.Context, node, name, password, sessionID string) (RadiusPolicy, error) {
@@ -39,6 +40,12 @@ func (m *Master) AuthorizeRadius(ctx context.Context, node, name, password, sess
 	row, policy, err := m.radiusGrant(ctx, customer, node)
 	if err != nil {
 		return policy, err
+	}
+	if customer.PolicyGroupID != nil {
+		policy.Network, err = m.store.PolicyGroup(ctx, *customer.PolicyGroupID)
+		if err != nil {
+			return policy, err
+		}
 	}
 	bound, err := m.store.BindRadiusSession(ctx, customer, row, sessionID)
 	if err != nil {

@@ -49,11 +49,12 @@ func NewMaster(store *repository.PortalRepository, agents *repository.OcservAgen
 }
 
 type CustomerInput struct {
-	Username    string   `json:"username"`
-	Password    string   `json:"password"`
-	Nodes       []string `json:"nodes"`
-	Groups      []string `json:"groups"`
-	DefaultNode string   `json:"default_node"`
+	Username      string   `json:"username"`
+	Password      string   `json:"password"`
+	Nodes         []string `json:"nodes"`
+	Groups        []string `json:"groups"`
+	DefaultNode   string   `json:"default_node"`
+	PolicyGroupID *string  `json:"policy_group_id"`
 }
 
 func (input CustomerInput) ValidateGrant() error {
@@ -69,11 +70,12 @@ type InventoryNode struct {
 }
 
 type Inventory struct {
-	Nodes       []InventoryNode            `json:"nodes"`
-	Groups      []models.PortalNodeGroup   `json:"groups"`
-	Defaults    []models.PortalNodeDefault `json:"defaults"`
-	Customers   []models.PortalCustomer    `json:"customers"`
-	Assignments []models.PortalAssignment  `json:"assignments"`
+	Nodes        []InventoryNode            `json:"nodes"`
+	Groups       []models.PortalNodeGroup   `json:"groups"`
+	PolicyGroups []models.PortalPolicyGroup `json:"policy_groups"`
+	Defaults     []models.PortalNodeDefault `json:"defaults"`
+	Customers    []models.PortalCustomer    `json:"customers"`
+	Assignments  []models.PortalAssignment  `json:"assignments"`
 }
 
 func agentRef(id uint) string { return "agent-" + strconv.FormatUint(uint64(id), 10) }
@@ -97,6 +99,9 @@ func (m *Master) Inventory(ctx context.Context) (Inventory, error) {
 		return out, err
 	}
 	if out.Groups, err = m.store.Groups(ctx); err != nil {
+		return out, err
+	}
+	if out.PolicyGroups, err = m.store.PolicyGroups(ctx); err != nil {
 		return out, err
 	}
 	if out.Defaults, err = m.store.Defaults(ctx); err != nil {
@@ -210,6 +215,18 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 		}
 		if customer.DeletedAt != nil {
 			return ErrConflict
+		}
+		if input.PolicyGroupID != nil {
+			customer.PolicyGroupID = nil
+			if policyID := *input.PolicyGroupID; policyID != "" {
+				if !ValidID(policyID) {
+					return ErrInvalid
+				}
+				if _, err := tx.PolicyGroup(ctx, policyID); err != nil {
+					return err
+				}
+				customer.PolicyGroupID = &policyID
+			}
 		}
 		previous := customer
 		previous.Locked = false
@@ -356,6 +373,7 @@ func (m *Master) SetCustomerStatus(ctx context.Context, id string, locked, remov
 			now := time.Now().UTC()
 			customer.DeletedAt = &now
 			customer.PasswordHash = []byte{}
+			customer.PolicyGroupID = nil
 			customer.Nodes, customer.Groups, customer.DefaultNode = []string{}, []string{}, ""
 		}
 		if err := ensureNodeDefaults(ctx, tx, effective(customer, groups), previous); err != nil {

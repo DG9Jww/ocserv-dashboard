@@ -55,6 +55,28 @@ func (r *PortalRepository) Groups(ctx context.Context) ([]models.PortalNodeGroup
 	return groups, err
 }
 
+func (r *PortalRepository) PolicyGroups(ctx context.Context) ([]models.PortalPolicyGroup, error) {
+	var groups []models.PortalPolicyGroup
+	err := r.db.WithContext(ctx).Order("name").Find(&groups).Error
+	return groups, err
+}
+
+func (r *PortalRepository) PolicyGroup(ctx context.Context, id string) (models.PortalPolicyGroup, error) {
+	var group models.PortalPolicyGroup
+	err := r.db.WithContext(ctx).First(&group, "id = ?", id).Error
+	return group, err
+}
+
+func (r *PortalRepository) DeletePolicyGroup(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&models.PortalPolicyGroup{}, "id = ?", id).Error
+}
+
+func (r *PortalRepository) PolicyGroupInUse(ctx context.Context, id string) (bool, error) {
+	var inUse bool
+	err := r.db.WithContext(ctx).Raw("SELECT EXISTS (SELECT 1 FROM portal_customers WHERE policy_group_id = ?)", id).Scan(&inUse).Error
+	return inUse, err
+}
+
 func (r *PortalRepository) Defaults(ctx context.Context) ([]models.PortalNodeDefault, error) {
 	var defaults []models.PortalNodeDefault
 	err := r.db.WithContext(ctx).Find(&defaults).Error

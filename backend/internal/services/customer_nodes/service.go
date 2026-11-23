@@ -97,6 +97,19 @@ func RegisterAdmin(api *echo.Group, master *federation.Master, authenticate echo
 	}
 	group.POST("/groups", saveGroup)
 	group.PATCH("/groups/:id", saveGroup)
+	savePolicyGroup := func(c *echo.Context) error {
+		var input models.PortalPolicyGroup
+		if err := c.Bind(&input); err != nil {
+			return failure(c, federation.ErrInvalidPolicyGroup)
+		}
+		input.ID = c.Param("id")
+		return saved(c, master.SavePolicyGroup(c.Request().Context(), input))
+	}
+	group.POST("/policy-groups", savePolicyGroup)
+	group.PATCH("/policy-groups/:id", savePolicyGroup)
+	group.DELETE("/policy-groups/:id", func(c *echo.Context) error {
+		return saved(c, master.DeletePolicyGroup(c.Request().Context(), c.Param("id")))
+	})
 	group.PATCH("/nodes/:node", func(c *echo.Context) error {
 		var input models.PortalNodeDefault
 		if err := c.Bind(&input); err != nil {
@@ -118,8 +131,10 @@ func failure(c *echo.Context, err error) error {
 	status, code := http.StatusServiceUnavailable, federation.ErrUnavailable.Error()
 	switch {
 	case errors.Is(err, federation.ErrInvalid), errors.Is(err, federation.ErrMissingDefaults), errors.Is(err, federation.ErrNoGrants),
-		errors.Is(err, federation.ErrUsername), errors.Is(err, federation.ErrPassword):
+		errors.Is(err, federation.ErrUsername), errors.Is(err, federation.ErrPassword), errors.Is(err, federation.ErrInvalidPolicyGroup):
 		status, code = http.StatusBadRequest, err.Error()
+	case errors.Is(err, federation.ErrPolicyGroupInUse):
+		status, code = http.StatusConflict, err.Error()
 	case errors.Is(err, federation.ErrConflict), errors.Is(err, gorm.ErrDuplicatedKey), strings.Contains(err.Error(), "SQLSTATE 23505"):
 		status, code = http.StatusConflict, federation.ErrConflict.Error()
 	case errors.Is(err, federation.ErrDefault), errors.Is(err, gorm.ErrRecordNotFound):

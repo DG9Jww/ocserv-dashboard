@@ -1,5 +1,6 @@
 import type {
   Assignment,
+  CustomerPolicyGroup,
   Inventory,
   NodeDefaults,
   NodeGroup,
@@ -11,6 +12,7 @@ import { getMockAgents } from "@/mocks/system";
 import { cloneMock } from "@/mocks/utils";
 
 const groups: NodeGroup[] = [];
+const policyGroups: CustomerPolicyGroup[] = [];
 const customers: PortalCustomer[] = [];
 const defaults: NodeDefaults[] = [];
 let assignments: Assignment[] = [];
@@ -61,10 +63,10 @@ export const mockCustomerManagement = {
         .filter((agent) => agent.id != null)
         .map((agent) => ({ id: "agent-" + agent.id, name: agent.name })),
     ];
-    return cloneMock({ nodes, groups, customers, defaults, assignments });
+    return cloneMock({ nodes, groups, policy_groups: policyGroups, customers, defaults, assignments });
   },
   saveCustomer(input: PortalCustomerInput) {
-    const { password, ...account } = input;
+    const { password, policy_group_id, ...account } = input;
     const previous = customers.find((item) => item.id === account.id);
     if (
       account.nodes.length + account.groups.length !== 1 ||
@@ -102,6 +104,7 @@ export const mockCustomerManagement = {
     saveByID(customers, {
       ...previous,
       ...cloneMock(account),
+      policy_group_id: policy_group_id === undefined ? previous?.policy_group_id : policy_group_id || null,
       id: account.id || crypto.randomUUID(),
     });
     reconcile();
@@ -114,6 +117,19 @@ export const mockCustomerManagement = {
       id: group.id || crypto.randomUUID(),
     });
     reconcile();
+  },
+  savePolicyGroup(group: CustomerPolicyGroup) {
+    if (!group.name.trim())
+      throw new ApiError("customer_policy_invalid", { status: 400 });
+    if (policyGroups.some((item) => item.name === group.name && item.id !== group.id))
+      throw new ApiError("customer_account_conflict", { status: 409 });
+    saveByID(policyGroups, { ...cloneMock(group), id: group.id || crypto.randomUUID() });
+  },
+  deletePolicyGroup(id: string) {
+    if (customers.some((item) => item.policy_group_id === id))
+      throw new ApiError("customer_policy_in_use", { status: 409 });
+    const index = policyGroups.findIndex((item) => item.id === id);
+    if (index >= 0) policyGroups.splice(index, 1);
   },
   saveDefaults(value: NodeDefaults) {
     if (!value.group)

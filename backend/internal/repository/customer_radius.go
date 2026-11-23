@@ -32,10 +32,11 @@ func (r *PortalRepository) BindRadiusSession(ctx context.Context, customer model
 		FROM portal_customers AS c
 		JOIN portal_assignments AS a ON a.customer_id = c.id
 		WHERE c.id = ? AND c.password_hash = ? AND NOT c.locked AND c.deleted_at IS NULL
+		  AND c.policy_group_id IS NOT DISTINCT FROM CAST(? AS uuid)
 		  AND a.node = ? AND a.version = ? AND a.desired
 		ON CONFLICT (node, session_id) DO UPDATE SET customer_id = EXCLUDED.customer_id
 		WHERE portal_radius_sessions.customer_id = EXCLUDED.customer_id AND NOT portal_radius_sessions.stopped
-	`, sessionID, customer.ID, customer.PasswordHash, assignment.Node, assignment.Version)
+	`, sessionID, customer.ID, customer.PasswordHash, customer.PolicyGroupID, assignment.Node, assignment.Version)
 	return result.RowsAffected == 1, result.Error
 }
 

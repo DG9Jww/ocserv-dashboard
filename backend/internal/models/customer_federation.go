@@ -3,16 +3,27 @@ package models
 import "time"
 
 type PortalCustomer struct {
-	ID           string   `json:"id" gorm:"type:uuid;primaryKey;default:uuidv7()"`
-	Username     string   `json:"username" gorm:"not null;uniqueIndex"`
-	PasswordHash []byte   `json:"-" gorm:"not null"`
-	Nodes        []string `json:"nodes" gorm:"serializer:json;type:jsonb"`
-	Groups       []string `json:"groups" gorm:"serializer:json;type:jsonb"`
-	DefaultNode  string   `json:"default_node"`
-	Locked       bool     `json:"locked"`
+	ID            string   `json:"id" gorm:"type:uuid;primaryKey;default:uuidv7()"`
+	Username      string   `json:"username" gorm:"not null;uniqueIndex"`
+	PasswordHash  []byte   `json:"-" gorm:"not null"`
+	Nodes         []string `json:"nodes" gorm:"serializer:json;type:jsonb"`
+	Groups        []string `json:"groups" gorm:"serializer:json;type:jsonb"`
+	DefaultNode   string   `json:"default_node"`
+	PolicyGroupID *string  `json:"policy_group_id" gorm:"type:uuid"`
+	Locked        bool     `json:"locked"`
 	// DeletedAt is set while permanent deletion is waiting for node confirmation.
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	CreatedAt time.Time
+}
+
+type PortalPolicyGroup struct {
+	ID                  string   `json:"id" gorm:"type:uuid;primaryKey;default:uuidv7()"`
+	Name                string   `json:"name"`
+	PrimaryDNS          string   `json:"primary_dns"`
+	SecondaryDNS        string   `json:"secondary_dns"`
+	Routes              []string `json:"routes" gorm:"serializer:json;type:jsonb"`
+	UploadKBPerSecond   uint32   `json:"upload_kb_per_second"`
+	DownloadKBPerSecond uint32   `json:"download_kb_per_second"`
 }
 
 type PortalNodeGroup struct {

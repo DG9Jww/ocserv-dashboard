@@ -161,8 +161,6 @@ func RadiusHandler(master radiusBackend, secret string) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 		case err != nil:
 			w.WriteHeader(http.StatusServiceUnavailable)
-		case policy.Group == "" && policy.SessionTimeout == 0:
-			w.WriteHeader(http.StatusNoContent)
 		default:
 			reply := map[string]any{}
 			if policy.Group != "" {
@@ -170,6 +168,26 @@ func RadiusHandler(master radiusBackend, secret string) http.Handler {
 			}
 			if policy.SessionTimeout > 0 {
 				reply["reply:Session-Timeout"] = policy.SessionTimeout
+			}
+			network := policy.Network
+			if network.PrimaryDNS != "" {
+				reply["reply:MS-Primary-DNS-Server"] = network.PrimaryDNS
+			}
+			if network.SecondaryDNS != "" {
+				reply["reply:MS-Secondary-DNS-Server"] = network.SecondaryDNS
+			}
+			if len(network.Routes) != 0 {
+				reply["reply:Framed-Route"] = map[string]any{"op": "+=", "value": network.Routes}
+			}
+			if network.UploadKBPerSecond > 0 {
+				reply["reply:RP-Upstream-Speed-Limit"] = network.UploadKBPerSecond
+			}
+			if network.DownloadKBPerSecond > 0 {
+				reply["reply:RP-Downstream-Speed-Limit"] = network.DownloadKBPerSecond
+			}
+			if len(reply) == 0 {
+				w.WriteHeader(http.StatusNoContent)
+				return
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(reply)
