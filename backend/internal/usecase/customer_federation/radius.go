@@ -17,7 +17,6 @@ import (
 var ErrRadiusRejected = errors.New("radius access rejected")
 
 type RadiusPolicy struct {
-	Group          string
 	SessionTimeout uint32
 	Network        models.PortalPolicyGroup
 }
@@ -82,59 +81,40 @@ func (m *Master) radiusGrant(ctx context.Context, customer models.PortalCustomer
 	if !assignment.Desired {
 		return assignment, policy, ErrRadiusRejected
 	}
-	defaults, err := m.store.Defaults(ctx)
-	if err != nil {
-		return assignment, policy, err
-	}
-	d, err := defaultsFor(defaults, node)
-	if err != nil {
-		return assignment, policy, ErrRadiusRejected
-	}
 	now := time.Now().UTC()
-	if expires := radiusExpiry(customer, d); expires != nil {
-		seconds := math.Floor(expires.Sub(now).Seconds())
+	if customer.ExpiresAt != nil {
+		seconds := math.Floor(customer.ExpiresAt.Sub(now).Seconds())
 		if seconds <= 0 {
 			return assignment, policy, ErrRadiusRejected
 		}
 		policy.SessionTimeout = uint32(min(seconds, math.MaxUint32))
 	}
-	exceeded, err := m.radiusQuotaExceeded(ctx, assignment, d, now)
+	exceeded, err := m.radiusQuotaExceeded(ctx, customer, now)
 	if err != nil {
 		return assignment, policy, err
 	}
 	if exceeded {
 		return assignment, policy, ErrRadiusRejected
 	}
-	if d.Group != "defaults" {
-		policy.Group = d.Group
-	}
 	return assignment, policy, nil
 }
 
-func radiusExpiry(customer models.PortalCustomer, d models.PortalNodeDefault) *time.Time {
-	if d.ExpiryDays <= 0 {
-		return nil
-	}
-	expires := customer.CreatedAt.UTC().AddDate(0, 0, d.ExpiryDays)
-	return &expires
-}
-
-func (m *Master) radiusQuotaExceeded(ctx context.Context, row models.PortalAssignment, d models.PortalNodeDefault, now time.Time) (bool, error) {
-	if d.TrafficType == models.Free {
+func (m *Master) radiusQuotaExceeded(ctx context.Context, customer models.PortalCustomer, now time.Time) (bool, error) {
+	if customer.TrafficType == models.Free {
 		return false, nil
 	}
 	var from *time.Time
-	switch d.TrafficType {
+	switch customer.TrafficType {
 	case models.MonthlyTransmit, models.MonthlyReceive, models.MonthlyRxTx:
 		start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 		from = &start
 	}
-	total, err := m.store.RadiusBandwidth(ctx, row.CustomerID, row.Node, from, nil)
+	total, err := m.store.RadiusBandwidth(ctx, customer.ID, "", from, nil)
 	if err != nil {
 		return false, err
 	}
 	var used float64
-	switch d.TrafficType {
+	switch customer.TrafficType {
 	case models.MonthlyTransmit, models.TotallyTransmit:
 		used = total.TX
 	case models.MonthlyReceive, models.TotallyReceive:
@@ -144,7 +124,7 @@ func (m *Master) radiusQuotaExceeded(ctx context.Context, row models.PortalAssig
 	default:
 		return false, ErrInvalid
 	}
-	return used*(1<<30) >= float64(d.TrafficSize), nil
+	return used*(1<<30) >= float64(customer.TrafficSize), nil
 }
 
 type radiusTermination struct {
@@ -203,34 +183,23 @@ func (m *Master) checkRadiusSession(ctx context.Context, pending radiusTerminati
 	if err != nil {
 		return err
 	}
-	for _, row := range rows {
-		if row.Node != pending.node {
-			continue
-		}
-		terminate := !row.Desired || customer.Locked || customer.DeletedAt != nil
-		if !terminate {
-			defaults, err := m.store.Defaults(ctx)
-			if err != nil {
-				return err
-			}
-			d, err := defaultsFor(defaults, row.Node)
-			if err != nil {
-				return err
-			}
-			now := time.Now().UTC()
-			if expires := radiusExpiry(customer, d); expires != nil && !now.Before(*expires) {
-				terminate = true
-			} else {
-				terminate, err = m.radiusQuotaExceeded(ctx, row, d, now)
-				if err != nil {
-					return err
-				}
-			}
-		}
-		if terminate {
-			_, err := m.query(ctx, row.Node, Query{Operation: "terminate", RadiusUsername: customer.Username})
+	now := time.Now().UTC()
+	expired := customer.ExpiresAt != nil && !now.Before(*customer.ExpiresAt)
+	blocked := customer.Locked || customer.DeletedAt != nil || expired
+	if !blocked {
+		blocked, err = m.radiusQuotaExceeded(ctx, customer, now)
+		if err != nil {
 			return err
 		}
 	}
-	return nil
+
+	var failures error
+	for _, row := range rows {
+		if (blocked && row.Desired) || (row.Node == pending.node && !row.Desired) {
+			if _, err := m.query(ctx, row.Node, Query{Operation: "terminate", RadiusUsername: customer.Username}); err != nil {
+				failures = errors.Join(failures, fmt.Errorf("terminate sessions on node %s: %w", row.Node, err))
+			}
+		}
+	}
+	return failures
 }

@@ -10,13 +10,13 @@ const messageKeys: Record<string, string> = {
   customer_invalid_username: "invalidUsername",
   customer_invalid_password: "invalidPassword",
   customer_grant_required: "grantRequired",
-  customer_node_defaults_missing: "missingDefaults",
   invalid_customer_configuration: "invalid",
   customer_account_conflict: "conflict",
   customer_policy_invalid: "policyInvalid",
   customer_policy_in_use: "policyInUse",
   customer_node_auth_failed: "nodeAuth",
   customer_node_tls_failed: "nodeTLS",
+  customer_delete_failed: "deleteFailed",
   customer_nodes_unavailable: "nodeUnavailable",
 };
 

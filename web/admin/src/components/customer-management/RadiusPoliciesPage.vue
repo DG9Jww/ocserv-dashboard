@@ -233,6 +233,7 @@ function remove() {
     <RadiusPolicySheet
       v-model:open="sheetOpen"
       :policy="currentPolicy"
+      :nodes="data?.nodes ?? []"
       :read-only="readOnly"
       :pending="pending"
       :error="mutationError"

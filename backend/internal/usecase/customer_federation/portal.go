@@ -112,7 +112,7 @@ func (m *Master) ChangePassword(ctx context.Context, name, password string) erro
 		if err := setPassword(&user, password); err != nil {
 			return err
 		}
-		return tx.Save(ctx, &user)
+		return tx.UpdateCustomer(ctx, &user)
 	})
 }
 
@@ -186,30 +186,16 @@ func (m *Master) gather(ctx context.Context, rows []models.PortalAssignment, q Q
 }
 
 func (m *Master) Summary(ctx context.Context, name string) (*customerapi.Summary, error) {
-	user, rows, err := m.read(ctx, name)
+	user, _, err := m.read(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now().UTC()
 	from := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -1, 0)
 	out := &customerapi.Summary{OcservUser: customerapi.Customer{Username: name}, Usage: customerapi.Usage{DateStart: from, DateEnd: now}}
-	for _, row := range rows {
-		if row.Node != user.DefaultNode || !row.Desired {
-			continue
-		}
-		defaults, err := m.store.Defaults(ctx)
-		if err != nil {
-			return nil, err
-		}
-		d, err := defaultsFor(defaults, row.Node)
-		if err != nil {
-			return nil, err
-		}
-		out.OcservUser.TrafficType, out.OcservUser.TrafficSize = d.TrafficType, d.TrafficSize
-		if expires := radiusExpiry(user, d); expires != nil {
-			out.OcservUser.ExpiryMode, out.OcservUser.ExpireAt = models.ExpiryModeFixed, expires
-		}
-		break
+	out.OcservUser.TrafficType, out.OcservUser.TrafficSize = user.TrafficType, user.TrafficSize
+	if user.ExpiresAt != nil {
+		out.OcservUser.ExpiryMode, out.OcservUser.ExpireAt = models.ExpiryModeFixed, user.ExpiresAt
 	}
 	out.Usage.Bandwidths, err = m.store.RadiusBandwidth(ctx, user.ID, "", &from, &now)
 	return out, err

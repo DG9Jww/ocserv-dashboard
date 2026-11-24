@@ -9,20 +9,16 @@ import (
 )
 
 func TestCustomerGrantSelection(t *testing.T) {
+	policy := "00000000-0000-0000-0000-000000000001"
 	for _, tc := range []struct {
 		name  string
 		input federation.CustomerInput
 		valid bool
 	}{
-		{name: "single node", input: federation.CustomerInput{Nodes: []string{"master"}}, valid: true},
-		{name: "single group", input: federation.CustomerInput{Groups: []string{"group-id"}}, valid: true},
+		{name: "single node", input: federation.CustomerInput{Node: "master"}, valid: true},
+		{name: "single policy", input: federation.CustomerInput{PolicyGroupID: &policy}, valid: true},
 		{name: "missing"},
-		{name: "empty node", input: federation.CustomerInput{Nodes: []string{""}}},
-		{name: "empty group", input: federation.CustomerInput{Groups: []string{""}}},
-		{name: "multiple nodes", input: federation.CustomerInput{Nodes: []string{"master", "agent-1"}}},
-		{name: "multiple groups", input: federation.CustomerInput{Groups: []string{"first", "second"}}},
-		{name: "mixed", input: federation.CustomerInput{Nodes: []string{"master"}, Groups: []string{"group-id"}}},
-		{name: "duplicate", input: federation.CustomerInput{Nodes: []string{"master", "master"}}},
+		{name: "mixed", input: federation.CustomerInput{Node: "master", PolicyGroupID: &policy}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.valid {

@@ -2,8 +2,6 @@ import type {
   Assignment,
   CustomerPolicyGroup,
   Inventory,
-  NodeDefaults,
-  NodeGroup,
   PortalCustomer,
   PortalCustomerInput,
 } from "@/api/services/customer-management";
@@ -11,24 +9,18 @@ import { ApiError } from "@/api/http";
 import { getMockAgents } from "@/mocks/system";
 import { cloneMock } from "@/mocks/utils";
 
-const groups: NodeGroup[] = [];
 const policyGroups: CustomerPolicyGroup[] = [];
 const customers: PortalCustomer[] = [];
-const defaults: NodeDefaults[] = [];
 let assignments: Assignment[] = [];
 
 function reconcile() {
   for (const customer of customers) {
-    const desired = new Set(
-      customer.locked
-        ? []
-        : [
-            ...customer.nodes,
-            ...groups
-              .filter((group) => customer.groups.includes(group.id))
-              .flatMap((group) => group.nodes),
-          ],
-    );
+    const targets = customer.node
+      ? [customer.node]
+      : (policyGroups.find((policy) => policy.id === customer.policy_group_id)
+          ?.nodes ?? []);
+    if (!targets.includes(customer.default_node)) customer.default_node = "";
+    const desired = new Set(customer.locked ? [] : targets);
     const history = assignments.filter(
       (item) => item.customer_id === customer.id,
     );
@@ -63,21 +55,22 @@ export const mockCustomerManagement = {
         .filter((agent) => agent.id != null)
         .map((agent) => ({ id: "agent-" + agent.id, name: agent.name })),
     ];
-    return cloneMock({ nodes, groups, policy_groups: policyGroups, customers, defaults, assignments });
+    return cloneMock({
+      nodes,
+      policy_groups: policyGroups,
+      customers,
+      assignments,
+    });
   },
   saveCustomer(input: PortalCustomerInput) {
     const { password, policy_group_id, ...account } = input;
     const previous = customers.find((item) => item.id === account.id);
-    if (
-      account.nodes.length + account.groups.length !== 1 ||
-      account.nodes.includes("") ||
-      account.groups.includes("")
-    )
+    if (Boolean(account.node) === Boolean(policy_group_id))
       throw new ApiError("customer_grant_required", { status: 400 });
-    const group = groups.find((item) => item.id === account.groups[0]);
-    if (account.groups.length && !group)
+    const policy = policyGroups.find((item) => item.id === policy_group_id);
+    if (policy_group_id && !policy)
       throw new ApiError("invalid_customer_configuration", { status: 400 });
-    const targets = new Set(group?.nodes ?? account.nodes);
+    const targets = new Set(policy?.nodes ?? [account.node]);
     if (account.default_node && !targets.has(account.default_node))
       throw new ApiError("invalid_customer_configuration", { status: 400 });
     if (
@@ -92,10 +85,6 @@ export const mockCustomerManagement = {
     )
       throw new ApiError("customer_invalid_password", { status: 400 });
     if (
-      [...targets].some((node) => !defaults.some((item) => item.node === node))
-    )
-      throw new ApiError("customer_node_defaults_missing", { status: 400 });
-    if (
       customers.some(
         (item) => item.username === input.username && item.id !== input.id,
       )
@@ -104,39 +93,37 @@ export const mockCustomerManagement = {
     saveByID(customers, {
       ...previous,
       ...cloneMock(account),
-      policy_group_id: policy_group_id === undefined ? previous?.policy_group_id : policy_group_id || null,
+      policy_group_id,
+      traffic_type: account.traffic_type ?? previous?.traffic_type ?? "Free",
+      traffic_size: account.traffic_size ?? previous?.traffic_size ?? 0,
+      expires_at:
+        account.expires_at === undefined
+          ? (previous?.expires_at ?? null)
+          : account.expires_at,
       id: account.id || crypto.randomUUID(),
-    });
-    reconcile();
-  },
-  saveGroup(group: NodeGroup) {
-    if (!group.name)
-      throw new ApiError("invalid_customer_configuration", { status: 400 });
-    saveByID(groups, {
-      ...cloneMock(group),
-      id: group.id || crypto.randomUUID(),
     });
     reconcile();
   },
   savePolicyGroup(group: CustomerPolicyGroup) {
     if (!group.name.trim())
       throw new ApiError("customer_policy_invalid", { status: 400 });
-    if (policyGroups.some((item) => item.name === group.name && item.id !== group.id))
+    if (
+      policyGroups.some(
+        (item) => item.name === group.name && item.id !== group.id,
+      )
+    )
       throw new ApiError("customer_account_conflict", { status: 409 });
-    saveByID(policyGroups, { ...cloneMock(group), id: group.id || crypto.randomUUID() });
+    saveByID(policyGroups, {
+      ...cloneMock(group),
+      id: group.id || crypto.randomUUID(),
+    });
+    reconcile();
   },
   deletePolicyGroup(id: string) {
     if (customers.some((item) => item.policy_group_id === id))
       throw new ApiError("customer_policy_in_use", { status: 409 });
     const index = policyGroups.findIndex((item) => item.id === id);
     if (index >= 0) policyGroups.splice(index, 1);
-  },
-  saveDefaults(value: NodeDefaults) {
-    if (!value.group)
-      throw new ApiError("invalid_customer_configuration", { status: 400 });
-    const index = defaults.findIndex((item) => item.node === value.node);
-    if (index < 0) defaults.push({ ...value });
-    else defaults[index] = { ...value };
   },
   setStatus(id: string, locked: boolean, remove = false) {
     const customer = customers.find((item) => item.id === id);

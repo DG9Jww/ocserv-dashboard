@@ -12,36 +12,27 @@ export const trafficTypes = [
   "TotallyRxTx",
 ] as const;
 
-export interface NodeGroup {
-  id: string;
-  name: string;
-  nodes: string[];
-}
 export interface PortalCustomer {
   id: string;
   locked?: boolean;
   deleted_at?: string;
   username: string;
   default_node: string;
-  nodes: string[];
-  groups: string[];
-  policy_group_id?: string | null;
+  node: string;
+  policy_group_id: string | null;
+  traffic_type: (typeof trafficTypes)[number];
+  traffic_size: number;
+  expires_at: string | null;
 }
 export interface CustomerPolicyGroup {
   id: string;
   name: string;
+  nodes: string[];
   primary_dns: string;
   secondary_dns: string;
   routes: string[];
   upload_kb_per_second: number;
   download_kb_per_second: number;
-}
-export interface NodeDefaults {
-  node: string;
-  group: string;
-  traffic_type: (typeof trafficTypes)[number];
-  traffic_size: number;
-  expiry_days: number;
 }
 export interface Assignment {
   customer_id: string;
@@ -54,10 +45,8 @@ export interface Assignment {
 }
 export interface Inventory {
   nodes: { id: string; name: string }[];
-  groups: NodeGroup[] | null;
   policy_groups?: CustomerPolicyGroup[] | null;
   customers: PortalCustomer[] | null;
-  defaults: NodeDefaults[] | null;
   assignments: Assignment[] | null;
 }
 
@@ -71,8 +60,13 @@ export async function loadCustomerManagement(): Promise<Inventory> {
 
 export type PortalCustomerInput = Pick<
   PortalCustomer,
-  "id" | "username" | "nodes" | "groups" | "default_node" | "policy_group_id"
-> & { password: string };
+  "id" | "username" | "node" | "default_node" | "policy_group_id"
+> &
+  Partial<
+    Pick<PortalCustomer, "traffic_type" | "traffic_size" | "expires_at">
+  > & {
+    password: string;
+  };
 
 export async function savePortalCustomer(
   customer: PortalCustomerInput,
@@ -83,29 +77,18 @@ export async function savePortalCustomer(
   else await httpClient.post(url + "/accounts", customer, master);
 }
 
-export async function saveCustomerPolicyGroup(group: CustomerPolicyGroup): Promise<void> {
+export async function saveCustomerPolicyGroup(
+  group: CustomerPolicyGroup,
+): Promise<void> {
   if (isTestMode) return mockCustomerManagement.savePolicyGroup(group);
-  if (group.id) await httpClient.patch(url + "/policy-groups/" + group.id, group, master);
+  if (group.id)
+    await httpClient.patch(url + "/policy-groups/" + group.id, group, master);
   else await httpClient.post(url + "/policy-groups", group, master);
 }
 
 export async function deleteCustomerPolicyGroup(id: string): Promise<void> {
   if (isTestMode) return mockCustomerManagement.deletePolicyGroup(id);
   await httpClient.delete(url + "/policy-groups/" + id, master);
-}
-
-export async function savePortalGroup(group: NodeGroup): Promise<void> {
-  if (isTestMode) return mockCustomerManagement.saveGroup(group);
-  if (group.id)
-    await httpClient.patch(url + "/groups/" + group.id, group, master);
-  else await httpClient.post(url + "/groups", group, master);
-}
-
-export async function savePortalDefaults(
-  defaults: NodeDefaults,
-): Promise<void> {
-  if (isTestMode) return mockCustomerManagement.saveDefaults(defaults);
-  await httpClient.patch(url + "/nodes/" + defaults.node, defaults, master);
 }
 
 export async function setPortalCustomerLocked(

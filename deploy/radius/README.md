@@ -1,6 +1,6 @@
 # Central customer authentication with FreeRADIUS 3
 
-Master stores customer accounts, password hashes, node access and RADIUS accounting. FreeRADIUS validates requests through Master's REST service. Create customer accounts in **Customer Management**. Each customer's access covers a single node or node group.
+Master stores customer accounts, password hashes, node access and RADIUS accounting. FreeRADIUS validates requests through Master's REST service. Create customer accounts in **Customer Management**. Each customer selects one node or one RADIUS policy. The customer's quota and expiry are shared across all authorized nodes.
 
 ## Deployment
 
@@ -18,13 +18,19 @@ Master stores customer accounts, password hashes, node access and RADIUS account
 4. Set a random `CUSTOMER_RADIUS_REST_SECRET` of at least 32 characters in Master's `.env`. Install the [REST module](ocserv-dashboard.rest) and [virtual server](ocserv-dashboard.site) templates in FreeRADIUS. Set the REST module's password in both sections to match Master. Bind the RADIUS site to a private address, use each node's actual source IP, and set client shortnames to `master` and `agent-<Dashboard Agent ID>`. Give each node its own shared secret.
 5. Deploy Master and participating Agents. For a Docker Master use `./setup.sh --deployment docker --node master --yes`. The REST callback stays on host loopback TCP port `18120`. Keep the existing HTTPS configuration for the Master–Agent service API and validate FreeRADIUS with `freeradius -XC` before restarting.
 
+## Upgrading from separate node groups and provisioning defaults
+
+Back up the Master database. Before upgrading, manually clear the existing customer accounts and old RADIUS policies. Migration 020 stops if either still contains records. It removes the old node group and provisioning defaults tables and keeps registered Agents, administrator accounts, and node configuration.
+
 ## Verification
 
-Create a customer with a single node or node group and connect using the customer's password. Verify that unauthorized nodes reject the login, traffic appears in `/customer/`, and locking or deleting the customer blocks the next login and schedules session termination. Set a default connection to enable Cisco Secure Client setup in the portal.
+Create a customer with a single node or a policy, then connect using the customer's password. Verify that unauthorized nodes reject the login and that removing a policy member revokes access and schedules termination there. Set a default connection to enable Cisco Secure Client setup in the portal.
+
+Set a customer quota in bytes and an optional expiry under **Customer Management**. Traffic accounted for across nodes contributes to one quota, including traffic from earlier grants. Monthly usage resets at the beginning of each UTC month. An expired customer can still sign in to `/customer/` to see usage and change their password. Before expiry, the RADIUS reply includes the remaining session time as `Session-Timeout`.
 
 ## Radius Policies
 
-Open **System → Radius Policies** on the Master to create and manage shared VPN settings. In **Customer Management**, edit each customer to select a policy or **Use node defaults**. Clear all customer assignments before deleting a policy.
+Open **System → Radius Policies** on the Master to create and manage shared VPN settings. In **Customer Management**, select a policy or a single node. A policy can be saved with no nodes, which grants no VPN access. Customers assigned directly to a node use that node's network defaults. Clear all customer assignments before deleting a policy.
 
 | Setting | How to configure it |
 | --- | --- |

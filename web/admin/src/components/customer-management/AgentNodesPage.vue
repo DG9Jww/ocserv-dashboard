@@ -6,11 +6,6 @@ import { useI18n } from "vue-i18n";
 
 import { normalizeApiError } from "@/api/http";
 import {
-  savePortalDefaults,
-  savePortalGroup,
-  type NodeGroup,
-} from "@/api/services/customer-management";
-import {
   createOcservAgent,
   deleteOcservAgent,
   updateOcservAgent,
@@ -21,7 +16,6 @@ import AgentNodeEditor from "@/components/customer-management/AgentNodeEditor.vu
 import AgentNodesTable, {
   type AgentNodeRow,
 } from "@/components/customer-management/AgentNodesTable.vue";
-import PortalNodeEditor from "@/components/customer-management/PortalNodeEditor.vue";
 import OcservUserActionDialog from "@/components/ocserv-users/OcservUserActionDialog.vue";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -44,15 +38,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { useCustomerManagement } from "@/composables/useCustomerManagement";
 import { agentServerId, MASTER_SERVER, useServerStore } from "@/stores/server";
 
 const { t } = useI18n({ useScope: "global" });
@@ -62,11 +47,9 @@ const {
   isLoading: agentsLoading,
   error: serverError,
 } = storeToRefs(serverStore);
-const { label, data, loading, loadError, nodeName, errorMessage, refresh } =
-  useCustomerManagement();
+const label = (key: string) => t("customerManagement." + key);
 const search = shallowRef("");
 const role = shallowRef("all");
-const groupFilter = shallowRef("all");
 const page = shallowRef(1);
 const pageSize = 20;
 
@@ -74,58 +57,30 @@ const agentEditorOpen = shallowRef(false);
 const editingAgent = shallowRef<OcservAgent>();
 const removeOpen = shallowRef(false);
 const removingAgent = shallowRef<OcservAgent>();
-const portalEditorOpen = shallowRef(false);
-const portalMode = shallowRef<"group" | "defaults">("group");
-const editingGroup = shallowRef<NodeGroup>();
-const editingNode = shallowRef<AgentNodeRow>();
 const pending = shallowRef(false);
 const error = shallowRef("");
 const success = shallowRef("");
 
-const groups = computed(() => data.value?.groups ?? []);
 const rows = computed<AgentNodeRow[]>(() => {
-  const defaults = new Map(
-    (data.value?.defaults ?? []).map((item) => [item.node, item]),
-  );
-  const groupsByNode = new Map<string, NodeGroup[]>();
-  for (const group of groups.value) {
-    for (const id of group.nodes) {
-      const memberships = groupsByNode.get(id) ?? [];
-      memberships.push(group);
-      groupsByNode.set(id, memberships);
-    }
-  }
-
   const nodes: Pick<AgentNodeRow, "id" | "name" | "agent">[] = [
-    { id: MASTER_SERVER, name: nodeName(MASTER_SERVER) },
+    { id: MASTER_SERVER, name: label("master") },
     ...agents.value.map((agent) => ({
       id: agent.id == null ? agentServerId(agent) : "agent-" + agent.id,
       name: agent.name,
       agent,
     })),
   ];
-  return nodes.map((node) => {
-    const settings = defaults.get(node.id);
-    return {
-      ...node,
-      health: node.agent ? serverStore.agentStatus(node.agent) : undefined,
-      defaults: settings,
-      groups: groupsByNode.get(node.id) ?? [],
-    };
-  });
+
+  return nodes.map((node) => ({
+    ...node,
+    health: node.agent ? serverStore.agentStatus(node.agent) : undefined,
+  }));
 });
 
 const matching = computed(() => {
   const query = search.value.trim().toLowerCase();
   return rows.value.filter((row) => {
     if (role.value !== "all" && role.value !== (row.agent ? "agent" : "master"))
-      return false;
-    if (groupFilter.value === "none" && row.groups.length) return false;
-    if (
-      groupFilter.value !== "all" &&
-      groupFilter.value !== "none" &&
-      !row.groups.some((group) => group.id === groupFilter.value)
-    )
       return false;
     return (
       !query ||
@@ -143,7 +98,7 @@ const pages = computed(() =>
 const visible = computed(() =>
   matching.value.slice((page.value - 1) * pageSize, page.value * pageSize),
 );
-watch([search, role, groupFilter], () => {
+watch([search, role], () => {
   page.value = 1;
 });
 watch(pages, (count) => {
@@ -153,10 +108,9 @@ watch(pages, (count) => {
 function clearFilters() {
   search.value = "";
   role.value = "all";
-  groupFilter.value = "all";
 }
 async function reload() {
-  await Promise.all([serverStore.refreshAgents(), refresh()]);
+  await serverStore.refreshAgents();
 }
 function openAgent(agent?: OcservAgent) {
   editingAgent.value = agent;
@@ -170,21 +124,6 @@ function confirmRemoval(agent: OcservAgent) {
   success.value = "";
   removeOpen.value = true;
 }
-function openGroup(group?: NodeGroup) {
-  editingGroup.value = group;
-  portalMode.value = "group";
-  error.value = "";
-  success.value = "";
-  portalEditorOpen.value = true;
-}
-function openDefaults(node: AgentNodeRow) {
-  editingNode.value = node;
-  portalMode.value = "defaults";
-  error.value = "";
-  success.value = "";
-  portalEditorOpen.value = true;
-}
-
 async function saveAgent(input: OcservAgentCreate) {
   const id = editingAgent.value?.id;
   if (!input.name || !input.address || (id == null && !input.token)) {
@@ -209,7 +148,6 @@ async function saveAgent(input: OcservAgentCreate) {
       agentEditorOpen.value = false;
     },
     "systemSettings.agentSaved",
-    true,
   );
 }
 async function removeAgent() {
@@ -221,24 +159,12 @@ async function removeAgent() {
       removeOpen.value = false;
     },
     "systemSettings.agentDeleted",
-    true,
-  );
-}
-async function savePortal(task: () => Promise<void>) {
-  await mutate(
-    task,
-    () => {
-      portalEditorOpen.value = false;
-    },
-    "customerManagement.saved",
-    false,
   );
 }
 async function mutate(
   task: () => Promise<unknown>,
   close: () => void,
   successKey: string,
-  registry: boolean,
 ) {
   if (pending.value) return;
   pending.value = true;
@@ -247,12 +173,9 @@ async function mutate(
     await task();
     close();
     success.value = t(successKey);
-    if (registry) await reload();
-    else await refresh();
+    await reload();
   } catch (cause) {
-    error.value = registry
-      ? normalizeApiError(cause).message
-      : errorMessage(cause);
+    error.value = normalizeApiError(cause).message;
   } finally {
     pending.value = false;
   }
@@ -268,9 +191,6 @@ onMounted(() => {
     <Alert v-if="serverError === 'agentList'" role="alert" variant="error">
       <AlertDescription>{{ label("agentListFailed") }}</AlertDescription>
     </Alert>
-    <Alert v-if="loadError" role="status" :variant="data ? 'error' : 'info'">
-      <AlertDescription>{{ loadError }}</AlertDescription>
-    </Alert>
     <Alert v-if="success" role="status" variant="success">
       <AlertDescription>{{ success }}</AlertDescription>
     </Alert>
@@ -284,7 +204,7 @@ onMounted(() => {
         <CardAction class="flex flex-wrap gap-2">
           <Button
             variant="outline"
-            :disabled="agentsLoading || loading || pending"
+            :disabled="agentsLoading || pending"
             @click="reload"
           >
             <RefreshCw data-icon="inline-start" />{{ label("refresh") }}
@@ -333,34 +253,10 @@ onMounted(() => {
               </SelectContent>
             </Select>
           </Field>
-          <Field v-if="data" class="w-48">
-            <FieldLabel for="agent-node-group">{{
-              label("groups")
-            }}</FieldLabel>
-            <Select v-model="groupFilter">
-              <SelectTrigger id="agent-node-group" class="w-full"
-                ><SelectValue
-              /></SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="all">{{ label("allGroups") }}</SelectItem>
-                  <SelectItem value="none">{{
-                    label("ungroupedNodes")
-                  }}</SelectItem>
-                  <SelectItem
-                    v-for="group in groups"
-                    :key="group.id"
-                    :value="group.id"
-                    >{{ group.name }}</SelectItem
-                  >
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </Field>
           <Button
             type="button"
             variant="ghost"
-            :disabled="!search && role === 'all' && groupFilter === 'all'"
+            :disabled="!search && role === 'all'"
             @click="clearFilters"
           >
             <X data-icon="inline-start" />{{ t("ocservUsers.clearFilters") }}
@@ -370,10 +266,8 @@ onMounted(() => {
           :rows="visible"
           :loading="agentsLoading"
           :busy="pending"
-          :has-inventory="Boolean(data)"
           @edit="openAgent"
           @remove="confirmRemoval"
-          @defaults="openDefaults"
         />
       </CardContent>
       <CardFooter v-if="pages > 1" class="justify-end gap-2">
@@ -387,76 +281,12 @@ onMounted(() => {
       </CardFooter>
     </Card>
 
-    <Card v-if="data">
-      <CardHeader>
-        <CardTitle>{{ label("groups") }}</CardTitle>
-        <CardAction>
-          <Button variant="outline" :disabled="pending" @click="openGroup()">
-            <Plus data-icon="inline-start" />{{ label("newGroup") }}
-          </Button>
-        </CardAction>
-      </CardHeader>
-      <CardContent>
-        <div class="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{{ label("name") }}</TableHead>
-                <TableHead>{{ label("nodes") }}</TableHead>
-                <TableHead class="w-12"
-                  ><span class="sr-only">{{
-                    t("systemSettings.actions")
-                  }}</span></TableHead
-                >
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="group in groups" :key="group.id">
-                <TableCell class="font-medium">{{ group.name }}</TableCell>
-                <TableCell class="whitespace-normal">{{
-                  group.nodes.map(nodeName).join(", ") || label("unassigned")
-                }}</TableCell>
-                <TableCell class="text-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    :disabled="pending"
-                    @click="openGroup(group)"
-                    >{{ t("ocservUsers.edit") }}</Button
-                  >
-                </TableCell>
-              </TableRow>
-              <TableRow v-if="!groups.length">
-                <TableCell
-                  colspan="3"
-                  class="text-center text-muted-foreground"
-                  >{{ label("noGroups") }}</TableCell
-                >
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
     <AgentNodeEditor
       v-model:open="agentEditorOpen"
       :agent="editingAgent"
       :pending="pending"
       :error="error"
       @save="saveAgent"
-    />
-    <PortalNodeEditor
-      v-if="data"
-      v-model:open="portalEditorOpen"
-      :mode="portalMode"
-      :inventory="data"
-      :group="editingGroup"
-      :node="editingNode?.id"
-      :defaults="editingNode?.defaults"
-      :pending="pending"
-      :error="error"
-      @save-group="savePortal(() => savePortalGroup($event))"
-      @save-defaults="savePortal(() => savePortalDefaults($event))"
     />
     <OcservUserActionDialog
       v-model:open="removeOpen"

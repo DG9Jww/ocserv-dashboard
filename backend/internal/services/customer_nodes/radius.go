@@ -163,9 +163,6 @@ func RadiusHandler(master radiusBackend, secret string) http.Handler {
 			w.WriteHeader(http.StatusServiceUnavailable)
 		default:
 			reply := map[string]any{}
-			if policy.Group != "" {
-				reply["reply:Class"] = "OU=" + policy.Group
-			}
 			if policy.SessionTimeout > 0 {
 				reply["reply:Session-Timeout"] = policy.SessionTimeout
 			}

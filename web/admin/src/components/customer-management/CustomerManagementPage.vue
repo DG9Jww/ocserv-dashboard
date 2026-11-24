@@ -65,7 +65,9 @@ const page = ref(1);
 const pageSize = 20;
 const editorOpen = ref(false);
 const policyGroups = computed(() => data.value?.policy_groups ?? []);
-const policyNames = computed(() => new Map(policyGroups.value.map((group) => [group.id, group.name])));
+const policyNames = computed(
+  () => new Map(policyGroups.value.map((group) => [group.id, group.name])),
+);
 const grantsOnly = ref(false);
 const editorCustomer = ref<PortalCustomer>();
 const syncOpen = ref(false);
@@ -281,11 +283,14 @@ const description = computed(() =>
                   </Badge>
                 </TableCell>
                 <TableCell>{{
-                  customer.default_node
+                  data?.nodes.some((node) => node.id === customer.default_node)
                     ? nodeName(customer.default_node)
                     : label("unassigned")
                 }}</TableCell>
-                <TableCell>{{ policyNames.get(customer.policy_group_id ?? "") ?? label("nodePolicyDefaults") }}</TableCell>
+                <TableCell>{{
+                  policyNames.get(customer.policy_group_id ?? "") ??
+                  label("nodePolicyDefaults")
+                }}</TableCell>
                 <TableCell>
                   <template v-if="summary">
                     <div>

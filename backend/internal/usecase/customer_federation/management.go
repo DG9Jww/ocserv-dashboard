@@ -17,19 +17,17 @@ import (
 )
 
 var (
-	ErrInvalid         = errors.New("invalid_customer_configuration")
-	ErrUnavailable     = errors.New("customer_nodes_unavailable")
-	ErrDefault         = errors.New("customer_default_unavailable")
-	ErrNoGrants        = errors.New("customer_grant_required")
-	ErrMissingDefaults = errors.New("customer_node_defaults_missing")
-	ErrNodeAuth        = errors.New("customer_node_auth_failed")
-	ErrNodeTLS         = errors.New("customer_node_tls_failed")
-	ErrUsername        = errors.New("customer_invalid_username")
-	ErrPassword        = errors.New("customer_invalid_password")
-	ErrConflict        = errors.New("customer_account_conflict")
-	usernamePattern    = regexp.MustCompile(`^[A-Za-z0-9._-]{2,32}$`)
-	groupPattern       = regexp.MustCompile(`^[A-Za-z0-9_-]{1,16}$`)
-	idPattern          = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	ErrInvalid      = errors.New("invalid_customer_configuration")
+	ErrUnavailable  = errors.New("customer_nodes_unavailable")
+	ErrDefault      = errors.New("customer_default_unavailable")
+	ErrNoGrants     = errors.New("customer_grant_required")
+	ErrNodeAuth     = errors.New("customer_node_auth_failed")
+	ErrNodeTLS      = errors.New("customer_node_tls_failed")
+	ErrUsername     = errors.New("customer_invalid_username")
+	ErrPassword     = errors.New("customer_invalid_password")
+	ErrConflict     = errors.New("customer_account_conflict")
+	usernamePattern = regexp.MustCompile(`^[A-Za-z0-9._-]{2,32}$`)
+	idPattern       = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 )
 
 type Master struct {
@@ -49,16 +47,18 @@ func NewMaster(store *repository.PortalRepository, agents *repository.OcservAgen
 }
 
 type CustomerInput struct {
-	Username      string   `json:"username"`
-	Password      string   `json:"password"`
-	Nodes         []string `json:"nodes"`
-	Groups        []string `json:"groups"`
-	DefaultNode   string   `json:"default_node"`
-	PolicyGroupID *string  `json:"policy_group_id"`
+	Username      string             `json:"username"`
+	Password      string             `json:"password"`
+	Node          string             `json:"node"`
+	TrafficType   models.TrafficType `json:"traffic_type"`
+	TrafficSize   int64              `json:"traffic_size"`
+	ExpiresAt     *time.Time         `json:"expires_at"`
+	DefaultNode   string             `json:"default_node"`
+	PolicyGroupID *string            `json:"policy_group_id"`
 }
 
 func (input CustomerInput) ValidateGrant() error {
-	if len(input.Nodes)+len(input.Groups) != 1 || slices.Contains(input.Nodes, "") || slices.Contains(input.Groups, "") {
+	if (input.Node != "") == (input.PolicyGroupID != nil) {
 		return ErrNoGrants
 	}
 	return nil
@@ -71,9 +71,7 @@ type InventoryNode struct {
 
 type Inventory struct {
 	Nodes        []InventoryNode            `json:"nodes"`
-	Groups       []models.PortalNodeGroup   `json:"groups"`
 	PolicyGroups []models.PortalPolicyGroup `json:"policy_groups"`
-	Defaults     []models.PortalNodeDefault `json:"defaults"`
 	Customers    []models.PortalCustomer    `json:"customers"`
 	Assignments  []models.PortalAssignment  `json:"assignments"`
 }
@@ -98,15 +96,11 @@ func (m *Master) Inventory(ctx context.Context) (Inventory, error) {
 	if out.Nodes, err = m.nodes(ctx); err != nil {
 		return out, err
 	}
-	if out.Groups, err = m.store.Groups(ctx); err != nil {
-		return out, err
-	}
+
 	if out.PolicyGroups, err = m.store.PolicyGroups(ctx); err != nil {
 		return out, err
 	}
-	if out.Defaults, err = m.store.Defaults(ctx); err != nil {
-		return out, err
-	}
+
 	if out.Customers, err = m.store.Customers(ctx); err != nil {
 		return out, err
 	}
@@ -122,27 +116,13 @@ func validPassword(password string) bool {
 		!strings.ContainsAny(password, "\x00\r\n") && password != "Secret-Ocpasswd"
 }
 
-func effective(customer models.PortalCustomer, groups []models.PortalNodeGroup) map[string]bool {
-	nodes := make(map[string]bool)
-	if customer.Locked || customer.DeletedAt != nil {
-		return nodes
-	}
-	// Older accounts can have multiple grants. Keep them usable until an admin saves a single selection.
-	for _, node := range customer.Nodes {
-		nodes[node] = true
-	}
-	for _, group := range groups {
-		if slices.Contains(customer.Groups, group.ID) {
-			for _, node := range group.Nodes {
-				nodes[node] = true
-			}
+func (m *Master) synchronize(ctx context.Context, tx *repository.PortalRepository, customer models.PortalCustomer, nodes []string) error {
+	desired := make(map[string]bool, len(nodes))
+	if !customer.Locked && customer.DeletedAt == nil {
+		for _, node := range nodes {
+			desired[node] = true
 		}
 	}
-	return nodes
-}
-
-func (m *Master) synchronize(ctx context.Context, tx *repository.PortalRepository, customer models.PortalCustomer, groups []models.PortalNodeGroup) error {
-	desired := effective(customer, groups)
 	current, err := tx.Assignments(ctx, customer.ID)
 	if err != nil {
 		return err
@@ -172,6 +152,9 @@ func (m *Master) synchronize(ctx context.Context, tx *repository.PortalRepositor
 }
 
 func (m *Master) validateNodes(ctx context.Context, refs []string) error {
+	if len(refs) == 0 {
+		return nil
+	}
 	nodes, err := m.nodes(ctx)
 	if err != nil {
 		return err
@@ -184,23 +167,43 @@ func (m *Master) validateNodes(ctx context.Context, refs []string) error {
 	return nil
 }
 
+func (m *Master) grantNodes(ctx context.Context, tx *repository.PortalRepository, node string, policyID *string) ([]string, error) {
+	if policyID == nil {
+		return []string{node}, m.validateNodes(ctx, []string{node})
+	}
+	if !ValidID(*policyID) {
+		return nil, ErrInvalid
+	}
+	policy, err := tx.PolicyGroup(ctx, *policyID)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, ErrInvalid
+	}
+	return policy.Nodes, err
+}
+
 func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInput) error {
 	if err := input.ValidateGrant(); err != nil {
 		return err
 	}
-	if err := m.validateNodes(ctx, input.Nodes); err != nil {
-		return err
+	updateLimits := id == "" || input.TrafficType != ""
+	if input.TrafficType == "" {
+		input.TrafficType = models.Free
+	}
+	if input.TrafficType == models.Free {
+		input.TrafficSize = 0
+	}
+	if !input.TrafficType.IsValid() || input.TrafficSize < 0 {
+		return ErrInvalid
 	}
 	return m.store.Transaction(ctx, func(tx *repository.PortalRepository) error {
-		groups, err := tx.Groups(ctx)
+		nodes, err := m.grantNodes(ctx, tx, input.Node, input.PolicyGroupID)
 		if err != nil {
 			return err
 		}
-		for _, id := range input.Groups {
-			if !slices.ContainsFunc(groups, func(g models.PortalNodeGroup) bool { return g.ID == id }) {
-				return ErrInvalid
-			}
+		if input.DefaultNode != "" && !slices.Contains(nodes, input.DefaultNode) {
+			return ErrInvalid
 		}
+
 		customer := models.PortalCustomer{Username: input.Username}
 		if id != "" {
 			if !ValidID(id) {
@@ -210,36 +213,15 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 			if err != nil {
 				return err
 			}
+			if customer.DeletedAt != nil {
+				return ErrConflict
+			}
 		} else if !ValidUsername(customer.Username) {
 			return ErrUsername
 		}
-		if customer.DeletedAt != nil {
-			return ErrConflict
-		}
-		if input.PolicyGroupID != nil {
-			customer.PolicyGroupID = nil
-			if policyID := *input.PolicyGroupID; policyID != "" {
-				if !ValidID(policyID) {
-					return ErrInvalid
-				}
-				if _, err := tx.PolicyGroup(ctx, policyID); err != nil {
-					return err
-				}
-				customer.PolicyGroupID = &policyID
-			}
-		}
-		previous := customer
-		previous.Locked = false
-		previousNodes := effective(previous, groups)
-		customer.Nodes, customer.Groups, customer.DefaultNode = append([]string{}, input.Nodes...), append([]string{}, input.Groups...), input.DefaultNode
-		requested := customer
-		requested.Locked = false
-		targets := effective(requested, groups)
-		if input.DefaultNode != "" && !targets[input.DefaultNode] {
-			return ErrInvalid
-		}
-		if err := ensureNodeDefaults(ctx, tx, targets, previousNodes); err != nil {
-			return err
+		customer.Node, customer.PolicyGroupID, customer.DefaultNode = input.Node, input.PolicyGroupID, input.DefaultNode
+		if updateLimits {
+			customer.TrafficType, customer.TrafficSize, customer.ExpiresAt = input.TrafficType, input.TrafficSize, input.ExpiresAt
 		}
 		if id == "" || input.Password != "" {
 			if err := setPassword(&customer, input.Password); err != nil {
@@ -249,12 +231,12 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 		if id == "" {
 			err = tx.SaveNew(ctx, &customer)
 		} else {
-			err = tx.Save(ctx, &customer)
+			err = tx.UpdateCustomer(ctx, &customer)
 		}
 		if err != nil {
 			return err
 		}
-		return m.synchronize(ctx, tx, customer, groups)
+		return m.synchronize(ctx, tx, customer, nodes)
 	})
 }
 
@@ -267,81 +249,6 @@ func setPassword(customer *models.PortalCustomer, password string) error {
 		return err
 	}
 	customer.PasswordHash = hash
-	return nil
-}
-
-func (m *Master) SaveGroup(ctx context.Context, group models.PortalNodeGroup) error {
-	group.Name = strings.TrimSpace(group.Name)
-	group.Nodes = append([]string{}, group.Nodes...)
-	if group.Name == "" || len(group.Name) > 128 || (group.ID != "" && !ValidID(group.ID)) {
-		return ErrInvalid
-	}
-	if err := m.validateNodes(ctx, group.Nodes); err != nil {
-		return err
-	}
-	return m.store.Transaction(ctx, func(tx *repository.PortalRepository) error {
-		var err error
-		if group.ID == "" {
-			err = tx.SaveNew(ctx, &group)
-		} else {
-			err = tx.Save(ctx, &group)
-		}
-		if err != nil {
-			return err
-		}
-		groups, err := tx.Groups(ctx)
-		if err != nil {
-			return err
-		}
-		customers, err := tx.Customers(ctx)
-		if err != nil {
-			return err
-		}
-		for _, customer := range customers {
-			if slices.Contains(customer.Groups, group.ID) {
-				if err := m.synchronize(ctx, tx, customer, groups); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	})
-}
-
-func (m *Master) SaveDefaults(ctx context.Context, value models.PortalNodeDefault) error {
-	if err := m.validateNodes(ctx, []string{value.Node}); err != nil {
-		return err
-	}
-	if !groupPattern.MatchString(value.Group) || !value.TrafficType.IsValid() || value.TrafficSize < 0 || value.ExpiryDays < 0 || value.ExpiryDays > 36500 {
-		return ErrInvalid
-	}
-	if value.TrafficType == models.Free {
-		value.TrafficSize = 0
-	}
-	return m.store.Save(ctx, &value)
-}
-
-func defaultsFor(defaults []models.PortalNodeDefault, node string) (models.PortalNodeDefault, error) {
-	index := slices.IndexFunc(defaults, func(d models.PortalNodeDefault) bool { return d.Node == node })
-	if index < 0 {
-		return models.PortalNodeDefault{}, ErrMissingDefaults
-	}
-	return defaults[index], nil
-}
-
-func ensureNodeDefaults(ctx context.Context, tx *repository.PortalRepository, targets, old map[string]bool) error {
-	defaults, err := tx.Defaults(ctx)
-	if err != nil {
-		return err
-	}
-	for node := range targets {
-		if old[node] {
-			continue
-		}
-		if _, err := defaultsFor(defaults, node); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -363,25 +270,27 @@ func (m *Master) SetCustomerStatus(ctx context.Context, id string, locked, remov
 			}
 			return ErrConflict
 		}
-		groups, err := tx.Groups(ctx)
-		if err != nil {
-			return err
-		}
-		previous := effective(customer, groups)
 		customer.Locked = locked || remove
 		if remove {
 			now := time.Now().UTC()
 			customer.DeletedAt = &now
 			customer.PasswordHash = []byte{}
 			customer.PolicyGroupID = nil
-			customer.Nodes, customer.Groups, customer.DefaultNode = []string{}, []string{}, ""
+			customer.Node, customer.DefaultNode = "", ""
 		}
-		if err := ensureNodeDefaults(ctx, tx, effective(customer, groups), previous); err != nil {
+		var nodes []string
+		if !customer.Locked {
+			nodes, err = m.grantNodes(ctx, tx, customer.Node, customer.PolicyGroupID)
+			if err != nil {
+				return err
+			}
+			if !slices.Contains(nodes, customer.DefaultNode) {
+				customer.DefaultNode = ""
+			}
+		}
+		if err := tx.UpdateCustomer(ctx, &customer); err != nil {
 			return err
 		}
-		if err := tx.Save(ctx, &customer); err != nil {
-			return err
-		}
-		return m.synchronize(ctx, tx, customer, groups)
+		return m.synchronize(ctx, tx, customer, nodes)
 	})
 }

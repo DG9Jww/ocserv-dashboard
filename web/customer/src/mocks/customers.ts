@@ -26,7 +26,7 @@ const summary: SummaryResponse = {
     expiry_mode: "fixed",
     expire_at: "2027-01-01",
     traffic_type: "MonthlyRxTx",
-    traffic_size: 100,
+    traffic_size: 100 * 1024 ** 3,
     running_rx: 12,
     running_tx: 4,
     is_locked: false,

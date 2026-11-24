@@ -46,6 +46,16 @@ func (m *Master) SavePolicyGroup(ctx context.Context, group models.PortalPolicyG
 		}
 	}
 	group.Routes = routes
+	nodes := make([]string, 0, len(group.Nodes))
+	for _, node := range group.Nodes {
+		if !slices.Contains(nodes, node) {
+			nodes = append(nodes, node)
+		}
+	}
+	if err := m.validateNodes(ctx, nodes); err != nil {
+		return err
+	}
+	group.Nodes = nodes
 	if group.ID == "" {
 		return m.store.SaveNew(ctx, &group)
 	}
@@ -53,7 +63,25 @@ func (m *Master) SavePolicyGroup(ctx context.Context, group models.PortalPolicyG
 		if _, err := tx.PolicyGroup(ctx, group.ID); err != nil {
 			return err
 		}
-		return tx.Save(ctx, &group)
+		if err := tx.Save(ctx, &group); err != nil {
+			return err
+		}
+		customers, err := tx.CustomersByPolicy(ctx, group.ID)
+		if err != nil {
+			return err
+		}
+		for _, customer := range customers {
+			if customer.DefaultNode != "" && !slices.Contains(nodes, customer.DefaultNode) {
+				customer.DefaultNode = ""
+				if err := tx.UpdateCustomer(ctx, &customer); err != nil {
+					return err
+				}
+			}
+			if err := m.synchronize(ctx, tx, customer, nodes); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 

@@ -31,9 +31,21 @@ func (r *PortalRepository) SaveNew(ctx context.Context, value any) error {
 	return r.db.WithContext(ctx).Create(value).Error
 }
 
+func (r *PortalRepository) UpdateCustomer(ctx context.Context, customer *models.PortalCustomer) error {
+	return r.db.WithContext(ctx).Model(customer).
+		Select("Locked", "DeletedAt", "PasswordHash", "PolicyGroupID", "Node", "DefaultNode", "TrafficType", "TrafficSize", "ExpiresAt").
+		Updates(customer).Error
+}
+
 func (r *PortalRepository) Customers(ctx context.Context) ([]models.PortalCustomer, error) {
 	var customers []models.PortalCustomer
 	err := r.db.WithContext(ctx).Order("username").Find(&customers).Error
+	return customers, err
+}
+
+func (r *PortalRepository) CustomersByPolicy(ctx context.Context, id string) ([]models.PortalCustomer, error) {
+	var customers []models.PortalCustomer
+	err := r.db.WithContext(ctx).Where("policy_group_id = ?", id).Find(&customers).Error
 	return customers, err
 }
 
@@ -47,12 +59,6 @@ func (r *PortalRepository) ByUsername(ctx context.Context, name string) (models.
 	var customer models.PortalCustomer
 	err := r.db.WithContext(ctx).First(&customer, "username = ?", name).Error
 	return customer, err
-}
-
-func (r *PortalRepository) Groups(ctx context.Context) ([]models.PortalNodeGroup, error) {
-	var groups []models.PortalNodeGroup
-	err := r.db.WithContext(ctx).Order("name").Find(&groups).Error
-	return groups, err
 }
 
 func (r *PortalRepository) PolicyGroups(ctx context.Context) ([]models.PortalPolicyGroup, error) {
@@ -75,12 +81,6 @@ func (r *PortalRepository) PolicyGroupInUse(ctx context.Context, id string) (boo
 	var inUse bool
 	err := r.db.WithContext(ctx).Raw("SELECT EXISTS (SELECT 1 FROM portal_customers WHERE policy_group_id = ?)", id).Scan(&inUse).Error
 	return inUse, err
-}
-
-func (r *PortalRepository) Defaults(ctx context.Context) ([]models.PortalNodeDefault, error) {
-	var defaults []models.PortalNodeDefault
-	err := r.db.WithContext(ctx).Find(&defaults).Error
-	return defaults, err
 }
 
 func (r *PortalRepository) Assignments(ctx context.Context, id string) ([]models.PortalAssignment, error) {

@@ -26,6 +26,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 const props = defineProps<{
   policy?: CustomerPolicyGroup;
+  nodes: { id: string; name: string }[];
   readOnly: boolean;
   pending: boolean;
   error: string;
@@ -58,6 +59,7 @@ const fields = [
 
 const form = reactive({
   name: "",
+  nodes: [] as string[],
   primary_dns: "",
   secondary_dns: "",
   routes: "",
@@ -70,6 +72,7 @@ watch(
   ([isOpen, policy]) => {
     if (!isOpen) return;
     form.name = policy?.name ?? "";
+    form.nodes = [...(policy?.nodes ?? [])];
     form.primary_dns = policy?.primary_dns ?? "";
     form.secondary_dns = policy?.secondary_dns ?? "";
     form.routes = policy?.routes?.join("\n") ?? "";
@@ -87,6 +90,7 @@ function submit() {
   emit("save", {
     id: props.policy?.id ?? "",
     name: form.name.trim(),
+    nodes: [...form.nodes],
     primary_dns: form.primary_dns.trim(),
     secondary_dns: form.secondary_dns.trim(),
     routes: form.routes.split(/\s+/).filter(Boolean),
@@ -109,6 +113,20 @@ function submit() {
           <dt class="text-muted-foreground">{{ label("name") }}</dt>
           <dd class="break-words font-medium">
             <bdi>{{ form.name }}</bdi>
+          </dd>
+        </div>
+        <div>
+          <dt class="text-muted-foreground">{{ label("nodes") }}</dt>
+          <dd>
+            {{
+              form.nodes
+                .map((id) =>
+                  id === "master"
+                    ? label("master")
+                    : nodes.find((node) => node.id === id)?.name || id,
+                )
+                .join(", ") || label("unassigned")
+            }}
           </dd>
         </div>
         <div v-for="field in fields" :key="field.key">
@@ -148,6 +166,25 @@ function submit() {
               :disabled="pending"
             />
           </Field>
+          <fieldset class="grid gap-2">
+            <legend class="text-sm font-medium">{{ label("nodes") }}</legend>
+            <p class="text-xs text-muted-foreground">
+              {{ label("policyNodesHelp") }}
+            </p>
+            <label
+              v-for="node in nodes"
+              :key="node.id"
+              class="flex items-center gap-2 text-sm"
+            >
+              <input
+                v-model="form.nodes"
+                type="checkbox"
+                :value="node.id"
+                :disabled="pending"
+              />
+              {{ node.id === "master" ? label("master") : node.name }}
+            </label>
+          </fieldset>
           <Field v-for="field in fields" :key="field.key">
             <FieldLabel :for="field.key">{{ label(field.label) }}</FieldLabel>
             <Textarea

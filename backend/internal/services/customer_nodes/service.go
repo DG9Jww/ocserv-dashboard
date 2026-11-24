@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/authz"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
+	logger "github.com/mmtaee/ocserv-dashboard/backend/internal/platform/logging"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/usecase/customer_federation"
 	"github.com/mmtaee/ocserv-dashboard/backend/pkg/middlewares"
 	"gorm.io/gorm"
@@ -84,19 +85,15 @@ func RegisterAdmin(api *echo.Group, master *federation.Master, authenticate echo
 		return saved(c, master.SetCustomerStatus(c.Request().Context(), c.Param("id"), *input.Locked, false))
 	})
 	group.DELETE("/accounts/:id", func(c *echo.Context) error {
-		return saved(c, master.SetCustomerStatus(c.Request().Context(), c.Param("id"), true, true))
+		id := c.Param("id")
+		err := master.SetCustomerStatus(c.Request().Context(), id, true, true)
+		if err == nil || errors.Is(err, federation.ErrInvalid) {
+			return saved(c, err)
+		}
+		logger.Warn("unable to queue customer deletion for account %s: %v", id, err)
+		return c.JSON(http.StatusInternalServerError, map[string]any{"message": []string{"customer_delete_failed"}})
 	})
 
-	saveGroup := func(c *echo.Context) error {
-		var input models.PortalNodeGroup
-		if err := c.Bind(&input); err != nil {
-			return failure(c, federation.ErrInvalid)
-		}
-		input.ID = c.Param("id")
-		return saved(c, master.SaveGroup(c.Request().Context(), input))
-	}
-	group.POST("/groups", saveGroup)
-	group.PATCH("/groups/:id", saveGroup)
 	savePolicyGroup := func(c *echo.Context) error {
 		var input models.PortalPolicyGroup
 		if err := c.Bind(&input); err != nil {
@@ -110,14 +107,7 @@ func RegisterAdmin(api *echo.Group, master *federation.Master, authenticate echo
 	group.DELETE("/policy-groups/:id", func(c *echo.Context) error {
 		return saved(c, master.DeletePolicyGroup(c.Request().Context(), c.Param("id")))
 	})
-	group.PATCH("/nodes/:node", func(c *echo.Context) error {
-		var input models.PortalNodeDefault
-		if err := c.Bind(&input); err != nil {
-			return failure(c, federation.ErrInvalid)
-		}
-		input.Node = c.Param("node")
-		return saved(c, master.SaveDefaults(c.Request().Context(), input))
-	})
+
 }
 
 func saved(c *echo.Context, err error) error {
@@ -130,7 +120,7 @@ func saved(c *echo.Context, err error) error {
 func failure(c *echo.Context, err error) error {
 	status, code := http.StatusServiceUnavailable, federation.ErrUnavailable.Error()
 	switch {
-	case errors.Is(err, federation.ErrInvalid), errors.Is(err, federation.ErrMissingDefaults), errors.Is(err, federation.ErrNoGrants),
+	case errors.Is(err, federation.ErrInvalid), errors.Is(err, federation.ErrNoGrants),
 		errors.Is(err, federation.ErrUsername), errors.Is(err, federation.ErrPassword), errors.Is(err, federation.ErrInvalidPolicyGroup):
 		status, code = http.StatusBadRequest, err.Error()
 	case errors.Is(err, federation.ErrPolicyGroupInUse):

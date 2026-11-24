@@ -452,7 +452,7 @@ For a new translation key, update all supported language catalogs in the same ch
 
 ## Unified customer portal
 
-Unified customers authenticate through FreeRADIUS. Follow the [RADIUS deployment guide](deploy/radius/README.md) and keep `CUSTOMER_API_ENABLED=true` on Master for the portal. The Master holds customer credentials, node access and RADIUS history. An account can use one node or one node group.
+Unified customers authenticate through FreeRADIUS. Follow the [RADIUS deployment guide](deploy/radius/README.md) and keep `CUSTOMER_API_ENABLED=true` on Master for the portal. The Master holds customer credentials, node access and RADIUS history. An account can use one node or one RADIUS policy. A policy defines the allowed nodes and shared VPN network settings. Traffic quota and expiry belong to the customer account.
 
 Configure node defaults and groups in **Agent Nodes**, then create customers in **Customer Management**. Customers use the existing `/customer/` path to view their sessions and traffic or change their password. A default connection with a configured Cisco profile enables Cisco Secure Client setup.
 

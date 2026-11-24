@@ -8,13 +8,18 @@ import { useAuthStore } from "@/stores/auth";
 import DownloadsView from "@/views/DownloadsView.vue";
 import PasswordView from "@/views/PasswordView.vue";
 
-const { t, n } = useI18n({ useScope: "global" });
+const { t, n, locale } = useI18n({ useScope: "global" });
 const auth = useAuthStore();
 const data = shallowRef<PortalSummary | null>(null);
 const loading = shallowRef(true);
 const error = shallowRef("");
 const status = computed(() => data.value?.portalStatus);
 const account = computed(() => data.value?.ocserv_user);
+const expiry = computed(() =>
+  account.value?.expire_at
+    ? new Intl.DateTimeFormat(locale.value, { dateStyle: "medium", timeStyle: "short" }).format(new Date(account.value.expire_at))
+    : t("portal.never"),
+);
 const accountInitials = computed(() => {
   const username = account.value?.username?.trim() ?? "";
   return username.slice(0, 2).toUpperCase() || "—";
@@ -111,14 +116,14 @@ onMounted(load);
               <dt class="text-xs font-medium text-muted-foreground">
                 {{ t("summary.expiry") }}
               </dt>
-              <dd class="mt-1 font-medium">{{ account?.expire_at ?? "—" }}</dd>
+              <dd class="mt-1 font-medium">{{ expiry }}</dd>
             </div>
             <div class="rounded-xl bg-muted/60 p-3">
               <dt class="text-xs font-medium text-muted-foreground">
-                {{ t("portal.defaultPlan") }}
+                {{ t("portal.trafficPolicy") }}
               </dt>
               <dd class="mt-1 truncate font-medium">
-                {{ account?.traffic_type || "—" }}
+                {{ account?.traffic_type ? t("portal." + account.traffic_type) : "—" }}
               </dd>
             </div>
             <div class="rounded-xl bg-muted/60 p-3">
@@ -129,7 +134,9 @@ onMounted(load);
                 {{
                   account?.traffic_size === undefined || !account.traffic_type
                     ? "—"
-                    : n(account.traffic_size, "traffic") + " GiB"
+                    : account.traffic_type === "Free"
+                      ? t("portal.Free")
+                      : n(account.traffic_size / 1024 ** 3, "traffic") + " GiB"
                 }}
               </dd>
             </div>

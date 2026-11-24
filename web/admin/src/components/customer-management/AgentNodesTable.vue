@@ -1,17 +1,7 @@
 <script setup lang="ts">
-import {
-  MoreHorizontal,
-  Network,
-  Pencil,
-  Settings2,
-  Trash2,
-} from "@lucide/vue";
+import { MoreHorizontal, Network, Pencil, Trash2 } from "@lucide/vue";
 import { useI18n } from "vue-i18n";
 
-import type {
-  NodeDefaults,
-  NodeGroup,
-} from "@/api/services/customer-management";
 import type { AgentHealth, OcservAgent } from "@/api/services/system";
 import AgentStatusIndicator from "@/components/AgentStatusIndicator.vue";
 import { Badge } from "@/components/ui/badge";
@@ -45,20 +35,16 @@ export type AgentNodeRow = {
   name: string;
   agent?: OcservAgent;
   health?: AgentHealth;
-  defaults?: NodeDefaults;
-  groups: NodeGroup[];
 };
 
 defineProps<{
   rows: AgentNodeRow[];
   loading: boolean;
   busy: boolean;
-  hasInventory: boolean;
 }>();
 const emit = defineEmits<{
   edit: [agent: OcservAgent];
   remove: [agent: OcservAgent];
-  defaults: [node: AgentNodeRow];
 }>();
 const { t } = useI18n({ useScope: "global" });
 </script>
@@ -72,8 +58,6 @@ const { t } = useI18n({ useScope: "global" });
           <TableHead>{{ t("systemSettings.agentAddress") }}</TableHead>
           <TableHead>{{ t("customerManagement.apiPort") }}</TableHead>
           <TableHead>{{ t("customerManagement.status") }}</TableHead>
-          <TableHead>{{ t("customerManagement.groups") }}</TableHead>
-          <TableHead>{{ t("customerManagement.ocservGroup") }}</TableHead>
           <TableHead class="w-12"
             ><span class="sr-only">{{
               t("systemSettings.actions")
@@ -83,7 +67,7 @@ const { t } = useI18n({ useScope: "global" });
       </TableHeader>
       <TableBody>
         <TableRow v-if="loading">
-          <TableCell v-for="column in 7" :key="column"
+          <TableCell v-for="column in 5" :key="column"
             ><Skeleton class="h-8 w-full"
           /></TableCell>
         </TableRow>
@@ -119,19 +103,7 @@ const { t } = useI18n({ useScope: "global" });
             <span v-else class="text-muted-foreground">—</span>
           </TableCell>
           <TableCell>
-            <div v-if="row.groups.length" class="flex flex-wrap gap-1">
-              <Badge
-                v-for="group in row.groups"
-                :key="group.id"
-                variant="outline"
-                >{{ group.name }}</Badge
-              >
-            </div>
-            <span v-else class="text-muted-foreground">—</span>
-          </TableCell>
-          <TableCell>{{ row.defaults?.group ?? "—" }}</TableCell>
-          <TableCell>
-            <DropdownMenu v-if="hasInventory || row.agent?.id != null">
+            <DropdownMenu v-if="row.agent?.id != null">
               <DropdownMenuTrigger as-child>
                 <Button
                   type="button"
@@ -150,12 +122,6 @@ const { t } = useI18n({ useScope: "global" });
                   >
                     <Pencil />{{ t("systemSettings.edit") }}
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    v-if="hasInventory"
-                    @select="emit('defaults', row)"
-                  >
-                    <Settings2 />{{ t("customerManagement.editDefaults") }}
-                  </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <template v-if="row.agent?.id != null">
                   <DropdownMenuSeparator />
@@ -173,7 +139,7 @@ const { t } = useI18n({ useScope: "global" });
           </TableCell>
         </TableRow>
         <TableRow v-if="!loading && !rows.length">
-          <TableCell colspan="7">
+          <TableCell colspan="5">
             <Empty
               ><EmptyHeader
                 ><EmptyMedia variant="icon"><Network /></EmptyMedia

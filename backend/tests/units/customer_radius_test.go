@@ -74,7 +74,7 @@ func TestRadiusCallbackAuthorize(t *testing.T) {
 	  "User-Password":{"type":"string","value":["example-password"]},
 	  "Acct-Session-Id":{"type":"string","value":["session"]}}
 	`
-	stub := &radiusStub{policy: federation.RadiusPolicy{Group: "sales", SessionTimeout: 60}}
+	stub := &radiusStub{policy: federation.RadiusPolicy{SessionTimeout: 60}}
 	const secret = "testing-only-callback-secret-value"
 	handler := customernodes.RadiusHandler(stub, secret)
 
@@ -90,7 +90,7 @@ func TestRadiusCallbackAuthorize(t *testing.T) {
 	require.Empty(t, stub.authorization[0])
 	out := request(secret)
 	require.Equal(t, http.StatusOK, out.Code)
-	require.JSONEq(t, `{"reply:Class":"OU=sales","reply:Session-Timeout":60}`, out.Body.String())
+	require.JSONEq(t, `{"reply:Session-Timeout":60}`, out.Body.String())
 	require.Equal(t, [4]string{"agent-2", "customer", "example-password", "session"}, stub.authorization)
 	stub.policy = federation.RadiusPolicy{}
 	require.Equal(t, http.StatusNoContent, request(secret).Code)

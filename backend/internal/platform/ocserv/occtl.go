@@ -118,11 +118,7 @@ func (o *Client) DisconnectSession(id string) (string, error) {
 }
 
 func (o *Client) Terminate(username string) (string, error) {
-	result, err := o.commonOcservOcctlRepo.TerminateUser(username)
-	if err != nil {
-		return "", err
-	}
-	return result, nil
+	return o.commonOcservOcctlRepo.TerminateUser(username)
 }
 
 func (o *Client) TerminateSession(id string) (string, error) {

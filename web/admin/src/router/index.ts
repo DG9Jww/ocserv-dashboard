@@ -63,7 +63,6 @@ export const router = createRouter({
         telegramOnly: route.telegramOnly,
       },
     })),
-    { path: "/node-groups", redirect: { name: "agent-nodes" } },
     {
       path: "/login",
       name: "login",

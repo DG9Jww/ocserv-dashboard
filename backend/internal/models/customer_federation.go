@@ -3,14 +3,16 @@ package models
 import "time"
 
 type PortalCustomer struct {
-	ID            string   `json:"id" gorm:"type:uuid;primaryKey;default:uuidv7()"`
-	Username      string   `json:"username" gorm:"not null;uniqueIndex"`
-	PasswordHash  []byte   `json:"-" gorm:"not null"`
-	Nodes         []string `json:"nodes" gorm:"serializer:json;type:jsonb"`
-	Groups        []string `json:"groups" gorm:"serializer:json;type:jsonb"`
-	DefaultNode   string   `json:"default_node"`
-	PolicyGroupID *string  `json:"policy_group_id" gorm:"type:uuid"`
-	Locked        bool     `json:"locked"`
+	ID            string      `json:"id" gorm:"type:uuid;primaryKey;default:uuidv7()"`
+	Username      string      `json:"username" gorm:"not null;uniqueIndex"`
+	PasswordHash  []byte      `json:"-" gorm:"not null"`
+	Node          string      `json:"node"`
+	TrafficType   TrafficType `json:"traffic_type"`
+	TrafficSize   int64       `json:"traffic_size"`
+	ExpiresAt     *time.Time  `json:"expires_at"`
+	DefaultNode   string      `json:"default_node"`
+	PolicyGroupID *string     `json:"policy_group_id" gorm:"type:uuid"`
+	Locked        bool        `json:"locked"`
 	// DeletedAt is set while permanent deletion is waiting for node confirmation.
 	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 	CreatedAt time.Time
@@ -21,23 +23,10 @@ type PortalPolicyGroup struct {
 	Name                string   `json:"name"`
 	PrimaryDNS          string   `json:"primary_dns"`
 	SecondaryDNS        string   `json:"secondary_dns"`
+	Nodes               []string `json:"nodes" gorm:"serializer:json;type:jsonb"`
 	Routes              []string `json:"routes" gorm:"serializer:json;type:jsonb"`
 	UploadKBPerSecond   uint32   `json:"upload_kb_per_second"`
 	DownloadKBPerSecond uint32   `json:"download_kb_per_second"`
-}
-
-type PortalNodeGroup struct {
-	ID    string   `json:"id" gorm:"type:uuid;primaryKey;default:uuidv7()"`
-	Name  string   `json:"name" gorm:"not null;uniqueIndex"`
-	Nodes []string `json:"nodes" gorm:"serializer:json;type:jsonb"`
-}
-
-type PortalNodeDefault struct {
-	Node        string      `json:"node" gorm:"primaryKey"`
-	Group       string      `json:"group"`
-	TrafficType TrafficType `json:"traffic_type"`
-	TrafficSize int64       `json:"traffic_size"`
-	ExpiryDays  int         `json:"expiry_days"`
 }
 
 type PortalAssignment struct {
