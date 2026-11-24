@@ -63,7 +63,13 @@ export const mockCustomerManagement = {
     });
   },
   saveCustomer(input: PortalCustomerInput) {
-    const { password, policy_group_id, ...account } = input;
+    const {
+      password,
+      policy_group_id,
+      expiry_date,
+      expiry_timezone: _expiryTimezone,
+      ...account
+    } = input;
     const previous = customers.find((item) => item.id === account.id);
     if (Boolean(account.node) === Boolean(policy_group_id))
       throw new ApiError("customer_grant_required", { status: 400 });
@@ -97,9 +103,13 @@ export const mockCustomerManagement = {
       traffic_type: account.traffic_type ?? previous?.traffic_type ?? "Free",
       traffic_size: account.traffic_size ?? previous?.traffic_size ?? 0,
       expires_at:
-        account.expires_at === undefined
-          ? (previous?.expires_at ?? null)
-          : account.expires_at,
+        expiry_date !== undefined
+          ? expiry_date
+            ? new Date(expiry_date + "T23:59:59.999").toISOString()
+            : null
+          : account.expires_at === undefined
+            ? (previous?.expires_at ?? null)
+            : account.expires_at,
       id: account.id || crypto.randomUUID(),
     });
     reconcile();

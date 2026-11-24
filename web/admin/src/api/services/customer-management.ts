@@ -66,6 +66,8 @@ export type PortalCustomerInput = Pick<
     Pick<PortalCustomer, "traffic_type" | "traffic_size" | "expires_at">
   > & {
     password: string;
+    expiry_date?: string;
+    expiry_timezone?: string;
   };
 
 export async function savePortalCustomer(

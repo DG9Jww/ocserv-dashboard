@@ -40,9 +40,15 @@ const form = reactive({
   default_node: "",
   traffic_type: "Free" as NonNullable<PortalCustomerInput["traffic_type"]>,
   traffic_size: 0,
-  expiresAt: "",
+  expiryDate: "",
 });
 const selectClass = "h-9 w-full rounded-md border bg-background px-2 text-sm";
+const expiryPresets = [
+  { months: 1, key: "expiryOneMonth" },
+  { months: 3, key: "expiryThreeMonths" },
+  { months: 12, key: "expiryOneYear" },
+] as const;
+const expiryZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const selection = ref("");
 const selectedNode = computed(() =>
   props.inventory.nodes.find((node) => "node:" + node.id === selection.value),
@@ -60,6 +66,27 @@ const targets = computed(() =>
   ),
 );
 
+function localDate(date: Date) {
+  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+function presetDate(months: number) {
+  const today = new Date();
+  const month = today.getMonth() + months;
+  const lastDay = new Date(today.getFullYear(), month + 1, 0).getDate();
+  return localDate(
+    new Date(today.getFullYear(), month, Math.min(today.getDate(), lastDay)),
+  );
+}
+
+const savedExpiryDate = computed(() =>
+  props.customer?.expires_at
+    ? localDate(new Date(props.customer.expires_at))
+    : "",
+);
+
 watch(open, (value) => {
   if (!value) return;
   const customer = props.customer;
@@ -68,7 +95,6 @@ watch(open, (value) => {
     : customer?.node
       ? "node:" + customer.node
       : "";
-  const expiresAt = customer?.expires_at ? new Date(customer.expires_at) : null;
   Object.assign(form, {
     id: customer?.id ?? "",
     username: customer?.username ?? "",
@@ -76,11 +102,7 @@ watch(open, (value) => {
     default_node: customer?.default_node ?? "",
     traffic_type: customer?.traffic_type ?? "Free",
     traffic_size: customer?.traffic_size ?? 0,
-    expiresAt: expiresAt
-      ? new Date(expiresAt.getTime() - expiresAt.getTimezoneOffset() * 60_000)
-          .toISOString()
-          .slice(0, 23)
-      : "",
+    expiryDate: customer ? savedExpiryDate.value : presetDate(1),
   });
 });
 watch(targets, (nodes) => {
@@ -103,9 +125,9 @@ function submit() {
       : {
           traffic_type: form.traffic_type,
           traffic_size: form.traffic_type === "Free" ? 0 : form.traffic_size,
-          expires_at: form.expiresAt
-            ? new Date(form.expiresAt).toISOString()
-            : null,
+          ...(props.customer && form.expiryDate === savedExpiryDate.value
+            ? { expires_at: props.customer.expires_at }
+            : { expiry_date: form.expiryDate, expiry_timezone: expiryZone }),
         }),
     default_node: targets.value.some((node) => node.id === form.default_node)
       ? form.default_node
@@ -195,13 +217,24 @@ function submit() {
             <label for="customer-expiry">{{ label("expiresAt") }}</label>
             <input
               id="customer-expiry"
-              v-model="form.expiresAt"
-              type="datetime-local"
+              v-model="form.expiryDate"
+              type="date"
               dir="ltr"
-              step="0.001"
               aria-describedby="customer-expiry-help"
               :class="selectClass"
             />
+            <div class="flex flex-wrap gap-2">
+              <Button
+                v-for="preset in expiryPresets"
+                :key="preset.months"
+                type="button"
+                variant="outline"
+                size="sm"
+                :disabled="pending"
+                @click="form.expiryDate = presetDate(preset.months)"
+                >{{ label(preset.key) }}</Button
+              >
+            </div>
             <span
               id="customer-expiry-help"
               class="text-xs text-muted-foreground"

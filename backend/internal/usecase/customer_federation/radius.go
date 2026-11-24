@@ -83,11 +83,11 @@ func (m *Master) radiusGrant(ctx context.Context, customer models.PortalCustomer
 	}
 	now := time.Now().UTC()
 	if customer.ExpiresAt != nil {
-		seconds := math.Floor(customer.ExpiresAt.Sub(now).Seconds())
-		if seconds <= 0 {
+		if !now.Before(*customer.ExpiresAt) {
 			return assignment, policy, ErrRadiusRejected
 		}
-		policy.SessionTimeout = uint32(min(seconds, math.MaxUint32))
+		seconds := math.Floor(customer.ExpiresAt.Sub(now).Seconds())
+		policy.SessionTimeout = uint32(max(1, min(seconds, math.MaxUint32)))
 	}
 	exceeded, err := m.radiusQuotaExceeded(ctx, customer, now)
 	if err != nil {

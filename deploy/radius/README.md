@@ -26,7 +26,7 @@ Back up the Master database. Before upgrading, manually clear the existing custo
 
 Create a customer with a single node or a policy, then connect using the customer's password. Verify that unauthorized nodes reject the login and that removing a policy member revokes access and schedules termination there. Set a default connection to enable Cisco Secure Client setup in the portal.
 
-Set a customer quota in bytes and an optional expiry under **Customer Management**. Traffic accounted for across nodes contributes to one quota, including traffic from earlier grants. Monthly usage resets at the beginning of each UTC month. An expired customer can still sign in to `/customer/` to see usage and change their password. Before expiry, the RADIUS reply includes the remaining session time as `Session-Timeout`.
+Set a customer quota in bytes and an optional VPN expiry date under **Customer Management**. New customers default to one calendar month from today. The Master stores the end of the selected day in the administrator’s current time zone as a UTC timestamp. Clear the date to remove the expiry. Traffic accounted for across nodes contributes to one quota, including traffic from earlier grants. Monthly usage resets at the beginning of each UTC month. An expired customer can still sign in to `/customer/` to see usage and change their password. Before expiry, the RADIUS reply includes the remaining session time as `Session-Timeout`.
 
 ## Radius Policies
 

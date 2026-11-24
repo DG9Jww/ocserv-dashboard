@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/repository"
@@ -53,8 +54,38 @@ type CustomerInput struct {
 	TrafficType   models.TrafficType `json:"traffic_type"`
 	TrafficSize   int64              `json:"traffic_size"`
 	ExpiresAt     *time.Time         `json:"expires_at"`
+	ExpiryDate    *string            `json:"expiry_date"`
+	ExpiryZone    string             `json:"expiry_timezone"`
 	DefaultNode   string             `json:"default_node"`
 	PolicyGroupID *string            `json:"policy_group_id"`
+}
+
+// ResolveExpiry keeps timestamp-based requests compatible and resolves calendar dates
+// against the time zone selected by the administrator.
+func (input CustomerInput) ResolveExpiry() (*time.Time, error) {
+	if input.ExpiryDate == nil {
+		return input.ExpiresAt, nil
+	}
+	if *input.ExpiryDate == "" {
+		return nil, nil
+	}
+	date, err := time.Parse(time.DateOnly, *input.ExpiryDate)
+	if err != nil || date.Year() < 1 || input.ExpiryZone == "" || input.ExpiryZone == "Local" {
+		return nil, ErrInvalid
+	}
+	zone, err := time.LoadLocation(input.ExpiryZone)
+	if err != nil {
+		return nil, ErrInvalid
+	}
+	end := time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 999_000_000, zone)
+	if end.Year() != date.Year() || end.Month() != date.Month() || end.Day() != date.Day() {
+		return nil, ErrInvalid
+	}
+	utc := end.UTC()
+	if utc.Year() < 1 || utc.Year() > 9999 {
+		return nil, ErrInvalid
+	}
+	return &utc, nil
 }
 
 func (input CustomerInput) ValidateGrant() error {
@@ -195,6 +226,10 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 	if !input.TrafficType.IsValid() || input.TrafficSize < 0 {
 		return ErrInvalid
 	}
+	expiresAt, err := input.ResolveExpiry()
+	if err != nil {
+		return err
+	}
 	return m.store.Transaction(ctx, func(tx *repository.PortalRepository) error {
 		nodes, err := m.grantNodes(ctx, tx, input.Node, input.PolicyGroupID)
 		if err != nil {
@@ -221,7 +256,10 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 		}
 		customer.Node, customer.PolicyGroupID, customer.DefaultNode = input.Node, input.PolicyGroupID, input.DefaultNode
 		if updateLimits {
-			customer.TrafficType, customer.TrafficSize, customer.ExpiresAt = input.TrafficType, input.TrafficSize, input.ExpiresAt
+			customer.TrafficType, customer.TrafficSize = input.TrafficType, input.TrafficSize
+		}
+		if updateLimits || input.ExpiryDate != nil {
+			customer.ExpiresAt = expiresAt
 		}
 		if id == "" || input.Password != "" {
 			if err := setPassword(&customer, input.Password); err != nil {

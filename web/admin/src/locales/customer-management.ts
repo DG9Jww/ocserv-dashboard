@@ -45,10 +45,13 @@ export const customerManagementMessages = {
     grantHelp:
       "Choose one node or one RADIUS policy. The default connection appears in the customer portal.",
     sharedQuotaHelp: "This quota is shared across all VPN nodes.",
-    expiresAt: "VPN expiry",
-    expiryNever: "Never expires",
+    expiresAt: "VPN expiry date",
     expiresAtHelp:
-      "Leave blank for no expiry. Enter the time in your current time zone.",
+      "Access ends at the end of the selected day in your current time zone. Leave blank for no expiry.",
+    expiryOneMonth: "1 month",
+    expiryThreeMonths: "3 months",
+    expiryOneYear: "1 year",
+    expiryNever: "Never expires",
     policyNodesHelp: "A policy with no nodes grants no VPN access.",
     permission: "Only superadmins can manage customers and RADIUS policies.",
     changeGrantHelp:
@@ -180,10 +183,13 @@ export const customerManagementMessages = {
     grantHelp:
       "Scegli un nodo o un criterio RADIUS. La connessione predefinita appare nel portale clienti.",
     sharedQuotaHelp: "La quota è condivisa tra tutti i nodi VPN.",
-    expiresAt: "Scadenza VPN",
-    expiryNever: "Nessuna scadenza",
+    expiresAt: "Data di scadenza VPN",
     expiresAtHelp:
-      "Lascia vuoto per non impostare una scadenza. Inserisci l’ora nel tuo fuso orario.",
+      "L’accesso termina alla fine del giorno scelto nel tuo fuso orario. Lascia vuoto per non impostare una scadenza.",
+    expiryOneMonth: "1 mese",
+    expiryThreeMonths: "3 mesi",
+    expiryOneYear: "1 anno",
+    expiryNever: "Nessuna scadenza",
     policyNodesHelp: "Un criterio senza nodi non concede accesso VPN.",
     permission:
       "Solo i superamministratori possono gestire clienti e criteri RADIUS.",
@@ -313,9 +319,12 @@ export const customerManagementMessages = {
     grantRequired: "请选择一个节点或一条 RADIUS 策略。",
     grantHelp: "请选择一个节点或一条 RADIUS 策略。默认连接显示在客户门户。",
     sharedQuotaHelp: "此额度由所有 VPN 节点共享。",
-    expiresAt: "VPN 到期时间",
+    expiresAt: "VPN 到期日期",
+    expiresAtHelp: "到期日当天有效，按当前时区计算。留空表示永不过期。",
+    expiryOneMonth: "一个月",
+    expiryThreeMonths: "三个月",
+    expiryOneYear: "一年",
     expiryNever: "永不过期",
-    expiresAtHelp: "留空表示永不过期。填写时使用当前时区。",
     policyNodesHelp: "未分配节点的策略不会授予 VPN 访问权限。",
     permission: "只有超级管理员可以管理客户和 RADIUS 策略。",
     changeGrantHelp:
@@ -440,9 +449,12 @@ export const customerManagementMessages = {
     grantRequired: "請選擇一個節點或一條 RADIUS 原則。",
     grantHelp: "請選擇一個節點或一條 RADIUS 原則。預設連線顯示於客戶入口網站。",
     sharedQuotaHelp: "此配額由所有 VPN 節點共用。",
-    expiresAt: "VPN 到期時間",
+    expiresAt: "VPN 到期日期",
+    expiresAtHelp: "到期日當天有效，依目前時區計算。留空代表永不到期。",
+    expiryOneMonth: "一個月",
+    expiryThreeMonths: "三個月",
+    expiryOneYear: "一年",
     expiryNever: "永不到期",
-    expiresAtHelp: "留空代表永不到期。填寫時使用目前時區。",
     policyNodesHelp: "未指派節點的原則不會授予 VPN 存取權限。",
     permission: "只有超級管理員可以管理客戶與 RADIUS 原則。",
     changeGrantHelp:
@@ -570,10 +582,13 @@ export const customerManagementMessages = {
     grantHelp:
       "Выберите узел или политику RADIUS. Подключение по умолчанию отображается в личном кабинете.",
     sharedQuotaHelp: "Квота общая для всех узлов VPN.",
-    expiresAt: "Срок действия VPN",
-    expiryNever: "Без срока",
+    expiresAt: "Дата окончания доступа к VPN",
     expiresAtHelp:
-      "Пустое поле означает бессрочный доступ. Укажите время в текущем часовом поясе.",
+      "Доступ заканчивается в конце выбранного дня в вашем часовом поясе. Пустое поле означает бессрочный доступ.",
+    expiryOneMonth: "1 месяц",
+    expiryThreeMonths: "3 месяца",
+    expiryOneYear: "1 год",
+    expiryNever: "Без срока",
     policyNodesHelp: "Политика без узлов не предоставляет доступ к VPN.",
     permission:
       "Управлять клиентами и политиками RADIUS могут только суперадминистраторы.",
@@ -706,10 +721,13 @@ export const customerManagementMessages = {
     grantHelp:
       "یک گره یا یک سیاست RADIUS انتخاب کنید. اتصال پیش‌فرض در درگاه مشتری نمایش داده می‌شود.",
     sharedQuotaHelp: "این سهمیه بین همهٔ گره‌های VPN مشترک است.",
-    expiresAt: "زمان انقضای VPN",
-    expiryNever: "بدون انقضا",
+    expiresAt: "تاریخ انقضای VPN",
     expiresAtHelp:
-      "برای دسترسی بدون انقضا خالی بگذارید. زمان را در منطقهٔ زمانی فعلی وارد کنید.",
+      "دسترسی در پایان روز انتخاب‌شده در منطقهٔ زمانی شما پایان می‌یابد. برای دسترسی بدون انقضا خالی بگذارید.",
+    expiryOneMonth: "۱ ماه",
+    expiryThreeMonths: "۳ ماه",
+    expiryOneYear: "۱ سال",
+    expiryNever: "بدون انقضا",
     policyNodesHelp: "سیاست بدون گره دسترسی VPN نمی‌دهد.",
     permission:
       "فقط مدیران ارشد می‌توانند مشتریان و سیاست‌های RADIUS را مدیریت کنند.",
@@ -842,10 +860,13 @@ export const customerManagementMessages = {
     grantHelp:
       "اختر عقدة واحدة أو سياسة RADIUS واحدة. يظهر الاتصال الافتراضي في بوابة العميل.",
     sharedQuotaHelp: "هذه الحصة مشتركة بين جميع عقد VPN.",
-    expiresAt: "انتهاء صلاحية VPN",
-    expiryNever: "بلا انتهاء",
+    expiresAt: "تاريخ انتهاء صلاحية VPN",
     expiresAtHelp:
-      "اتركه فارغًا لصلاحية غير محدودة. أدخل الوقت حسب منطقتك الزمنية الحالية.",
+      "ينتهي الوصول في نهاية اليوم المحدد حسب منطقتك الزمنية. اترك الحقل فارغًا لصلاحية غير محدودة.",
+    expiryOneMonth: "شهر واحد",
+    expiryThreeMonths: "٣ أشهر",
+    expiryOneYear: "سنة واحدة",
+    expiryNever: "بلا انتهاء",
     policyNodesHelp: "السياسة التي لا تحتوي على عقد لا تمنح وصولًا إلى VPN.",
     permission: "يمكن للمشرفين المتميزين فقط إدارة العملاء وسياسات RADIUS.",
     changeGrantHelp:
