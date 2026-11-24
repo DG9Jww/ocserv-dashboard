@@ -149,24 +149,24 @@ type radiusTermination struct {
 }
 
 func (m *Master) AccountRadius(ctx context.Context, packet repository.RadiusAccounting) error {
+	var id string
+	var err error
 	if packet.Event == models.EventHandshake {
-		customer, err := m.store.ByUsername(ctx, packet.Username)
-		if err != nil {
-			return fmt.Errorf("find accounting customer: %w", err)
+		customer, lookupErr := m.store.ByUsername(ctx, packet.Username)
+		if lookupErr != nil {
+			return fmt.Errorf("find accounting customer: %w", lookupErr)
 		}
-		grant, _, err := m.radiusGrant(ctx, customer, packet.Node)
-		if err != nil {
-			return fmt.Errorf("check accounting node grant: %w", err)
+		grant, _, grantErr := m.radiusGrant(ctx, customer, packet.Node)
+		if grantErr != nil {
+			return fmt.Errorf("check accounting node grant: %w", grantErr)
 		}
-		bound, err := m.store.HasAuthorizedRadiusSession(ctx, grant, packet)
-		if err != nil {
-			return fmt.Errorf("check authorized accounting session: %w", err)
-		}
-		if !bound {
+		id, err = m.store.StartRadiusSession(ctx, grant, packet)
+		if err == nil && id == "" {
 			return fmt.Errorf("check authorized accounting session: %w", ErrRadiusRejected)
 		}
+	} else {
+		id, err = m.store.RecordRadius(ctx, packet)
 	}
-	id, err := m.store.RecordRadius(ctx, packet)
 	if err != nil {
 		return fmt.Errorf("record accounting event: %w", err)
 	}

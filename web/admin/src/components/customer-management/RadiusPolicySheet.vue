@@ -63,6 +63,11 @@ const fields = [
     label: "downloadKBPerSecond",
     hint: "downloadLimitHint",
   },
+  {
+    key: "max_connections",
+    label: "maxConnections",
+    hint: "maxConnectionsHint",
+  },
 ] as const;
 
 const form = reactive({
@@ -73,6 +78,7 @@ const form = reactive({
   routes: "",
   upload_kb_per_second: "" as string | number,
   download_kb_per_second: "" as string | number,
+  max_connections: "" as string | number,
 });
 
 watch(
@@ -90,6 +96,9 @@ watch(
     form.download_kb_per_second = policy?.download_kb_per_second
       ? String(policy.download_kb_per_second)
       : "";
+    form.max_connections = policy?.max_connections
+      ? String(policy.max_connections)
+      : "";
   },
   { immediate: true },
 );
@@ -104,6 +113,7 @@ function submit() {
     routes: form.routes.split(/\s+/).filter(Boolean),
     upload_kb_per_second: Number(form.upload_kb_per_second),
     download_kb_per_second: Number(form.download_kb_per_second),
+    max_connections: Number(form.max_connections),
   });
 }
 </script>
@@ -145,7 +155,15 @@ function submit() {
           <dd v-else-if="field.key === 'secondary_dns' && form.primary_dns">
             —
           </dd>
-          <dd v-else>{{ label("nodePolicyDefaults") }}</dd>
+          <dd v-else>
+            {{
+              label(
+                field.key === "max_connections"
+                  ? "noConnectionLimit"
+                  : "nodePolicyDefaults",
+              )
+            }}
+          </dd>
         </div>
       </dl>
 

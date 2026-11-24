@@ -12,7 +12,7 @@ import (
 func TestFreshMigrationSetIsCompleteAndUnique(t *testing.T) {
 	master := bootstrap.MigrationsFor(false)
 	agent := bootstrap.MigrationsFor(true)
-	require.Len(t, master, 16)
+	require.Len(t, master, 17)
 	require.Len(t, agent, 10)
 	require.Equal(t, "008_create_ocserv_agents", master[7].ID)
 	require.Equal(t, "009_create_agent_tokens", agent[7].ID)
@@ -21,6 +21,7 @@ func TestFreshMigrationSetIsCompleteAndUnique(t *testing.T) {
 	require.Equal(t, "019_customer_radius_policy_groups", master[13].ID)
 	require.Equal(t, "020_unified_radius_authorization", master[14].ID)
 	require.Equal(t, "021_customer_login_protection", master[15].ID)
+	require.Equal(t, "022_radius_connection_limits", master[16].ID)
 
 	seen := make(map[string]struct{}, len(master))
 	for _, migration := range master {

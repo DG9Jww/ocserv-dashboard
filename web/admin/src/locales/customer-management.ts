@@ -37,6 +37,10 @@ export const customerManagementMessages = {
     secondaryDNS: "Secondary IPv4 DNS",
     uploadKBPerSecond: "Upload limit (kB/s)",
     downloadKBPerSecond: "Download limit (kB/s)",
+    maxConnections: "Maximum VPN connections per customer",
+    maxConnectionsHint:
+      "Enter a whole number. The limit is shared across all assigned nodes. Leave blank or enter 0 for no additional limit.",
+    noConnectionLimit: "No additional limit",
     policyInvalid:
       "Enter a name, valid IPv4 DNS servers and up to 32 IPv4 CIDRs. A secondary DNS server requires a primary server.",
     manageGrants: "Manage access",
@@ -191,6 +195,10 @@ export const customerManagementMessages = {
     secondaryDNS: "DNS IPv4 secondario",
     uploadKBPerSecond: "Limite upload (kB/s)",
     downloadKBPerSecond: "Limite download (kB/s)",
+    maxConnections: "Connessioni VPN massime per cliente",
+    maxConnectionsHint:
+      "Inserisci un numero intero. Il limite è condiviso tra tutti i nodi assegnati. Lascia vuoto o inserisci 0 per non imporre un limite aggiuntivo.",
+    noConnectionLimit: "Nessun limite aggiuntivo",
     policyInvalid:
       "Inserisci un nome, DNS IPv4 validi e fino a 32 CIDR IPv4. Il DNS secondario richiede quello primario.",
     manageGrants: "Gestisci accesso",
@@ -344,6 +352,10 @@ export const customerManagementMessages = {
     secondaryDNS: "备用 IPv4 DNS",
     uploadKBPerSecond: "上传限速（kB/s）",
     downloadKBPerSecond: "下载限速（kB/s）",
+    maxConnections: "每位客户的最大并发 VPN 连接数",
+    maxConnectionsHint:
+      "请输入整数。所有已分配节点共享此上限。留空或填 0 表示不额外限制。",
+    noConnectionLimit: "不额外限制",
     policyInvalid:
       "请输入名称、有效的 IPv4 DNS 和最多 32 条 IPv4 CIDR。填写备用 DNS 时也要填写主 DNS。",
     manageGrants: "管理授权",
@@ -490,6 +502,10 @@ export const customerManagementMessages = {
     secondaryDNS: "備用 IPv4 DNS",
     uploadKBPerSecond: "上傳限速（kB/s）",
     downloadKBPerSecond: "下載限速（kB/s）",
+    maxConnections: "每位客戶的最大同時 VPN 連線數",
+    maxConnectionsHint:
+      "請輸入整數。所有已指派節點共用此上限。留空或填 0 表示不另外限制。",
+    noConnectionLimit: "不另外限制",
     policyInvalid:
       "請輸入名稱、有效的 IPv4 DNS 和最多 32 個 IPv4 CIDR。填寫備用 DNS 時也需填寫主要 DNS。",
     manageGrants: "管理授權",
@@ -638,6 +654,10 @@ export const customerManagementMessages = {
     secondaryDNS: "Дополнительный DNS IPv4",
     uploadKBPerSecond: "Лимит отправки (кБ/с)",
     downloadKBPerSecond: "Лимит загрузки (кБ/с)",
+    maxConnections: "Максимум VPN-подключений на клиента",
+    maxConnectionsHint:
+      "Введите целое число. Лимит общий для всех назначенных узлов. Оставьте пустым или введите 0, чтобы не вводить дополнительное ограничение.",
+    noConnectionLimit: "Без дополнительного ограничения",
     policyInvalid:
       "Укажите название, допустимые DNS IPv4 и до 32 IPv4 CIDR. Для дополнительного DNS нужен основной.",
     manageGrants: "Управление доступом",
@@ -793,6 +813,10 @@ export const customerManagementMessages = {
     secondaryDNS: "DNS ثانویه IPv4",
     uploadKBPerSecond: "محدودیت بارگذاری (kB/s)",
     downloadKBPerSecond: "محدودیت دریافت (kB/s)",
+    maxConnections: "حداکثر اتصال هم‌زمان VPN برای هر مشتری",
+    maxConnectionsHint:
+      "یک عدد صحیح وارد کنید. این سقف میان همهٔ گره‌های تخصیص‌یافته مشترک است. برای اعمال نکردن محدودیت اضافی، خالی بگذارید یا ۰ وارد کنید.",
+    noConnectionLimit: "بدون محدودیت اضافی",
     policyInvalid:
       "نام، DNS معتبر IPv4 و حداکثر ۳۲ CIDR وارد کنید. DNS ثانویه به DNS اصلی نیاز دارد.",
     manageGrants: "مدیریت دسترسی",
@@ -948,6 +972,10 @@ export const customerManagementMessages = {
     secondaryDNS: "DNS IPv4 الثانوي",
     uploadKBPerSecond: "حد الرفع (kB/s)",
     downloadKBPerSecond: "حد التنزيل (kB/s)",
+    maxConnections: "الحد الأقصى لاتصالات VPN المتزامنة لكل عميل",
+    maxConnectionsHint:
+      "أدخل عددًا صحيحًا. ينطبق الحد على مجموع الاتصالات عبر كل العقد المعيّنة. اتركه فارغًا أو أدخل 0 لعدم فرض حد إضافي.",
+    noConnectionLimit: "بلا حد إضافي",
     policyInvalid:
       "أدخل اسمًا وخوادم DNS IPv4 صالحة وما يصل إلى 32 نطاق CIDR. يتطلب DNS الثانوي تحديد الأساسي.",
     manageGrants: "إدارة الوصول",

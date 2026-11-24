@@ -68,6 +68,7 @@ export interface CustomerPolicyGroup {
   routes: string[];
   upload_kb_per_second: number;
   download_kb_per_second: number;
+  max_connections: number;
 }
 export interface Assignment {
   customer_id: string;

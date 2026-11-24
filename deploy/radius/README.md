@@ -51,7 +51,10 @@ Open **System → Radius Policies** on the Master to create and manage shared VP
 | IPv4 routes | Enter up to 32 IPv4 networks in CIDR notation, one per line, such as `192.168.10.0/24`. Leave blank to use the node routes. |
 | Upload limit | Enter a whole number in kB/s for traffic sent by the client, such as `500`. Leave blank or enter `0` to use the node limit. |
 | Download limit | Enter a whole number in kB/s for traffic received by the client, such as `2000`. Leave blank or enter `0` to use the node limit. |
+| Maximum VPN connections per customer | For example, enter `2` to allow two concurrent sessions in total across all nodes assigned to each customer. Leave blank or enter `0` to apply no additional limit. |
 
 One kB is 1,000 bytes. Changes apply at the next full VPN authentication.
+
+The Master reserves a slot per RADIUS accounting session before accepting authentication. A Stop frees the slot immediately. Reservations and sessions with no fresh accounting for five minutes stop counting. Limited policies request 60-second interim updates. Keep `stats-report-time = 60` on all nodes so Master can also track sessions established before a limit was set. A brief reconnect using the same cookie shares the same accounting session. A node that keeps serving VPN traffic while its accounting path is down can temporarily undercount after the five-minute grace period. Lowering a limit blocks additional sessions while the account is at or above that limit. Established sessions are allowed to finish. Each node still applies its own `max-same-clients` setting.
 
 The Master sends the policy through the existing FreeRADIUS REST callback. Use `groupconfig=true` on participating nodes. The FreeRADIUS and radcli dictionaries must recognize the Microsoft DNS and Roaring Penguin speed-limit attributes listed in [Ocserv's RADIUS documentation](https://gitlab.com/openconnect/ocserv/-/raw/1.6.0/doc/README-radius.md#L97).

@@ -37,6 +37,7 @@ type PortalPolicyGroup struct {
 	Routes              []string `json:"routes" gorm:"serializer:json;type:jsonb"`
 	UploadKBPerSecond   uint32   `json:"upload_kb_per_second"`
 	DownloadKBPerSecond uint32   `json:"download_kb_per_second"`
+	MaxConnections      uint32   `json:"max_connections"`
 }
 
 type PortalAssignment struct {

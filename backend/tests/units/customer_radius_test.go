@@ -45,8 +45,8 @@ func TestRecordRadiusStartUpdatesLockedSession(t *testing.T) {
 	mock.ExpectQuery(`^SELECT \* FROM "portal_radius_sessions" WHERE node = \$1 AND session_id = \$2 LIMIT \$3 FOR UPDATE$`).
 		WithArgs(packet.Node, packet.SessionID, 1).
 		WillReturnRows(sqlmock.NewRows([]string{"customer_id", "rx", "tx", "started", "stopped"}).AddRow(customerID, 0, 0, false, false))
-	mock.ExpectExec(`^UPDATE "portal_radius_sessions" SET "rx"=\$1,"started"=\$2,"stopped"=\$3,"tx"=\$4 WHERE node = \$5 AND session_id = \$6$`).
-		WithArgs(0, true, false, 0, packet.Node, packet.SessionID).WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec(`^UPDATE "portal_radius_sessions" SET "last_seen_at"=GREATEST\(last_seen_at, \$1\),"rx"=\$2,"started"=\$3,"stopped"=\$4,"tx"=\$5 WHERE node = \$6 AND session_id = \$7$`).
+		WithArgs(packet.At, 0, true, false, 0, packet.Node, packet.SessionID).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec(`^INSERT INTO "portal_radius_events"`).
 		WithArgs(packet.At, customerID, packet.Event, packet.IP, packet.Node, 0, 0).WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectCommit()
@@ -97,7 +97,7 @@ func TestRadiusCallbackAuthorize(t *testing.T) {
 	require.Equal(t, http.StatusNoContent, request(secret).Code)
 	stub.policy.Network = models.PortalPolicyGroup{
 		PrimaryDNS: "10.1.0.53", SecondaryDNS: "10.1.0.54",
-		Routes: []string{"10.1.0.0/24", "192.168.10.0/24"}, UploadKBPerSecond: 2000, DownloadKBPerSecond: 8000,
+		Routes: []string{"10.1.0.0/24", "192.168.10.0/24"}, UploadKBPerSecond: 2000, DownloadKBPerSecond: 8000, MaxConnections: 2,
 	}
 	out = request(secret)
 	require.Equal(t, http.StatusOK, out.Code)
@@ -106,6 +106,7 @@ func TestRadiusCallbackAuthorize(t *testing.T) {
 		"reply:MS-Secondary-DNS-Server":"10.1.0.54",
 		"reply:Framed-Route":{"op":"+=","value":["10.1.0.0/24","192.168.10.0/24"]},
 		"reply:RP-Upstream-Speed-Limit":2000,
+		"reply:Acct-Interim-Interval":60,
 		"reply:RP-Downstream-Speed-Limit":8000
 	}`, out.Body.String())
 	stub.err = federation.ErrRadiusRejected

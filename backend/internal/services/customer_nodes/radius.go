@@ -167,6 +167,9 @@ func RadiusHandler(master radiusBackend, secret string) http.Handler {
 				reply["reply:Session-Timeout"] = policy.SessionTimeout
 			}
 			network := policy.Network
+			if network.MaxConnections > 0 {
+				reply["reply:Acct-Interim-Interval"] = 60
+			}
 			if network.PrimaryDNS != "" {
 				reply["reply:MS-Primary-DNS-Server"] = network.PrimaryDNS
 			}

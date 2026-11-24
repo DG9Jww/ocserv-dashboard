@@ -24,78 +24,134 @@ type radiusSession struct {
 	Started, Stopped bool
 }
 
-// BindRadiusSession checks the grant and credential version again at the point of authorization.
+// Sessions occupy a slot while authorization is pending or accounting is current.
+const radiusSessionGrace = 5 * time.Minute
+
+// BindRadiusSession reserves a slot before the Access-Accept goes out.
 func (r *PortalRepository) BindRadiusSession(ctx context.Context, customer models.PortalCustomer, assignment models.PortalAssignment, sessionID string) (bool, error) {
-	result := r.db.WithContext(ctx).Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)}).Exec(`
-		INSERT INTO portal_radius_sessions (node, session_id, customer_id)
-		SELECT a.node, ?, c.id
-		FROM portal_customers AS c
-		JOIN portal_assignments AS a ON a.customer_id = c.id
-		WHERE c.id = ? AND c.password_hash = ? AND NOT c.locked AND c.deleted_at IS NULL
-		  AND c.policy_group_id IS NOT DISTINCT FROM CAST(? AS uuid)
-          AND c.expires_at IS NOT DISTINCT FROM CAST(? AS timestamptz)
-          AND (c.expires_at IS NULL OR c.expires_at > now())
-		  AND (c.login_locked_until IS NULL OR c.login_locked_until <= now())
-          AND c.traffic_type = ? AND c.traffic_size = ?
-		  AND a.node = ? AND a.version = ? AND a.desired
-		ON CONFLICT (node, session_id) DO UPDATE SET customer_id = EXCLUDED.customer_id
-		WHERE portal_radius_sessions.customer_id = EXCLUDED.customer_id AND NOT portal_radius_sessions.stopped
-	`, sessionID, customer.ID, customer.PasswordHash, customer.PolicyGroupID, customer.ExpiresAt, customer.TrafficType, customer.TrafficSize, assignment.Node, assignment.Version)
-	return result.RowsAffected == 1, result.Error
+	var bound bool
+	err := r.db.WithContext(ctx).Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)}).Transaction(func(tx *gorm.DB) error {
+		if err := lockRadiusCustomer(tx, customer.ID); err != nil {
+			return err
+		}
+		now := time.Now().UTC()
+		result := tx.Exec(`
+			INSERT INTO portal_radius_sessions (node, session_id, customer_id, last_seen_at)
+			SELECT a.node, ?, c.id, ?
+			FROM portal_customers AS c
+			JOIN portal_assignments AS a ON a.customer_id = c.id
+			LEFT JOIN portal_policy_groups AS p ON p.id = c.policy_group_id
+			WHERE c.id = ? AND c.password_hash = ? AND NOT c.locked AND c.deleted_at IS NULL
+			  AND c.policy_group_id IS NOT DISTINCT FROM CAST(? AS uuid)
+			  AND c.expires_at IS NOT DISTINCT FROM CAST(? AS timestamptz)
+			  AND (c.expires_at IS NULL OR c.expires_at > ?)
+			  AND (c.login_locked_until IS NULL OR c.login_locked_until <= ?)
+			  AND c.traffic_type = ? AND c.traffic_size = ?
+			  AND a.node = ? AND a.version = ? AND a.desired
+			  AND (
+				COALESCE(p.max_connections, 0) = 0
+				OR EXISTS (
+					SELECT 1 FROM portal_radius_sessions AS s
+					WHERE s.node = a.node AND s.session_id = ? AND s.customer_id = c.id
+					  AND NOT s.stopped AND s.last_seen_at > ?
+				)
+				OR (
+					SELECT count(*) FROM portal_radius_sessions AS s
+					WHERE s.customer_id = c.id AND NOT s.stopped AND s.last_seen_at > ?
+				) < p.max_connections
+			  )
+			ON CONFLICT (node, session_id) DO UPDATE SET last_seen_at =
+				GREATEST(portal_radius_sessions.last_seen_at, EXCLUDED.last_seen_at)
+			WHERE portal_radius_sessions.customer_id = EXCLUDED.customer_id AND NOT portal_radius_sessions.stopped
+		`, sessionID, now, customer.ID, customer.PasswordHash, customer.PolicyGroupID, customer.ExpiresAt, now, now,
+			customer.TrafficType, customer.TrafficSize, assignment.Node, assignment.Version, sessionID, now.Add(-radiusSessionGrace), now.Add(-radiusSessionGrace))
+		bound = result.RowsAffected == 1
+		return result.Error
+	})
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+	return bound, err
 }
 
-// HasAuthorizedRadiusSession requires a password-authenticated session from the same node.
-func (r *PortalRepository) HasAuthorizedRadiusSession(ctx context.Context, assignment models.PortalAssignment, packet RadiusAccounting) (bool, error) {
-	var bound bool
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT EXISTS (
-			SELECT 1 FROM portal_radius_sessions AS s
-			JOIN portal_customers AS c ON c.id = s.customer_id
-			JOIN portal_assignments AS a ON a.customer_id = c.id AND a.node = s.node
-			WHERE s.node = ? AND s.session_id = ? AND NOT s.stopped
-			  AND c.id = ? AND c.username = ? AND NOT c.locked AND c.deleted_at IS NULL
-			  AND a.version = ? AND a.desired
-		)
-	`, packet.Node, packet.SessionID, assignment.CustomerID, packet.Username, assignment.Version).Scan(&bound).Error
-	return bound, err
+func lockRadiusCustomer(tx *gorm.DB, customerID string) error {
+	var customer models.PortalCustomer
+	return tx.Select("id").Clauses(clause.Locking{Strength: "UPDATE"}).Take(&customer, "id = ?", customerID).Error
+}
+
+// StartRadiusSession confirms the reservation using the same customer lock as authorization.
+func (r *PortalRepository) StartRadiusSession(ctx context.Context, assignment models.PortalAssignment, packet RadiusAccounting) (string, error) {
+	var id string
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := lockRadiusCustomer(tx, assignment.CustomerID); err != nil {
+			return err
+		}
+		var bound bool
+		now := time.Now().UTC()
+		err := tx.Raw(`
+			SELECT EXISTS (
+				SELECT 1 FROM portal_radius_sessions AS s
+				JOIN portal_customers AS c ON c.id = s.customer_id
+				JOIN portal_assignments AS a ON a.customer_id = c.id AND a.node = s.node
+				LEFT JOIN portal_policy_groups AS p ON p.id = c.policy_group_id
+				WHERE s.node = ? AND s.session_id = ? AND NOT s.stopped
+				  AND c.id = ? AND c.username = ? AND NOT c.locked AND c.deleted_at IS NULL
+				  AND a.version = ? AND a.desired
+				  AND (s.started OR COALESCE(p.max_connections, 0) = 0 OR s.last_seen_at > ?)
+			)
+		`, packet.Node, packet.SessionID, assignment.CustomerID, packet.Username, assignment.Version, now.Add(-radiusSessionGrace)).Scan(&bound).Error
+		if err != nil || !bound {
+			return err
+		}
+		id, err = recordRadius(tx, packet)
+		return err
+	})
+	return id, err
 }
 
 // RecordRadius credits increases in cumulative counters to the authenticated customer ID.
 func (r *PortalRepository) RecordRadius(ctx context.Context, packet RadiusAccounting) (string, error) {
 	var id string
 	err := r.db.WithContext(ctx).Transaction(func(db *gorm.DB) error {
-		// Keep the locking read's FROM clause out of the UPDATE.
-		key := db.Table("portal_radius_sessions").
-			Where("node = ? AND session_id = ?", packet.Node, packet.SessionID).
-			Session(&gorm.Session{})
-		var state radiusSession
-		err := key.Clauses(clause.Locking{Strength: "UPDATE"}).Take(&state).Error
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		id = state.CustomerID
-		if state.Stopped || (state.Started && packet.Event == models.EventHandshake) {
-			return nil
-		}
-		rx, sent := max(packet.RX, state.RX), max(packet.TX, state.TX)
-		if state.Started && packet.Event == models.EventPeriodicStats && rx == state.RX && sent == state.TX {
-			return nil
-		}
-		err = key.Updates(map[string]any{
-			"rx": rx, "tx": sent, "started": true, "stopped": packet.Event == models.EventDisconnect,
-		}).Error
-		if err != nil {
-			return err
-		}
-		return db.Table("portal_radius_events").Create(map[string]any{
-			"customer_id": id, "node": packet.Node, "created_at": packet.At, "event": packet.Event, "ip": packet.IP,
-			"rx": rx - state.RX, "tx": sent - state.TX,
-		}).Error
+		var err error
+		id, err = recordRadius(db, packet)
+		return err
 	})
 	return id, err
+}
+
+func recordRadius(db *gorm.DB, packet RadiusAccounting) (string, error) {
+	// Keep the locking read's FROM clause out of the UPDATE.
+	key := db.Table("portal_radius_sessions").
+		Where("node = ? AND session_id = ?", packet.Node, packet.SessionID).
+		Session(&gorm.Session{})
+	var state radiusSession
+	err := key.Clauses(clause.Locking{Strength: "UPDATE"}).Take(&state).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	id := state.CustomerID
+	if state.Stopped || (state.Started && packet.Event == models.EventHandshake) {
+		return id, nil
+	}
+	rx, sent := max(packet.RX, state.RX), max(packet.TX, state.TX)
+	err = key.Updates(map[string]any{
+		"rx": rx, "tx": sent, "started": true, "stopped": packet.Event == models.EventDisconnect,
+		"last_seen_at": gorm.Expr("GREATEST(last_seen_at, ?)", packet.At),
+	}).Error
+	if err != nil {
+		return "", err
+	}
+	if state.Started && packet.Event == models.EventPeriodicStats && rx == state.RX && sent == state.TX {
+		return id, nil
+	}
+	return id, db.Table("portal_radius_events").Create(map[string]any{
+		"customer_id": id, "node": packet.Node, "created_at": packet.At, "event": packet.Event, "ip": packet.IP,
+		"rx": rx - state.RX, "tx": sent - state.TX,
+	}).Error
 }
 
 func (r *PortalRepository) radiusEvents(ctx context.Context, id, node string, from, until *time.Time) *gorm.DB {

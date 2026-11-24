@@ -55,6 +55,7 @@ function configuredFields(policy: CustomerPolicyGroup) {
     policy.routes?.length,
     policy.upload_kb_per_second,
     policy.download_kb_per_second,
+    policy.max_connections,
   ].filter(Boolean).length;
 }
 </script>
