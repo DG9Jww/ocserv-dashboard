@@ -13,6 +13,14 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Sheet,
   SheetClose,
   SheetContent,
@@ -166,25 +174,6 @@ function submit() {
               :disabled="pending"
             />
           </Field>
-          <fieldset class="grid gap-2">
-            <legend class="text-sm font-medium">{{ label("nodes") }}</legend>
-            <p class="text-xs text-muted-foreground">
-              {{ label("policyNodesHelp") }}
-            </p>
-            <label
-              v-for="node in nodes"
-              :key="node.id"
-              class="flex items-center gap-2 text-sm"
-            >
-              <input
-                v-model="form.nodes"
-                type="checkbox"
-                :value="node.id"
-                :disabled="pending"
-              />
-              {{ node.id === "master" ? label("master") : node.name }}
-            </label>
-          </fieldset>
           <Field v-for="field in fields" :key="field.key">
             <FieldLabel :for="field.key">{{ label(field.label) }}</FieldLabel>
             <Textarea
@@ -219,6 +208,34 @@ function submit() {
             />
             <FieldDescription :id="field.key + '-hint'">{{
               label(field.hint)
+            }}</FieldDescription>
+          </Field>
+          <Field>
+            <FieldLabel for="radius-policy-nodes">{{
+              label("assignNodes")
+            }}</FieldLabel>
+            <Select v-model="form.nodes" multiple :disabled="pending">
+              <SelectTrigger
+                id="radius-policy-nodes"
+                class="w-full"
+                aria-describedby="radius-policy-nodes-help"
+              >
+                <SelectValue :placeholder="label('unassigned')" />
+              </SelectTrigger>
+              <SelectContent align="start">
+                <SelectGroup>
+                  <SelectItem
+                    v-for="node in nodes"
+                    :key="node.id"
+                    :value="node.id"
+                  >
+                    {{ node.id === "master" ? label("master") : node.name }}
+                  </SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+            <FieldDescription id="radius-policy-nodes-help">{{
+              label("policyNodesHelp")
             }}</FieldDescription>
           </Field>
         </FieldGroup>

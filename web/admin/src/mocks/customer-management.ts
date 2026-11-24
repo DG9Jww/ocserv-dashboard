@@ -1,6 +1,7 @@
 import type {
   Assignment,
   CustomerPolicyGroup,
+  CustomerLoginProtection,
   Inventory,
   PortalCustomer,
   PortalCustomerInput,
@@ -12,6 +13,11 @@ import { cloneMock } from "@/mocks/utils";
 const policyGroups: CustomerPolicyGroup[] = [];
 const customers: PortalCustomer[] = [];
 let assignments: Assignment[] = [];
+let loginProtection: CustomerLoginProtection = {
+  max_failures: 5,
+  window_minutes: 15,
+  lock_minutes: 15,
+};
 
 function reconcile() {
   for (const customer of customers) {
@@ -47,6 +53,16 @@ function saveByID<T extends { id: string }>(items: T[], value: T) {
 }
 
 export const mockCustomerManagement = {
+  loginProtection() {
+    return cloneMock(loginProtection);
+  },
+  saveLoginProtection(policy: CustomerLoginProtection) {
+    loginProtection = cloneMock(policy);
+  },
+  unlockLogin(id: string) {
+    const customer = customers.find((item) => item.id === id);
+    if (customer) delete customer.login_locked_until;
+  },
   async inventory(): Promise<Inventory> {
     const agents = await getMockAgents();
     const nodes = [

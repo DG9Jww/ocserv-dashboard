@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { MoreHorizontal, Plus, RefreshCw, Search, Users } from "@lucide/vue";
+import { useTimestamp } from "@vueuse/core";
 import { useI18n } from "vue-i18n";
 import {
   deletePortalCustomer,
   savePortalCustomer,
   setPortalCustomerLocked,
+  unlockPortalCustomerLogin,
   type Assignment,
   type PortalCustomer,
   type PortalCustomerInput,
@@ -90,20 +92,32 @@ const editorCustomer = ref<PortalCustomer>();
 const syncOpen = ref(false);
 const syncCustomer = ref<PortalCustomer>();
 const actionOpen = ref(false);
-const action = ref<"lock" | "unlock" | "delete">("lock");
+const action = ref<"lock" | "unlock" | "unlockLogin" | "delete">("lock");
 const actionCustomer = ref<PortalCustomer>();
 const pending = ref(false);
 const mutationError = ref("");
 const success = ref("");
 
+const now = useTimestamp({ interval: 1000 });
+function loginIsLocked(customer: PortalCustomer) {
+  return Boolean(
+    customer.login_locked_until &&
+    Date.parse(customer.login_locked_until) > now.value,
+  );
+}
 const filtered = computed(() => {
   const query = search.value.trim().toLowerCase();
   return (data.value?.customers ?? []).filter((customer) => {
-    if (!customer.username.toLowerCase().includes(query)) return false;
+    if (
+      !customer.username.toLowerCase().includes(query) &&
+      !customer.email?.toLowerCase().includes(query)
+    )
+      return false;
     if (filter.value === "all") return true;
     return (
       !customer.deleted_at &&
-      Boolean(customer.locked) === (filter.value === "locked")
+      (Boolean(customer.locked) || loginIsLocked(customer)) ===
+        (filter.value === "locked")
     );
   });
 });
@@ -198,7 +212,9 @@ async function submitAction() {
     () =>
       action.value === "delete"
         ? deletePortalCustomer(customer.id)
-        : setPortalCustomerLocked(customer.id, action.value === "lock"),
+        : action.value === "unlockLogin"
+          ? unlockPortalCustomerLogin(customer.id)
+          : setPortalCustomerLocked(customer.id, action.value === "lock"),
     () => {
       actionOpen.value = false;
       if (action.value === "delete") filter.value = "all";
@@ -272,11 +288,12 @@ const description = computed(() =>
             <TableHeader
               ><TableRow>
                 <TableHead>{{ label("username") }}</TableHead>
+                <TableHead>{{ label("email") }}</TableHead>
                 <TableHead>{{ label("status") }}</TableHead>
                 <TableHead>{{ label("expiresAt") }}</TableHead>
                 <TableHead>{{ label("defaultConnection") }}</TableHead>
                 <TableHead>{{ label("policyGroup") }}</TableHead>
-                <TableHead>{{ label("syncStatus") }}</TableHead>
+                <TableHead>{{ label("nodeAccess") }}</TableHead>
                 <TableHead class="w-12"
                   ><span class="sr-only">{{
                     label("actions")
@@ -292,6 +309,9 @@ const description = computed(() =>
                 <TableCell class="font-medium">{{
                   customer.username
                 }}</TableCell>
+                <TableCell
+                  ><bdi>{{ customer.email || "—" }}</bdi></TableCell
+                >
                 <TableCell>
                   <Badge :variant="customer.locked ? 'secondary' : 'outline'">
                     {{
@@ -299,9 +319,37 @@ const description = computed(() =>
                         ? label("pendingRemove")
                         : customer.locked
                           ? label("locked")
-                          : label("enabled")
+                          : loginIsLocked(customer)
+                            ? label("loginTemporarilyLocked")
+                            : label("enabled")
                     }}
                   </Badge>
+                  <div
+                    v-if="
+                      loginIsLocked(customer) && customer.login_locked_until
+                    "
+                    class="mt-1 text-xs text-muted-foreground"
+                  >
+                    {{
+                      t("customerManagement.loginLockedUntil", {
+                        time: expiryFormat.format(
+                          new Date(customer.login_locked_until),
+                        ),
+                      })
+                    }}
+                  </div>
+                  <div
+                    v-else-if="customer.last_login_lock_at"
+                    class="mt-1 text-xs text-muted-foreground"
+                  >
+                    {{
+                      t("customerManagement.lastLoginLock", {
+                        time: expiryFormat.format(
+                          new Date(customer.last_login_lock_at),
+                        ),
+                      })
+                    }}
+                  </div>
                 </TableCell>
                 <TableCell class="whitespace-nowrap">
                   <time
@@ -343,7 +391,7 @@ const description = computed(() =>
                       size="sm"
                       variant="link"
                       @click="showSync(customer)"
-                      >{{ label("syncStatus") }} ({{ nodeCount }})</Button
+                      >{{ label("nodeAccess") }} ({{ nodeCount }})</Button
                     >
                   </template>
                   <span v-else class="text-muted-foreground">{{
@@ -381,6 +429,11 @@ const description = computed(() =>
                       >
                         {{ label(customer.locked ? "unlock" : "lock") }}
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        v-if="loginIsLocked(customer)"
+                        @select="confirm(customer, 'unlockLogin')"
+                        >{{ label("unlockLogin") }}</DropdownMenuItem
+                      >
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         class="text-destructive"
@@ -393,7 +446,7 @@ const description = computed(() =>
               </TableRow>
               <TableRow v-if="!visible.length">
                 <TableCell
-                  colspan="7"
+                  colspan="8"
                   class="h-28 text-center text-muted-foreground"
                 >
                   <Users class="mx-auto mb-2 size-5" aria-hidden="true" />
@@ -469,7 +522,7 @@ const description = computed(() =>
     <Sheet v-model:open="syncOpen">
       <SheetContent class="w-full overflow-y-auto sm:max-w-lg">
         <SheetHeader>
-          <SheetTitle>{{ label("syncStatus") }}</SheetTitle>
+          <SheetTitle>{{ label("nodeAccess") }}</SheetTitle>
           <SheetDescription>{{ syncCustomer?.username }}</SheetDescription>
         </SheetHeader>
         <ul class="divide-y px-4">

@@ -28,6 +28,18 @@ Create a customer with a single node or a policy, then connect using the custome
 
 Set a customer quota in bytes and an optional VPN expiry date under **Customer Management**. New customers default to one calendar month from today. The Master stores the end of the selected day in the administrator’s current time zone as a UTC timestamp. Clear the date to remove the expiry. Traffic accounted for across nodes contributes to one quota, including traffic from earlier grants. Monthly usage resets at the beginning of each UTC month. An expired customer can still sign in to `/customer/` to see usage and change their password. Before expiry, the RADIUS reply includes the remaining session time as `Session-Timeout`.
 
+## Customer login protection
+
+In **System → Settings → Customer Login Protection**, a super administrator can adjust the failure threshold, rolling observation window, and lock duration for all customers. The defaults are five consecutive wrong passwords within 15 minutes and a 15-minute lock. Master counts failed password checks from authorized VPN nodes and the customer portal together. A successful sign-in clears the count. Attempts during a lock do not extend it, and existing sessions continue. Use **Customer Management → Clear temporary login lock** to release a customer early. The administrator's account lock is independent.
+
+Migration 021 adds these settings and an optional customer email field without clearing existing data. Email is managed in Customer Management and is currently stored for future use.
+
+On an existing FreeRADIUS 3 installation, add the following line in the `authorize` section's `update request` block of the installed `ocserv_dashboard` virtual server. Keep the existing listener addresses and shared secrets. Run `freeradius -XC` before restarting FreeRADIUS. The field allows Master to recognize retransmissions of the same Access-Request.
+
+```text
+&Tmp-String-0 := "%{Packet-Authentication-Vector}"
+```
+
 ## Radius Policies
 
 Open **System → Radius Policies** on the Master to create and manage shared VPN settings. In **Customer Management**, select a policy or a single node. A policy can be saved with no nodes, which grants no VPN access. Customers assigned directly to a node use that node's network defaults. Clear all customer assignments before deleting a policy.

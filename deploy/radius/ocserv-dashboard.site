@@ -29,6 +29,7 @@ server ocserv_dashboard {
         }
         update request {
             &NAS-Identifier := "%{client:shortname}"
+            &Tmp-String-0 := "%{Packet-Authentication-Vector}"
             # FreeRADIUS already verified the packet. Do not serialize this binary attribute.
             &Message-Authenticator !* ANY
         }

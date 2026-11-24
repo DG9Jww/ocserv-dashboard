@@ -2,15 +2,16 @@ package federation
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/models"
 	logger "github.com/mmtaee/ocserv-dashboard/backend/internal/platform/logging"
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/repository"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -21,9 +22,9 @@ type RadiusPolicy struct {
 	Network        models.PortalPolicyGroup
 }
 
-func (m *Master) AuthorizeRadius(ctx context.Context, node, name, password, sessionID string) (RadiusPolicy, error) {
+func (m *Master) AuthorizeRadius(ctx context.Context, node, name, password, sessionID, packetVector string) (RadiusPolicy, error) {
 	policy := RadiusPolicy{}
-	if !ValidUsername(name) || !validPassword(password) || sessionID == "" || len(sessionID) > 128 {
+	if !ValidUsername(name) || password == "" || len(password) > 72 || sessionID == "" || len(sessionID) > 128 {
 		return policy, ErrRadiusRejected
 	}
 	customer, err := m.store.ByUsername(ctx, name)
@@ -33,10 +34,26 @@ func (m *Master) AuthorizeRadius(ctx context.Context, node, name, password, sess
 	if err != nil {
 		return policy, err
 	}
-	if customer.Locked || customer.DeletedAt != nil || bcrypt.CompareHashAndPassword(customer.PasswordHash, []byte(password)) != nil {
+	if customer.Locked || customer.DeletedAt != nil {
 		return policy, ErrRadiusRejected
 	}
 	row, policy, err := m.radiusGrant(ctx, customer, node)
+	if err != nil {
+		return policy, err
+	}
+	var requestKey *string
+	vector := strings.TrimPrefix(strings.ToLower(packetVector), "0x")
+	if len(vector) == 32 {
+		_, err := hex.DecodeString(vector)
+		if err == nil {
+			key := node + ":" + vector
+			requestKey = &key
+		}
+	}
+	accepted, err := m.verifyCustomerPassword(ctx, customer, password, requestKey)
+	if errors.Is(err, gorm.ErrRecordNotFound) || (err == nil && !accepted) {
+		return policy, ErrRadiusRejected
+	}
 	if err != nil {
 		return policy, err
 	}

@@ -20,7 +20,7 @@ import (
 )
 
 type radiusStub struct {
-	authorization [4]string
+	authorization [5]string
 	policy        federation.RadiusPolicy
 	err           error
 	packet        repository.RadiusAccounting
@@ -57,8 +57,8 @@ func TestRecordRadiusStartUpdatesLockedSession(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func (s *radiusStub) AuthorizeRadius(_ context.Context, node, username, password, sessionID string) (federation.RadiusPolicy, error) {
-	s.authorization = [4]string{node, username, password, sessionID}
+func (s *radiusStub) AuthorizeRadius(_ context.Context, node, username, password, sessionID, packetVector string) (federation.RadiusPolicy, error) {
+	s.authorization = [5]string{node, username, password, sessionID, packetVector}
 	return s.policy, s.err
 }
 
@@ -72,7 +72,8 @@ func TestRadiusCallbackAuthorize(t *testing.T) {
 	  "NAS-Identifier":{"type":"string","value":["agent-2"]},
 	  "User-Name":{"type":"string","value":["customer"]},
 	  "User-Password":{"type":"string","value":["example-password"]},
-	  "Acct-Session-Id":{"type":"string","value":["session"]}}
+	  "Acct-Session-Id":{"type":"string","value":["session"]},
+	  "Tmp-String-0":{"type":"string","value":["0x0123456789abcdef0123456789abcdef"]}}
 	`
 	stub := &radiusStub{policy: federation.RadiusPolicy{SessionTimeout: 60}}
 	const secret = "testing-only-callback-secret-value"
@@ -91,7 +92,7 @@ func TestRadiusCallbackAuthorize(t *testing.T) {
 	out := request(secret)
 	require.Equal(t, http.StatusOK, out.Code)
 	require.JSONEq(t, `{"reply:Session-Timeout":60}`, out.Body.String())
-	require.Equal(t, [4]string{"agent-2", "customer", "example-password", "session"}, stub.authorization)
+	require.Equal(t, [5]string{"agent-2", "customer", "example-password", "session", "0x0123456789abcdef0123456789abcdef"}, stub.authorization)
 	stub.policy = federation.RadiusPolicy{}
 	require.Equal(t, http.StatusNoContent, request(secret).Code)
 	stub.policy.Network = models.PortalPolicyGroup{

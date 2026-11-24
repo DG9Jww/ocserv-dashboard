@@ -13,6 +13,7 @@ import {
   type SystemConfig,
   type SystemUpdateData,
 } from "@/api/services/system";
+import CustomerLoginProtectionCard from "@/components/system/CustomerLoginProtectionCard.vue";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +43,9 @@ const release = shallowRef<{ current: string; latest: string } | null>(null),
   ocservOriginal = shallowRef<OcservConfig>({}),
   allowOcservUpdate = shallowRef(false),
   ocservError = shallowRef(""),
-  activeTab = shallowRef<"release" | "panel" | "ocserv">("release");
+  activeTab = shallowRef<"release" | "panel" | "ocserv" | "loginProtection">(
+    "release",
+  );
 const panel = reactive<SystemUpdateData>({
   auto_delete_inactive_users: false,
   client_profile_connection_name: "",
@@ -215,14 +218,25 @@ onMounted(refresh);
     <div class="flex flex-wrap items-center gap-2">
       <div class="flex flex-wrap gap-2" role="tablist">
         <Button
-          v-for="tab in ['release', 'panel', 'ocserv'] as const"
+          v-for="tab in [
+            'release',
+            'panel',
+            'ocserv',
+            'loginProtection',
+          ] as const"
           :key="tab"
           type="button"
           :variant="activeTab === tab ? 'default' : 'outline'"
           role="tab"
           :aria-selected="activeTab === tab"
           @click="activeTab = tab"
-          >{{ t(`systemSettings.tabs.${tab}`) }}</Button
+          >{{
+            t(
+              tab === "loginProtection"
+                ? "customerManagement.loginProtection"
+                : `systemSettings.tabs.${tab}`,
+            )
+          }}</Button
         >
       </div>
       <Button as-child variant="outline">
@@ -231,6 +245,7 @@ onMounted(refresh);
         }}</RouterLink>
       </Button>
     </div>
+    <CustomerLoginProtectionCard v-if="activeTab === 'loginProtection'" />
     <Card v-if="activeTab === 'release'"
       ><CardHeader
         ><CardTitle>{{ t("systemSettings.release") }}</CardTitle

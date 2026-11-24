@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/mail"
 	"regexp"
 	"slices"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 )
 
 var (
+	ErrEmail        = errors.New("customer_invalid_email")
 	ErrInvalid      = errors.New("invalid_customer_configuration")
 	ErrUnavailable  = errors.New("customer_nodes_unavailable")
 	ErrDefault      = errors.New("customer_default_unavailable")
@@ -49,6 +51,7 @@ func NewMaster(store *repository.PortalRepository, agents *repository.OcservAgen
 
 type CustomerInput struct {
 	Username      string             `json:"username"`
+	Email         *string            `json:"email"`
 	Password      string             `json:"password"`
 	Node          string             `json:"node"`
 	TrafficType   models.TrafficType `json:"traffic_type"`
@@ -226,6 +229,16 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 	if !input.TrafficType.IsValid() || input.TrafficSize < 0 {
 		return ErrInvalid
 	}
+	var email string
+	if input.Email != nil {
+		email = strings.TrimSpace(*input.Email)
+		if email != "" {
+			address, err := mail.ParseAddress(email)
+			if err != nil || address.Address != email || len(email) > 254 {
+				return ErrEmail
+			}
+		}
+	}
 	expiresAt, err := input.ResolveExpiry()
 	if err != nil {
 		return err
@@ -255,6 +268,9 @@ func (m *Master) SaveCustomer(ctx context.Context, id string, input CustomerInpu
 			return ErrUsername
 		}
 		customer.Node, customer.PolicyGroupID, customer.DefaultNode = input.Node, input.PolicyGroupID, input.DefaultNode
+		if input.Email != nil {
+			customer.Email = email
+		}
 		if updateLimits {
 			customer.TrafficType, customer.TrafficSize = input.TrafficType, input.TrafficSize
 		}
@@ -313,6 +329,7 @@ func (m *Master) SetCustomerStatus(ctx context.Context, id string, locked, remov
 			now := time.Now().UTC()
 			customer.DeletedAt = &now
 			customer.PasswordHash = []byte{}
+			customer.Email = ""
 			customer.PolicyGroupID = nil
 			customer.Node, customer.DefaultNode = "", ""
 		}

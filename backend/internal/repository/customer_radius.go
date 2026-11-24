@@ -35,6 +35,7 @@ func (r *PortalRepository) BindRadiusSession(ctx context.Context, customer model
 		  AND c.policy_group_id IS NOT DISTINCT FROM CAST(? AS uuid)
           AND c.expires_at IS NOT DISTINCT FROM CAST(? AS timestamptz)
           AND (c.expires_at IS NULL OR c.expires_at > now())
+		  AND (c.login_locked_until IS NULL OR c.login_locked_until <= now())
           AND c.traffic_type = ? AND c.traffic_size = ?
 		  AND a.node = ? AND a.version = ? AND a.desired
 		ON CONFLICT (node, session_id) DO UPDATE SET customer_id = EXCLUDED.customer_id

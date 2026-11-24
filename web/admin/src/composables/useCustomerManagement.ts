@@ -8,6 +8,7 @@ import { normalizeApiError } from "@/api/http";
 
 const messageKeys: Record<string, string> = {
   customer_invalid_username: "invalidUsername",
+  customer_invalid_email: "invalidEmail",
   customer_invalid_password: "invalidPassword",
   customer_grant_required: "grantRequired",
   invalid_customer_configuration: "invalid",

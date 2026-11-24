@@ -17,6 +17,9 @@ export interface PortalCustomer {
   locked?: boolean;
   deleted_at?: string;
   username: string;
+  email?: string;
+  login_locked_until?: string;
+  last_login_lock_at?: string;
   default_node: string;
   node: string;
   policy_group_id: string | null;
@@ -24,6 +27,38 @@ export interface PortalCustomer {
   traffic_size: number;
   expires_at: string | null;
 }
+export interface CustomerLoginProtection {
+  max_failures: number;
+  window_minutes: number;
+  lock_minutes: number;
+}
+
+export async function loadCustomerLoginProtection(): Promise<CustomerLoginProtection> {
+  if (isTestMode) return mockCustomerManagement.loginProtection();
+  return (
+    await httpClient.get<CustomerLoginProtection>(
+      url + "/login-protection",
+      master,
+    )
+  ).data;
+}
+
+export async function saveCustomerLoginProtection(
+  policy: CustomerLoginProtection,
+): Promise<void> {
+  if (isTestMode) return mockCustomerManagement.saveLoginProtection(policy);
+  await httpClient.patch(url + "/login-protection", policy, master);
+}
+
+export async function unlockPortalCustomerLogin(id: string): Promise<void> {
+  if (isTestMode) return mockCustomerManagement.unlockLogin(id);
+  await httpClient.post(
+    url + "/accounts/" + id + "/unlock-login",
+    undefined,
+    master,
+  );
+}
+
 export interface CustomerPolicyGroup {
   id: string;
   name: string;
@@ -63,7 +98,10 @@ export type PortalCustomerInput = Pick<
   "id" | "username" | "node" | "default_node" | "policy_group_id"
 > &
   Partial<
-    Pick<PortalCustomer, "traffic_type" | "traffic_size" | "expires_at">
+    Pick<
+      PortalCustomer,
+      "traffic_type" | "traffic_size" | "expires_at" | "email"
+    >
   > & {
     password: string;
     expiry_date?: string;

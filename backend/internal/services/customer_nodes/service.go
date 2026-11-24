@@ -59,6 +59,23 @@ func (a Agent) authenticate(next echo.HandlerFunc) echo.HandlerFunc {
 
 func RegisterAdmin(api *echo.Group, master *federation.Master, authenticate echo.MiddlewareFunc) {
 	group := api.Group("/customer-management", authenticate, middlewares.SuperadminPermission())
+	group.GET("/login-protection", func(c *echo.Context) error {
+		policy, err := master.LoginProtection(c.Request().Context())
+		if err != nil {
+			return failure(c, err)
+		}
+		return c.JSON(http.StatusOK, policy)
+	})
+	group.PATCH("/login-protection", func(c *echo.Context) error {
+		var policy models.PortalLoginProtection
+		if err := c.Bind(&policy); err != nil {
+			return failure(c, federation.ErrInvalid)
+		}
+		return saved(c, master.UpdateLoginProtection(c.Request().Context(), policy))
+	})
+	group.POST("/accounts/:id/unlock-login", func(c *echo.Context) error {
+		return saved(c, master.UnlockCustomerLogin(c.Request().Context(), c.Param("id")))
+	})
 	group.GET("", func(c *echo.Context) error {
 		result, err := master.Inventory(c.Request().Context())
 		if err != nil {
@@ -121,7 +138,7 @@ func failure(c *echo.Context, err error) error {
 	status, code := http.StatusServiceUnavailable, federation.ErrUnavailable.Error()
 	switch {
 	case errors.Is(err, federation.ErrInvalid), errors.Is(err, federation.ErrNoGrants),
-		errors.Is(err, federation.ErrUsername), errors.Is(err, federation.ErrPassword), errors.Is(err, federation.ErrInvalidPolicyGroup):
+		errors.Is(err, federation.ErrUsername), errors.Is(err, federation.ErrPassword), errors.Is(err, federation.ErrEmail), errors.Is(err, federation.ErrInvalidPolicyGroup):
 		status, code = http.StatusBadRequest, err.Error()
 	case errors.Is(err, federation.ErrPolicyGroupInUse):
 		status, code = http.StatusConflict, err.Error()

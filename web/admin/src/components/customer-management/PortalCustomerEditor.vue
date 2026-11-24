@@ -36,6 +36,7 @@ const label = (key: string, params: Record<string, string> = {}) =>
 const form = reactive({
   id: "",
   username: "",
+  email: "",
   password: "",
   default_node: "",
   traffic_type: "Free" as NonNullable<PortalCustomerInput["traffic_type"]>,
@@ -98,6 +99,7 @@ watch(open, (value) => {
   Object.assign(form, {
     id: customer?.id ?? "",
     username: customer?.username ?? "",
+    email: customer?.email ?? "",
     password: "",
     default_node: customer?.default_node ?? "",
     traffic_type: customer?.traffic_type ?? "Free",
@@ -123,6 +125,7 @@ function submit() {
     ...(props.grantsOnly
       ? {}
       : {
+          email: form.email.trim(),
           traffic_type: form.traffic_type,
           traffic_size: form.traffic_type === "Free" ? 0 : form.traffic_size,
           ...(props.customer && form.expiryDate === savedExpiryDate.value
@@ -184,6 +187,10 @@ function submit() {
           <span v-if="form.id" class="text-xs text-muted-foreground">{{
             label("passwordHint")
           }}</span>
+        </label>
+        <label v-if="!grantsOnly" class="grid gap-1 text-sm">
+          {{ label("emailOptional") }}
+          <Input v-model="form.email" type="email" maxlength="254" dir="ltr" />
         </label>
         <label class="grid gap-1 text-sm">
           {{ label("grantSelection") }}

@@ -20,7 +20,7 @@ import (
 )
 
 type radiusBackend interface {
-	AuthorizeRadius(context.Context, string, string, string, string) (federation.RadiusPolicy, error)
+	AuthorizeRadius(context.Context, string, string, string, string, string) (federation.RadiusPolicy, error)
 	AccountRadius(context.Context, repository.RadiusAccounting) error
 }
 
@@ -155,7 +155,7 @@ func RadiusHandler(master radiusBackend, secret string) http.Handler {
 			}
 			return
 		}
-		policy, err := master.AuthorizeRadius(ctx, attrs.field("NAS-Identifier"), attrs.field("User-Name"), attrs.field("User-Password"), attrs.field("Acct-Session-Id"))
+		policy, err := master.AuthorizeRadius(ctx, attrs.field("NAS-Identifier"), attrs.field("User-Name"), attrs.field("User-Password"), attrs.field("Acct-Session-Id"), attrs.field("Tmp-String-0"))
 		switch {
 		case errors.Is(err, federation.ErrRadiusRejected):
 			w.WriteHeader(http.StatusUnauthorized)

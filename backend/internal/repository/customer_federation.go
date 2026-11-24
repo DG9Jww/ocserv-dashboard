@@ -33,7 +33,7 @@ func (r *PortalRepository) SaveNew(ctx context.Context, value any) error {
 
 func (r *PortalRepository) UpdateCustomer(ctx context.Context, customer *models.PortalCustomer) error {
 	return r.db.WithContext(ctx).Model(customer).
-		Select("Locked", "DeletedAt", "PasswordHash", "PolicyGroupID", "Node", "DefaultNode", "TrafficType", "TrafficSize", "ExpiresAt").
+		Select("Email", "Locked", "DeletedAt", "PasswordHash", "PolicyGroupID", "Node", "DefaultNode", "TrafficType", "TrafficSize", "ExpiresAt").
 		Updates(customer).Error
 }
 

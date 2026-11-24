@@ -17,7 +17,6 @@ import (
 	"github.com/mmtaee/ocserv-dashboard/backend/internal/repository"
 	customerapi "github.com/mmtaee/ocserv-dashboard/backend/internal/usecase/customer_api"
 	"github.com/mmtaee/ocserv-dashboard/backend/pkg/request"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type Availability struct {
@@ -55,7 +54,11 @@ func (m *Master) signature(body string) string {
 
 func (m *Master) Login(ctx context.Context, input customerapi.Credentials) (*customerapi.LoginResponse, error) {
 	customer, err := m.store.ByUsername(ctx, input.Username)
-	if err != nil || customer.Locked || customer.DeletedAt != nil || bcrypt.CompareHashAndPassword(customer.PasswordHash, []byte(input.Password)) != nil {
+	if err != nil || customer.Locked || customer.DeletedAt != nil {
+		return nil, customerapi.ErrInvalidCredentials
+	}
+	accepted, err := m.verifyCustomerPassword(ctx, customer, input.Password, nil)
+	if err != nil || !accepted {
 		return nil, customerapi.ErrInvalidCredentials
 	}
 	expires := time.Now().Add(7 * time.Hour)
