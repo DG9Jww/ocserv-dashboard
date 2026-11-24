@@ -32,6 +32,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { Separator } from "@/components/ui/separator";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -48,7 +57,7 @@ import {
 } from "@/components/ui/table";
 import { useCustomerManagement } from "@/composables/useCustomerManagement";
 
-const { t } = useI18n({ useScope: "global" });
+const { t, n, locale } = useI18n({ useScope: "global" });
 const {
   label,
   data,
@@ -62,7 +71,15 @@ const {
 const search = ref("");
 const filter = ref("all");
 const page = ref(1);
-const pageSize = 20;
+const pageSizes = [10, 20, 50];
+const pageSize = ref(20);
+const expiryFormat = computed(
+  () =>
+    new Intl.DateTimeFormat(locale.value, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }),
+);
 const editorOpen = ref(false);
 const policyGroups = computed(() => data.value?.policy_groups ?? []);
 const policyNames = computed(
@@ -91,12 +108,15 @@ const filtered = computed(() => {
   });
 });
 const pages = computed(() =>
-  Math.max(1, Math.ceil(filtered.value.length / pageSize)),
+  Math.max(1, Math.ceil(filtered.value.length / pageSize.value)),
 );
 const visible = computed(() =>
-  filtered.value.slice((page.value - 1) * pageSize, page.value * pageSize),
+  filtered.value.slice(
+    (page.value - 1) * pageSize.value,
+    page.value * pageSize.value,
+  ),
 );
-watch([search, filter], () => {
+watch([search, filter, pageSize], () => {
   page.value = 1;
 });
 watch(pages, (count) => {
@@ -253,6 +273,7 @@ const description = computed(() =>
               ><TableRow>
                 <TableHead>{{ label("username") }}</TableHead>
                 <TableHead>{{ label("status") }}</TableHead>
+                <TableHead>{{ label("expiresAt") }}</TableHead>
                 <TableHead>{{ label("defaultConnection") }}</TableHead>
                 <TableHead>{{ label("policyGroup") }}</TableHead>
                 <TableHead>{{ label("syncStatus") }}</TableHead>
@@ -281,6 +302,15 @@ const description = computed(() =>
                           : label("enabled")
                     }}
                   </Badge>
+                </TableCell>
+                <TableCell class="whitespace-nowrap">
+                  <time
+                    v-if="customer.expires_at"
+                    :datetime="customer.expires_at"
+                  >
+                    {{ expiryFormat.format(new Date(customer.expires_at)) }}
+                  </time>
+                  <span v-else>{{ label("expiryNever") }}</span>
                 </TableCell>
                 <TableCell>{{
                   data?.nodes.some((node) => node.id === customer.default_node)
@@ -363,7 +393,7 @@ const description = computed(() =>
               </TableRow>
               <TableRow v-if="!visible.length">
                 <TableCell
-                  colspan="6"
+                  colspan="7"
                   class="h-28 text-center text-muted-foreground"
                 >
                   <Users class="mx-auto mb-2 size-5" aria-hidden="true" />
@@ -374,14 +404,66 @@ const description = computed(() =>
           </Table>
         </div>
       </CardContent>
-      <CardFooter v-if="pages > 1" class="justify-end gap-2">
-        <Button variant="outline" :disabled="page <= 1" @click="page--">{{
-          label("previous")
-        }}</Button>
-        <span class="text-sm tabular-nums">{{ page }} / {{ pages }}</span>
-        <Button variant="outline" :disabled="page >= pages" @click="page++">{{
-          label("next")
-        }}</Button>
+      <Separator />
+      <CardFooter
+        class="grid items-center justify-items-center gap-3 lg:grid-cols-[1fr_auto_1fr]"
+      >
+        <span
+          class="text-sm text-muted-foreground lg:justify-self-start"
+          aria-live="polite"
+        >
+          {{
+            t("reports.pageStatus", {
+              page: n(page),
+              pages: n(pages),
+              total: n(filtered.length),
+            })
+          }}
+        </span>
+        <Pagination
+          v-if="filtered.length"
+          v-slot="{ page: current }"
+          v-model:page="page"
+          class="w-auto lg:col-start-2"
+          :disabled="loading || pending"
+          :items-per-page="pageSize"
+          :sibling-count="1"
+          :total="filtered.length"
+          show-edges
+        >
+          <PaginationContent v-slot="{ items }">
+            <PaginationPrevious :label="t('reports.previous')" />
+            <template v-for="(item, index) in items" :key="index">
+              <PaginationItem
+                v-if="item.type === 'page'"
+                :value="item.value"
+                :is-active="item.value === current"
+              >
+                {{ n(item.value) }}
+              </PaginationItem>
+              <PaginationEllipsis
+                v-else
+                :index="index"
+                :label="t('reports.morePages')"
+              />
+            </template>
+            <PaginationNext :label="t('reports.next')" />
+          </PaginationContent>
+        </Pagination>
+        <label
+          class="flex items-center gap-2 text-sm lg:col-start-3 lg:justify-self-end"
+        >
+          {{ t("reports.pageSize") }}
+          <select
+            v-model.number="pageSize"
+            class="h-9 rounded-md border bg-background px-2"
+            :disabled="loading || pending"
+          >
+            <option v-for="size in pageSizes" :key="size" :value="size">
+              {{ n(size) }}
+            </option>
+          </select>
+        </label>
       </CardFooter>
     </Card>
     <Sheet v-model:open="syncOpen">

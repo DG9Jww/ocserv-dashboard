@@ -46,6 +46,7 @@ export const customerManagementMessages = {
       "Choose one node or one RADIUS policy. The default connection appears in the customer portal.",
     sharedQuotaHelp: "This quota is shared across all VPN nodes.",
     expiresAt: "VPN expiry",
+    expiryNever: "Never expires",
     expiresAtHelp:
       "Leave blank for no expiry. Enter the time in your current time zone.",
     policyNodesHelp: "A policy with no nodes grants no VPN access.",
@@ -180,6 +181,7 @@ export const customerManagementMessages = {
       "Scegli un nodo o un criterio RADIUS. La connessione predefinita appare nel portale clienti.",
     sharedQuotaHelp: "La quota è condivisa tra tutti i nodi VPN.",
     expiresAt: "Scadenza VPN",
+    expiryNever: "Nessuna scadenza",
     expiresAtHelp:
       "Lascia vuoto per non impostare una scadenza. Inserisci l’ora nel tuo fuso orario.",
     policyNodesHelp: "Un criterio senza nodi non concede accesso VPN.",
@@ -312,6 +314,7 @@ export const customerManagementMessages = {
     grantHelp: "请选择一个节点或一条 RADIUS 策略。默认连接显示在客户门户。",
     sharedQuotaHelp: "此额度由所有 VPN 节点共享。",
     expiresAt: "VPN 到期时间",
+    expiryNever: "永不过期",
     expiresAtHelp: "留空表示永不过期。填写时使用当前时区。",
     policyNodesHelp: "未分配节点的策略不会授予 VPN 访问权限。",
     permission: "只有超级管理员可以管理客户和 RADIUS 策略。",
@@ -438,6 +441,7 @@ export const customerManagementMessages = {
     grantHelp: "請選擇一個節點或一條 RADIUS 原則。預設連線顯示於客戶入口網站。",
     sharedQuotaHelp: "此配額由所有 VPN 節點共用。",
     expiresAt: "VPN 到期時間",
+    expiryNever: "永不到期",
     expiresAtHelp: "留空代表永不到期。填寫時使用目前時區。",
     policyNodesHelp: "未指派節點的原則不會授予 VPN 存取權限。",
     permission: "只有超級管理員可以管理客戶與 RADIUS 原則。",
@@ -567,6 +571,7 @@ export const customerManagementMessages = {
       "Выберите узел или политику RADIUS. Подключение по умолчанию отображается в личном кабинете.",
     sharedQuotaHelp: "Квота общая для всех узлов VPN.",
     expiresAt: "Срок действия VPN",
+    expiryNever: "Без срока",
     expiresAtHelp:
       "Пустое поле означает бессрочный доступ. Укажите время в текущем часовом поясе.",
     policyNodesHelp: "Политика без узлов не предоставляет доступ к VPN.",
@@ -702,6 +707,7 @@ export const customerManagementMessages = {
       "یک گره یا یک سیاست RADIUS انتخاب کنید. اتصال پیش‌فرض در درگاه مشتری نمایش داده می‌شود.",
     sharedQuotaHelp: "این سهمیه بین همهٔ گره‌های VPN مشترک است.",
     expiresAt: "زمان انقضای VPN",
+    expiryNever: "بدون انقضا",
     expiresAtHelp:
       "برای دسترسی بدون انقضا خالی بگذارید. زمان را در منطقهٔ زمانی فعلی وارد کنید.",
     policyNodesHelp: "سیاست بدون گره دسترسی VPN نمی‌دهد.",
@@ -837,6 +843,7 @@ export const customerManagementMessages = {
       "اختر عقدة واحدة أو سياسة RADIUS واحدة. يظهر الاتصال الافتراضي في بوابة العميل.",
     sharedQuotaHelp: "هذه الحصة مشتركة بين جميع عقد VPN.",
     expiresAt: "انتهاء صلاحية VPN",
+    expiryNever: "بلا انتهاء",
     expiresAtHelp:
       "اتركه فارغًا لصلاحية غير محدودة. أدخل الوقت حسب منطقتك الزمنية الحالية.",
     policyNodesHelp: "السياسة التي لا تحتوي على عقد لا تمنح وصولًا إلى VPN.",

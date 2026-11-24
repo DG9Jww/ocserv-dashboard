@@ -191,6 +191,23 @@ function submit() {
           </select>
         </label>
         <template v-if="!grantsOnly">
+          <div class="grid gap-1 text-sm">
+            <label for="customer-expiry">{{ label("expiresAt") }}</label>
+            <input
+              id="customer-expiry"
+              v-model="form.expiresAt"
+              type="datetime-local"
+              dir="ltr"
+              step="0.001"
+              aria-describedby="customer-expiry-help"
+              :class="selectClass"
+            />
+            <span
+              id="customer-expiry-help"
+              class="text-xs text-muted-foreground"
+              >{{ label("expiresAtHelp") }}</span
+            >
+          </div>
           <label class="grid gap-1 text-sm">
             {{ label("trafficPolicy") }}
             <select v-model="form.traffic_type" :class="selectClass">
@@ -212,19 +229,6 @@ function submit() {
             />
             <span class="text-xs text-muted-foreground">{{
               label("sharedQuotaHelp")
-            }}</span>
-          </label>
-          <label class="grid gap-1 text-sm">
-            {{ label("expiresAt") }}
-            <input
-              v-model="form.expiresAt"
-              type="datetime-local"
-              dir="ltr"
-              step="0.001"
-              :class="selectClass"
-            />
-            <span class="text-xs text-muted-foreground">{{
-              label("expiresAtHelp")
             }}</span>
           </label>
         </template>
